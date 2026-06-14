@@ -1,0 +1,216 @@
+<!-- مسیر فایل: app/templates/dashboard/customers.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<div class="max-w-7xl mx-auto">
+    
+    <!-- هدر صفحه -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="ph-fill ph-address-book text-primary-500"></i> دفترچه مشتریان هوشمند
+            </h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">مدیریت خریداران، درخواست‌ها و اتصال به قیف فروش</p>
+        </div>
+        <button onclick="openAddClientModal()" class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-primary-500/30 flex items-center gap-2 transition">
+            <i class="ph-bold ph-user-plus"></i> ثبت مشتری جدید
+        </button>
+    </div>
+
+    <!-- جدول / لیست مشتریان -->
+    <div class="bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
+        
+        <div class="p-5 border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/30 flex items-center justify-between">
+            <h3 class="font-bold text-slate-800 dark:text-white text-sm">لیست لیدهای فعال</h3>
+            <div class="relative w-64">
+                <i class="ph ph-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input type="text" id="searchClient" onkeyup="filterClients()" placeholder="جستجوی نام یا موبایل..." class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-lg py-2 pr-10 pl-4 outline-none focus:border-primary-500 text-xs">
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-right text-sm">
+                <thead class="bg-gray-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                    <tr>
+                        <th class="p-4 font-bold">نام مشتری</th>
+                        <th class="p-4 font-bold text-center">شماره موبایل</th>
+                        <th class="p-4 font-bold text-center">درخواست</th>
+                        <th class="p-4 font-bold text-center">بودجه / مبلغ</th>
+                        <th class="p-4 font-bold text-center">مرحله (قیف)</th>
+                        <th class="p-4 font-bold text-center">عملیات هوشمند</th>
+                    </tr>
+                </thead>
+                <tbody id="clientsTableBody" class="divide-y divide-gray-100 dark:divide-slate-700 text-slate-700 dark:text-slate-300">
+                    {% if clients %}
+                        {% for client in clients %}
+                        <tr class="hover:bg-primary-50/50 dark:hover:bg-slate-800/50 transition client-row">
+                            <td class="p-4 font-bold flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400 flex items-center justify-center font-bold text-xs">
+                                    {{ client.name[0] }}
+                                </div>
+                                <span class="client-name">{{ client.name }}</span>
+                            </td>
+                            <td class="p-4 text-center font-mono text-xs dir-ltr client-phone">{{ client.phone }}</td>
+                            <td class="p-4 text-center">
+                                <span class="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 py-1 rounded-lg text-xs font-bold border border-emerald-200 dark:border-emerald-800/50">
+                                    {% if client.deal_type_requested == 'SALE' %}خرید{% elif client.deal_type_requested == 'RENT' %}رهن و اجاره{% else %}مشارکت{% endif %}
+                                </span>
+                            </td>
+                            <td class="p-4 text-center font-mono text-xs text-primary-600 dark:text-primary-400 font-bold">
+                                {% if client.budget_limit > 0 %}
+                                    {{ "{:,.0f}".format(client.budget_limit) }} <span class="font-sans text-[10px] text-slate-400">تومان</span>
+                                {% else %}
+                                    نامشخص
+                                {% endif %}
+                            </td>
+                            <td class="p-4 text-center">
+                                <span class="bg-gray-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 px-3 py-1 rounded-full text-[10px] font-bold">
+                                    {{ client.funnel_stage.value }}
+                                </span>
+                            </td>
+                            <td class="p-4 text-center flex justify-center gap-2">
+                                <button onclick="aiClientMatch('{{ client.name }}')" class="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-bold py-1.5 px-3 rounded-lg text-xs shadow-sm flex items-center gap-1 transition" title="یافتن ملک مناسب با هوش مصنوعی">
+                                    <i class="ph-fill ph-magic-wand"></i> مچینگ AI
+                                </button>
+                                <button class="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 w-8 h-8 rounded-lg flex items-center justify-center transition">
+                                    <i class="ph-bold ph-pencil-simple"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="p-12 text-center text-slate-500">
+                                <i class="ph-fill ph-users-three text-5xl mb-3 opacity-50"></i>
+                                <p>هنوز هیچ مشتری در سیستم ثبت نشده است.</p>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // جستجوی زنده در جدول
+    function filterClients() {
+        const input = document.getElementById('searchClient').value.toLowerCase();
+        const rows = document.querySelectorAll('.client-row');
+        
+        rows.forEach(row => {
+            const name = row.querySelector('.client-name').innerText.toLowerCase();
+            const phone = row.querySelector('.client-phone').innerText.toLowerCase();
+            if (name.includes(input) || phone.includes(input)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    // شبیه‌سازی مچینگ AI
+    function aiClientMatch(clientName) {
+        Swal.fire({
+            title: 'در حال پردازش هوش مصنوعی...',
+            html: `هوش مصنوعی در حال بررسی تمام فایل‌های املاک برای تطابق با نیازهای <b>${clientName}</b> است.`,
+            timer: 2000,
+            timerProgressBar: true,
+            didOpen: () => { Swal.showLoading() }
+        }).then((result) => {
+            Swal.fire({
+                icon: 'success',
+                title: '۳ فایل متناسب یافت شد!',
+                text: 'فایل "آپارتمان 120 متری سجاد" با 94% تطابق بهترین گزینه است. آیا برای مشتری پیامک شود؟',
+                showCancelButton: true,
+                confirmButtonText: 'بله، ارسال کن',
+                cancelButtonText: 'بستن'
+            });
+        });
+    }
+
+    // باز کردن فرم پاپ‌آپ (Modal) برای ثبت مشتری جدید
+    function openAddClientModal() {
+        const isDark = document.documentElement.classList.contains('dark');
+        
+        Swal.fire({
+            title: 'ثبت مشتری جدید',
+            html: `
+                <div class="text-right space-y-4 mt-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-1">نام و نام خانوادگی *</label>
+                        <input id="swal-name" class="swal2-input w-full m-0 h-10 text-sm" placeholder="مثال: سارا محمدی">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">شماره موبایل *</label>
+                        <input id="swal-phone" dir="ltr" class="swal2-input w-full m-0 h-10 text-sm" placeholder="0912...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">نوع درخواست *</label>
+                        <select id="swal-deal" class="swal2-input w-full m-0 h-10 text-sm py-0">
+                            <option value="sale">خرید ملک</option>
+                            <option value="rent">رهن و اجاره</option>
+                            <option value="partnership">مشارکت / سرمایه‌گذاری</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">سقف بودجه (تومان)</label>
+                        <input id="swal-budget" dir="ltr" class="swal2-input w-full m-0 h-10 text-sm font-mono" placeholder="مثال: 5000000000">
+                    </div>
+                </div>
+            `,
+            background: isDark ? '#1e293b' : '#ffffff',
+            color: isDark ? '#f8fafc' : '#1e293b',
+            showCancelButton: true,
+            confirmButtonText: 'ذخیره در قیف فروش',
+            cancelButtonText: 'انصراف',
+            confirmButtonColor: '#3b82f6',
+            preConfirm: () => {
+                const name = document.getElementById('swal-name').value;
+                const phone = document.getElementById('swal-phone').value;
+                if (!name || !phone) {
+                    Swal.showValidationMessage('لطفاً نام و شماره موبایل را وارد کنید');
+                    return false;
+                }
+                return {
+                    name: name,
+                    phone: phone,
+                    deal_type_requested: document.getElementById('swal-deal').value,
+                    budget_limit: parseFloat(document.getElementById('swal-budget').value) || 0
+                }
+            }
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                // ارسال اطلاعات به بک‌اند با API
+                try {
+                    const res = await fetch("/api/clients/add", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(result.value)
+                    });
+                    
+                    if (res.ok) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'ثبت شد!',
+                            text: 'مشتری با موفقیت در دیتابیس و قیف فروش قرار گرفت.',
+                            timer: 2000,
+                            showConfirmButton: false
+                        }).then(() => {
+                            window.location.reload(); // رفرش صفحه برای دیدن مشتری جدید
+                        });
+                    } else {
+                        Swal.fire('خطا', 'مشکلی در ارتباط با سرور وجود دارد.', 'error');
+                    }
+                } catch (error) {
+                    Swal.fire('خطا', 'مشکل شبکه!', 'error');
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}

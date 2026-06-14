@@ -2,106 +2,126 @@
 
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-
-# فعلا دیتابیس را لود نمی‌کنیم تا فقط ظاهر (UI) را تست کنیم
-# from app.core.database import create_db_and_tables
+from sqlmodel import Session, select
+from app.core.models import Property, Client, Deal
+from app.core.database import create_db_and_tables, get_session  
+from app.api.properties_api import router as properties_router
+from app.api.auth_api import router as auth_router
+from app.api.clients_api import router as clients_router
+from app.api.deals_api import router as deals_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 EstateMind AI is starting...")
-    # در آینده: create_db_and_tables() و استارت کرون‌جاب‌ها
+    create_db_and_tables()
+    print("✅ Database is ready!")
     yield
     print("🛑 EstateMind AI is shutting down...")
 
+# تعریف اپلیکیشن اصلی (فقط یک بار!)
 app = FastAPI(
     title="EstateMind AI",
-    description="نسل جدید دستیار هوشمند و CRM املاک",
     version="3.0",
     lifespan=lifespan
 )
 
-# ایجاد پوشه استاتیک در صورت عدم وجود (برای جلوگیری از ارور)
-os.makedirs("app/static", exist_ok=True)
+# 👇 اتصال تمام APIهای هوش مصنوعی و لاگین 👇
+app.include_router(properties_router)
+app.include_router(auth_router)
+app.include_router(clients_router)
+app.include_router(deals_router)
 
-# معرفی پوشه استاتیک (CSS, JS, Images) و تمپلیت‌ها (HTML)
+# تنظیمات فایل‌های استاتیک و قالب‌های HTML
+os.makedirs("app/static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
-# --- یک روت تستی برای نمایش داشبورد جدید ---
-# --- یک روت تستی برای نمایش داشبورد جدید ---
+def check_auth(request: Request):
+    token = request.cookies.get("access_token")
+    if not token:
+        return False
+    return True
+
+# ==========================================
+# روت‌های HTML (رابط کاربری)
+# ==========================================
+
+
 @app.get("/")
 async def render_dashboard(request: Request):
-    """رندر کردن داشبورد اصلی سیستم"""
-    return templates.TemplateResponse(
-        request=request,
-        name="dashboard/index.html", 
-        context={"request": request, "page_title": "داشبورد مدیریت"}
-    )
+    if not check_auth(request): return RedirectResponse(url="/login")
+    return templates.TemplateResponse(request=request, name="dashboard/index.html", context={"request": request, "page_title": "داشبورد مدیریت"})
 
 @app.get("/funnel")
-async def render_funnel(request: Request):
-    """رندر کردن صفحه قیف فروش و مدیریت لیدها (مشتریان)"""
-    
-    # دیتای تستی برای نمایش ظاهر کانبان (بعداً از دیتابیس خوانده می‌شود)
+async def render_funnel(request: Request, session: Session = Depends(get_session)):
+    if not check_auth(request): return RedirectResponse(url="/login")
     stages = [
-        {"id": "stage-1", "name": "تماس اولیه (لید جدید)", "color": "border-blue-500", "bg": "bg-blue-50 dark:bg-blue-900/10"},
-        {"id": "stage-2", "name": "در حال بازدید", "color": "border-amber-500", "bg": "bg-amber-50 dark:bg-amber-900/10"},
-        {"id": "stage-3", "name": "جلسه و مذاکره", "color": "border-purple-500", "bg": "bg-purple-50 dark:bg-purple-900/10"},
-        {"id": "stage-4", "name": "قرارداد موفق", "color": "border-emerald-500", "bg": "bg-emerald-50 dark:bg-emerald-900/10"},
+        {"id": "لید جدید", "name": "تماس اولیه (لید جدید)", "color": "border-blue-500", "bg": "bg-blue-50 dark:bg-blue-900/10"},
+        {"id": "بازدید", "name": "در حال بازدید", "color": "border-amber-500", "bg": "bg-amber-50 dark:bg-amber-900/10"},
+        {"id": "جلسه در دفتر", "name": "جلسه و مذاکره", "color": "border-purple-500", "bg": "bg-purple-50 dark:bg-purple-900/10"},
+        {"id": "قرارداد موفق", "name": "قرارداد موفق", "color": "border-emerald-500", "bg": "bg-emerald-50 dark:bg-emerald-900/10"},
     ]
-    
-    return templates.TemplateResponse(
-        request=request,
-        name="dashboard/funnel.html", 
-        context={
-            "request": request, 
-            "page_title": "مدیریت قیف فروش (Kanban)",
-            "stages": stages
-        }
-    )
+    clients = session.exec(select(Client).order_by(Client.id.desc())).all()
+    return templates.TemplateResponse(request=request, name="dashboard/funnel.html", context={"request": request, "page_title": "مدیریت قیف فروش", "stages": stages, "clients": clients})
+
+@app.get("/properties")
+async def render_properties_list(request: Request, session: Session = Depends(get_session)):
+    if not check_auth(request): return RedirectResponse(url="/login")
+    properties_list = session.exec(select(Property).order_by(Property.id.desc())).all()
+    return templates.TemplateResponse(request=request, name="dashboard/properties_list.html", context={"request": request, "page_title": "مدیریت فایل‌ها", "properties": properties_list})
 
 @app.get("/properties/add")
 async def add_property(request: Request):
-    return templates.TemplateResponse(
-        request=request,
-        name="dashboard/add_property.html", 
-        context={
-            "request": request, 
-            "page_title": "ثبت فایل جدید (هوشمند)"
-        }
-    )
-
-# این بخش را به انتهای فایل app/main.py اضافه کنید
+    if not check_auth(request): return RedirectResponse(url="/login")
+    return templates.TemplateResponse(request=request, name="dashboard/add_property.html", context={"request": request, "page_title": "ثبت فایل جدید"})
 
 @app.get("/financials")
-async def render_financials(request: Request):
-    """رندر کردن صفحه گزارشات مالی، چارت‌ها و کمیسیون‌ها"""
-    return templates.TemplateResponse(
-        request=request,
-        name="dashboard/financials.html", 
-        context={
-            "request": request, 
-            "page_title": "گزارشات مالی و عملکرد"
-        }
-    )
-
-@app.get("/login")
-async def render_login(request: Request):
-    """رندر کردن صفحه ورود مدرن (بدون سایدبار)"""
-    return templates.TemplateResponse(
-        request=request,
-        name="auth/login.html", 
-        context={"request": request, "page_title": "ورود به EstateMind"}
-    )
+async def render_financials(request: Request, session: Session = Depends(get_session)):
+    if not check_auth(request): return RedirectResponse(url="/login")
+    deals = session.exec(select(Deal).order_by(Deal.id.desc())).all()
+    total_revenue = sum(d.commission_amount for d in deals) if deals else 0
+    office_share = total_revenue * 0.5
+    agent_share = total_revenue * 0.5
+    active_clients = session.exec(select(Client).where(Client.funnel_stage != "قرارداد موفق")).all()
+    available_properties = session.exec(select(Property).where(Property.status == "active")).all()
+    return templates.TemplateResponse(request=request, name="dashboard/financials.html", context={"request": request, "page_title": "گزارشات مالی", "deals": deals, "total_revenue": total_revenue, "office_share": office_share, "agent_share": agent_share, "clients": active_clients, "properties": available_properties})
 
 @app.get("/settings")
 async def render_settings(request: Request):
-    """رندر کردن صفحه تنظیمات، پروفایل و تیکت‌ها"""
-    return templates.TemplateResponse(
-        request=request,
-        name="dashboard/settings.html", 
-        context={"request": request, "page_title": "تنظیمات و پشتیبانی"}
-    )
+    if not check_auth(request): return RedirectResponse(url="/login")
+    return templates.TemplateResponse(request=request, name="dashboard/settings.html", context={"request": request, "page_title": "تنظیمات و پشتیبانی"})
+
+@app.get("/login")
+async def render_login(request: Request):
+    # اگر قبلا لاگین بود بفرستش داشبورد
+    if check_auth(request): return RedirectResponse(url="/")
+    return templates.TemplateResponse(request=request, name="auth/login.html", context={"request": request, "page_title": "ورود به EstateMind"})
+
+@app.get("/customers")
+async def render_customers(request: Request, session: Session = Depends(get_session)):
+    if not check_auth(request): return RedirectResponse(url="/login")
+    clients_list = session.exec(select(Client).order_by(Client.id.desc())).all()
+    return templates.TemplateResponse(request=request, name="dashboard/customers.html", context={"request": request, "page_title": "دفترچه مشتریان", "clients": clients_list})
+
+@app.get("/catalog/{client_id}")
+async def render_smart_catalog(client_id: int, request: Request, session: Session = Depends(get_session)):
+    """رندر کردن کاتالوگ اختصاصی برای ارسال به مشتری"""
+    
+    client = session.get(Client, client_id)
+    if not client:
+        return templates.TemplateResponse(request=request, name="auth/login.html", context={"request": request, "page_title": "یافت نشد"})
+    matched_properties = session.exec(select(Property).where(Property.status == "active").where(Property.deal_type == client.deal_type_requested)).all()
+    top_matches = matched_properties[:3]
+    return templates.TemplateResponse(request=request, name="showroom/catalog.html", context={"request": request, "page_title": f"پیشنهادات ویژه {client.name}", "client": client, "properties": top_matches})
+
+@app.get("/partnership")
+async def render_partnership(request: Request, session: Session = Depends(get_session)):
+    if not check_auth(request): return RedirectResponse(url="/login")
+    from app.core.models import DealType
+    lands = session.exec(select(Property).where(Property.deal_type == DealType.PARTNERSHIP).order_by(Property.id.desc())).all()
+    builders = session.exec(select(Client).where(Client.deal_type_requested == DealType.PARTNERSHIP).order_by(Client.id.desc())).all()
+    return templates.TemplateResponse(request=request, name="dashboard/partnership.html", context={"request": request, "page_title": "دپارتمان مشارکت", "lands": lands, "builders": builders})

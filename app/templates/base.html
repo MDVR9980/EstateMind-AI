@@ -68,10 +68,10 @@
             <a href="/properties/add" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
                 <i class="ph ph-house-line text-xl"></i> مدیریت فایل‌ها (ثبت جدید)
             </a>
-            <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
+            <a href="/customers" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
                 <i class="ph ph-users text-xl"></i> دفترچه مشتریان
             </a>
-            <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition relative">
+            <a href="/partnership" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition relative">
                 <i class="ph ph-handshake text-xl"></i> مشارکت در ساخت
                 <span class="absolute left-2 bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">جدید</span>
             </a>
@@ -88,9 +88,9 @@
 
         <!-- فوتر سایدبار (خروج) -->
         <div class="p-4 border-t border-gray-100 dark:border-slate-700">
-            <a href="/login" class="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-rose-500 hover:text-white dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-rose-600 transition font-bold">
+            <button onclick="logoutSystem()" class="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-rose-500 hover:text-white dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-rose-600 transition font-bold">
                 <i class="ph ph-sign-out text-xl"></i> خروج از سیستم
-            </a>
+            </button>
         </div>
     </aside>
 
@@ -159,5 +159,74 @@
             }
         }
     </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        // ۱. مدیریت تم تاریک و روشن
+        const htmlTag = document.documentElement;
+        const themeIcon = document.getElementById('theme-icon');
+
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            htmlTag.classList.add('dark');
+            themeIcon.classList.replace('ph-moon', 'ph-sun');
+        } else {
+            htmlTag.classList.remove('dark');
+            themeIcon.classList.replace('ph-sun', 'ph-moon');
+        }
+
+        function toggleTheme() {
+            htmlTag.classList.toggle('dark');
+            if (htmlTag.classList.contains('dark')) {
+                localStorage.setItem('theme', 'dark');
+                themeIcon.classList.replace('ph-moon', 'ph-sun');
+            } else {
+                localStorage.setItem('theme', 'light');
+                themeIcon.classList.replace('ph-sun', 'ph-moon');
+            }
+        }
+
+        // ۲. هایلایت کردن منوی فعال در سایدبار (Active Route)
+        document.addEventListener("DOMContentLoaded", () => {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll("aside nav a");
+            
+            navLinks.forEach(link => {
+                // اگر لینک دقیقاً با آدرس فعلی یکی بود
+                if (link.getAttribute("href") === currentPath || (currentPath.includes(link.getAttribute("href")) && link.getAttribute("href") !== "/")) {
+                    link.classList.remove("text-slate-600", "hover:bg-gray-100", "dark:text-slate-300", "dark:hover:bg-slate-800");
+                    link.classList.add("bg-primary-50", "text-primary-600", "dark:bg-primary-900/30", "dark:text-primary-400", "font-bold");
+                }
+            });
+        });
+
+        // ۳. تابع جهانی برای سه‌رقم سه‌رقم کردن قیمت‌ها در اینپوت‌ها (Global Number Formatter)
+        function formatNumberInput(inputElement) {
+            let val = inputElement.value.replace(/,/g, '');
+            if(isNaN(val) || val === '') {
+                inputElement.value = '';
+                return;
+            }
+            inputElement.value = parseInt(val).toLocaleString('en-US');
+        }
+        
+        // خروج از سیستم یکپارچه با SweetAlert
+        function logoutSystem() {
+            Swal.fire({
+                title: 'خروج از سیستم؟',
+                text: 'آیا مطمئن هستید می‌خواهید خارج شوید؟',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'بله، خروج',
+                cancelButtonText: 'انصراف'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    await fetch('/api/auth/logout', {method: 'POST'});
+                    window.location.href = '/login';
+                }
+            });
+        }
+    </script>
+
 </body>
 </html>

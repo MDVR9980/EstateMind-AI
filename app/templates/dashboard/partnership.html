@@ -1,0 +1,148 @@
+<!-- مسیر فایل: app/templates/dashboard/partnership.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<div class="max-w-7xl mx-auto h-full flex flex-col">
+    
+    <!-- هدر صفحه -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="ph-fill ph-handshake text-amber-500"></i> دپارتمان تخصصی مشارکت
+            </h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">مدیریت هوشمند مالکین (زمین) و سازندگان (سرمایه‌گذاران)</p>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="window.location.href='/properties/add'" class="bg-white dark:bg-darkcard border border-gray-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2.5 px-5 rounded-xl shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 transition">
+                ثبت زمین جدید
+            </button>
+            <button onclick="window.location.href='/customers'" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-amber-500/30 transition flex items-center gap-2">
+                <i class="ph-bold ph-hard-hat"></i> ثبت سازنده جدید
+            </button>
+        </div>
+    </div>
+
+    <!-- داشبورد دوگانه (Split Screen) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 pb-10">
+        
+        <!-- ================= ستون ۱: فایل‌های زمین (مالکین) ================= -->
+        <div class="bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col overflow-hidden">
+            <div class="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800/50 p-5 flex justify-between items-center">
+                <h3 class="font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                    <i class="ph-fill ph-map-trifold text-xl"></i> زمین‌ها / کلنگی (مالکین)
+                </h3>
+                <span class="bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full text-xs font-bold shadow-sm">{{ lands|length }} فایل</span>
+            </div>
+            
+            <div class="p-5 overflow-y-auto no-scrollbar space-y-4 flex-1">
+                {% if lands %}
+                    {% for land in lands %}
+                    <div class="border border-gray-100 dark:border-slate-700 rounded-2xl p-4 hover:shadow-md transition bg-gray-50/50 dark:bg-slate-800/50 group">
+                        <div class="flex justify-between items-start mb-3">
+                            <h4 class="font-bold text-slate-800 dark:text-white">{{ land.title }}</h4>
+                            <button onclick="findBuilderForLand('{{ land.title }}')" class="opacity-0 group-hover:opacity-100 bg-amber-100 text-amber-700 hover:bg-amber-200 px-2 py-1 rounded text-xs font-bold transition flex items-center gap-1">
+                                <i class="ph-fill ph-magic-wand"></i> یافتن سازنده
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-400 mb-3">
+                            <span class="flex items-center gap-1"><i class="ph-fill ph-map-pin"></i> {{ land.neighborhood }}</span>
+                            <span class="flex items-center gap-1"><i class="ph-fill ph-ruler"></i> {{ land.built_area }} متر</span>
+                            <span class="flex items-center gap-1"><i class="ph-fill ph-money"></i> بلاعوض: {{ "{:,.0f}".format(land.price_total) if land.price_total > 0 else 'توافقی' }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="h-full flex flex-col items-center justify-center text-slate-400 opacity-60">
+                        <i class="ph-fill ph-empty text-5xl mb-2"></i>
+                        <p class="text-sm">هیچ زمین یا ملک کلنگی ثبت نشده است.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ================= ستون ۲: سازندگان (سرمایه‌گذاران) ================= -->
+        <div class="bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col overflow-hidden">
+            <div class="bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800/50 p-5 flex justify-between items-center">
+                <h3 class="font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                    <i class="ph-fill ph-hard-hat text-xl"></i> سازندگان / سرمایه‌گذاران
+                </h3>
+                <span class="bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-full text-xs font-bold shadow-sm">{{ builders|length }} نفر</span>
+            </div>
+            
+            <div class="p-5 overflow-y-auto no-scrollbar space-y-4 flex-1">
+                {% if builders %}
+                    {% for builder in builders %}
+                    <div class="border border-gray-100 dark:border-slate-700 rounded-2xl p-4 hover:shadow-md transition bg-gray-50/50 dark:bg-slate-800/50 group">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs">{{ builder.name[0] }}</div>
+                                <div>
+                                    <h4 class="font-bold text-sm text-slate-800 dark:text-white">{{ builder.name }}</h4>
+                                    <p class="text-[10px] text-slate-500 dir-ltr text-right">{{ builder.phone }}</p>
+                                </div>
+                            </div>
+                            <button onclick="findLandForBuilder('{{ builder.name }}')" class="opacity-0 group-hover:opacity-100 bg-blue-100 text-blue-700 hover:bg-blue-200 px-2 py-1 rounded text-xs font-bold transition flex items-center gap-1">
+                                <i class="ph-fill ph-magnifying-glass"></i> پیشنهاد زمین
+                            </button>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-600 dark:text-slate-400 flex justify-between items-center">
+                            <span>توانایی پرداخت بلاعوض:</span>
+                            <span class="font-bold text-emerald-600 dark:text-emerald-400 font-mono">{{ "{:,.0f}".format(builder.budget_limit) if builder.budget_limit > 0 else 'نامحدود' }} <span class="font-sans text-[10px]">تومان</span></span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="h-full flex flex-col items-center justify-center text-slate-400 opacity-60">
+                        <i class="ph-fill ph-users-three text-5xl mb-2"></i>
+                        <p class="text-sm">هیچ سازنده‌ای در سیستم ثبت نشده است.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    function findBuilderForLand(landTitle) {
+        Swal.fire({
+            title: 'اسکن دیتابیس سازندگان 🧠',
+            html: `در حال بررسی توان مالی و رزومه سازندگان برای ملک <b>${landTitle}</b>...`,
+            timer: 2000,
+            timerProgressBar: true,
+            didOpen: () => { Swal.showLoading() }
+        }).then(() => {
+            Swal.fire({
+                icon: 'success',
+                title: 'تطابق طلایی یافت شد! 🏆',
+                html: `<p class="text-sm mb-4">آقای <b>علی رضایی</b> با توان مالی مناسب و نمونه کارهای مشابه در این منطقه، بهترین گزینه برای این زمین است.</p>`,
+                confirmButtonText: 'تنظیم جلسه در دفتر',
+                showCancelButton: true,
+                cancelButtonText: 'بستن'
+            });
+        });
+    }
+
+    function findLandForBuilder(builderName) {
+        Swal.fire({
+            title: 'جستجوی املاک کلنگی 🧠',
+            html: `در حال تطابق بودجه و متراژ درخواستی جناب <b>${builderName}</b> با زمین‌های موجود...`,
+            timer: 2000,
+            timerProgressBar: true,
+            didOpen: () => { Swal.showLoading() }
+        }).then(() => {
+            Swal.fire({
+                icon: 'success',
+                title: '۲ زمین مناسب یافت شد! 🎯',
+                html: `<p class="text-sm mb-4">یک مورد کلنگی در محله هاشمیه با شرایط ایده‌آل برای ساخت و ساز با بودجه ایشان همخوانی دارد.</p>`,
+                confirmButtonText: 'ارسال کاتالوگ ملک',
+                showCancelButton: true,
+                cancelButtonText: 'بستن'
+            });
+        });
+    }
+</script>
+{% endblock %}

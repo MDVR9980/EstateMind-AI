@@ -1,0 +1,95 @@
+<!-- مسیر فایل: app/templates/showroom/catalog.html -->
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Vazirmatn', 'sans-serif'] },
+                    colors: { primary: { 500: '#3b82f6', 600: '#2563eb', 900: '#1e3a8a' } }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen pb-20">
+
+    <!-- هدر اختصاصی مشتری -->
+    <header class="bg-primary-900 text-white pt-12 pb-16 px-6 rounded-b-[3rem] shadow-xl relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-primary-500/20 blur-3xl rounded-full"></div>
+        <div class="relative z-10 text-center">
+            <div class="w-16 h-16 bg-white/10 backdrop-blur-md rounded-full mx-auto flex items-center justify-center text-3xl mb-4 border border-white/20">
+                <i class="ph-fill ph-hand-waving"></i>
+            </div>
+            <h1 class="text-2xl font-bold mb-2">سلام {{ client.name }} عزیز</h1>
+            <p class="text-sm text-primary-200">هوش مصنوعی ما فایل‌های زیر را دقیقاً بر اساس نیازها و بودجه شما گلچین کرده است.</p>
+        </div>
+    </header>
+
+    <!-- کارت‌های املاک پیشنهاد شده -->
+    <main class="max-w-md mx-auto -mt-8 px-4 space-y-6 relative z-20">
+        
+        {% if properties %}
+            {% for prop in properties %}
+            <div class="bg-white rounded-3xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 overflow-hidden relative">
+                <!-- تگ نوع ملک -->
+                <div class="absolute top-5 left-5 bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-lg">
+                    {{ prop.property_type }}
+                </div>
+                
+                <h2 class="text-lg font-bold text-slate-800 pr-2 border-r-4 border-primary-500 mb-4">{{ prop.title }}</h2>
+                
+                <div class="bg-slate-50 rounded-2xl p-4 mb-4">
+                    <p class="text-xs text-slate-400 mb-1">قیمت نهایی:</p>
+                    <p class="text-lg font-bold text-primary-600 font-mono dir-ltr text-right">
+                        {% if prop.price_total > 0 %}
+                            {{ "{:,.0f}".format(prop.price_total) }} <span class="text-xs font-sans text-slate-500">تومان</span>
+                        {% else %}
+                            <span class="font-sans">توافقی</span>
+                        {% endif %}
+                    </p>
+                </div>
+
+                <div class="flex flex-wrap gap-2 text-xs font-bold text-slate-600 mb-4">
+                    <span class="bg-gray-100 px-3 py-1.5 rounded-lg flex items-center gap-1"><i class="ph-fill ph-ruler text-slate-400"></i> {{ prop.built_area }} متر</span>
+                    <span class="bg-gray-100 px-3 py-1.5 rounded-lg flex items-center gap-1"><i class="ph-fill ph-bed text-slate-400"></i> {{ prop.rooms }} خواب</span>
+                    <span class="bg-gray-100 px-3 py-1.5 rounded-lg flex items-center gap-1"><i class="ph-fill ph-map-pin text-slate-400"></i> {{ prop.neighborhood }}</span>
+                </div>
+
+                {% if prop.ai_pros %}
+                <div class="bg-emerald-50/50 border border-emerald-100 p-3 rounded-xl mb-4 text-xs">
+                    <p class="font-bold text-emerald-800 mb-1 flex items-center gap-1"><i class="ph-fill ph-check-circle"></i> نقاط قوت فایل:</p>
+                    <p class="text-emerald-600/80 leading-relaxed">{{ prop.ai_pros }}</p>
+                </div>
+                {% endif %}
+
+                <button class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl shadow-md flex items-center justify-center gap-2 mt-2">
+                    <i class="ph-fill ph-phone-call"></i> تماس برای هماهنگی بازدید
+                </button>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="bg-white rounded-3xl p-8 text-center shadow-lg border border-slate-100">
+                <i class="ph-fill ph-ghost text-5xl text-slate-300 mb-4"></i>
+                <p class="text-slate-500 text-sm font-bold">فعلاً فایلی متناسب با درخواست شما یافت نشد.</p>
+            </div>
+        {% endif %}
+
+    </main>
+
+    <!-- فوتر آژانس -->
+    <footer class="mt-12 text-center text-xs font-bold text-slate-400">
+        <p>ارسال شده از سیستم هوشمند املاک شما</p>
+        <p class="mt-1 opacity-50">Powered by EstateMind AI</p>
+    </footer>
+
+</body>
+</html>
