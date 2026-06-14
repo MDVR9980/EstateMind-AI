@@ -1,12 +1,9 @@
-# مسیر فایل: scripts/ghost_crawler.py
-
 import sys
 import os
 import time
 import random
 import re
 
-# اضافه کردن مسیر اصلی پروژه تا پایتون بتواند دیتابیس را بشناسد
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from playwright.sync_api import sync_playwright
@@ -23,7 +20,6 @@ def human_like_crawler(city: str, neighborhood: str, user_id: int):
     with sync_playwright() as p:
         human_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         try:
-            # باز کردن مرورگر به صورت کاملاً مخفی (Headless) با اطلاعات لاگین شما
             context = p.chromium.launch_persistent_context(
                 user_data_dir="./divar_profile", 
                 headless=True, 
@@ -52,7 +48,6 @@ def human_like_crawler(city: str, neighborhood: str, user_id: int):
                 }, 500);
             """)
 
-            # اسکرول هوشمند برای لود شدن آگهی‌ها
             for _ in range(15):
                 page.mouse.wheel(0, random.randint(1500, 3000))
                 page.wait_for_timeout(random.uniform(1000, 2000))
@@ -72,7 +67,6 @@ def human_like_crawler(city: str, neighborhood: str, user_id: int):
                     raw_token = href.split('/')[-1]
                     token = raw_token.split('?')[0]
                     
-                    # 🛡️ بررسی عدم تکرار در دیتابیس (جلوگیری از فایل تکراری)
                     if session.exec(select(Property).where(Property.divar_token == token)).first():
                         continue
                         
@@ -84,7 +78,6 @@ def human_like_crawler(city: str, neighborhood: str, user_id: int):
                     except: continue
                     page.wait_for_timeout(3000)
                     
-                    # دریافت شماره تلفن
                     contact_phone = "نیاز به لاگین"
                     try:
                         page.evaluate("document.querySelectorAll('button').forEach(b => { if(b.innerText.includes('اطلاعات تماس')) b.click(); });")
@@ -97,12 +90,10 @@ def human_like_crawler(city: str, neighborhood: str, user_id: int):
                         if phone_match: contact_phone = phone_match.group(1)
                     except: pass
 
-                    # استخراج متن کامل آگهی
                     try: full_text = page.locator("body").inner_text()
                     except: full_text = ""
                     if not full_text.strip(): continue
 
-                    # 🧠 ارسال به موتور هوش مصنوعی
                     ai_data = analyze_property_text(full_text)
                     
                     p_type = PropertyType.APARTMENT
@@ -110,7 +101,6 @@ def human_like_crawler(city: str, neighborhood: str, user_id: int):
                     elif ai_data.get("property_type") == "land": p_type = PropertyType.LAND
                     elif ai_data.get("property_type") == "commercial": p_type = PropertyType.COMMERCIAL
 
-                    # 💾 ذخیره نهایی در دیتابیس
                     new_prop = Property(
                         agency_id=1, created_by_id=user_id, divar_token=token,
                         title=ai_data.get("title", "فایل شکار شده"), property_type=p_type, deal_type=DealType.SALE,
@@ -124,11 +114,9 @@ def human_like_crawler(city: str, neighborhood: str, user_id: int):
                     session.commit()
                     session.refresh(new_prop)
                     
-                    # تزریق به پایگاه داده معنایی (ChromaDB)
                     try: add_property_to_vector_db(new_prop.id, new_prop.title, full_text, new_prop.property_type, "فروش", new_prop.neighborhood, new_prop.price_total)
                     except: pass
                     
-                    # 📱 ارسال آلارم تلگرام
                     send_telegram_alert(new_prop.title, new_prop.neighborhood, new_prop.price_total, contact_phone, "ربات خزنده‌ی دیوار")
                     
                     print(f"   ✅ فایل در سیستم ذخیره شد: {new_prop.title}")

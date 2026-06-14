@@ -1,13 +1,9 @@
-# مسیر فایل: app/core/models.py
-
 from sqlmodel import SQLModel, Field
 from typing import Optional
 from datetime import datetime
 from enum import Enum
 
-# ==========================================
-# 1. Enums (مقادیر ثابت سیستم)
-# ==========================================
+# Enums (مقادیر ثابت سیستم)
 class UserRole(str, Enum):
     SUPER_ADMIN = "SUPER_ADMIN"
     MANAGER = "MANAGER"
@@ -40,10 +36,7 @@ class DocumentType(str, Enum):
     COOPERATIVE = "تعاونی"
     OTHER = "سایر"
 
-# ==========================================
-# 2. Database Tables (جداول دیتابیس)
-# ==========================================
-
+# Database Tables (جداول دیتابیس)
 class Agency(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
@@ -69,48 +62,41 @@ class Property(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     agency_id: int = Field(foreign_key="agency.id", index=True)
     
-    # 1. اطلاعات پایه و موقعیت
     title: str
     property_type: PropertyType
     deal_type: DealType
     city: str = Field(default="مشهد")
     neighborhood: str = Field(index=True)
-    address: Optional[str] = None # آدرس دقیق (محرمانه)
+    address: Optional[str] = None #
     
-    # 2. مشخصات اصلی ساختمان
     built_area: Optional[float] = Field(default=0)
     land_area: Optional[float] = Field(default=0)
     rooms: int = Field(default=0)
-    age: Optional[int] = Field(default=0) # سن بنا
-    floor: Optional[int] = None # طبقه
-    total_floors: Optional[int] = None # تعداد کل طبقات
+    age: Optional[int] = Field(default=0)
+    floor: Optional[int] = None 
+    total_floors: Optional[int] = None
     
-    # 3. امکانات و شرایط (Features)
     has_elevator: bool = Field(default=False)
     has_parking: bool = Field(default=False)
-    has_store_room: bool = Field(default=False) # انباری
+    has_store_room: bool = Field(default=False)
     has_master_room: bool = Field(default=False)
-    cabinet_type: Optional[str] = None # MDF, هایگلاس و ...
-    floor_covering: Optional[str] = None # سرامیک، پارکت و ...
+    cabinet_type: Optional[str] = None
+    floor_covering: Optional[str] = None
     document_type: DocumentType = Field(default=DocumentType.SINGLE)
     
-    # 4. اطلاعات مالی
     price_total: Optional[float] = Field(default=0)
-    price_mortgage: Optional[float] = Field(default=0) # رهن
-    price_rent: Optional[float] = Field(default=0) # اجاره
+    price_mortgage: Optional[float] = Field(default=0)
+    price_rent: Optional[float] = Field(default=0)
     is_barter: bool = Field(default=False)
     
-    # 5. اطلاعات مالک (محرمانه)
     owner_name: Optional[str] = None
     owner_phone: Optional[str] = None
-    is_exclusive: bool = Field(default=False) # فایل شخصی یا مربوط به دفتر
+    is_exclusive: bool = Field(default=False)
     
-    # 6. هوش مصنوعی و توضیحات
     ai_pros: Optional[str] = None
     ai_cons: Optional[str] = None
     description: Optional[str] = None
     
-    # وضعیت سیستم
     status: str = Field(default="active") # active, archived, deleted
     created_by_id: Optional[int] = Field(default=None, foreign_key="users.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -134,24 +120,24 @@ class Deal(SQLModel, table=True):
     """جدول معاملات (برای داشبورد مالی و محاسبه کمیسیون)"""
     id: Optional[int] = Field(default=None, primary_key=True)
     agency_id: int = Field(foreign_key="agency.id", index=True)
-    user_id: int = Field(foreign_key="users.id") # مشاور ثبت‌کننده قرارداد
+    user_id: int = Field(foreign_key="users.id")
     client_id: int = Field(foreign_key="client.id")
     property_id: Optional[int] = Field(default=None, foreign_key="property.id")
-    deal_type: str # "فروش" یا "رهن و اجاره"
-    deal_price: float # مبلغ معامله
-    commission_amount: float # کمیسیون دریافتی
+    deal_type: str
+    deal_price: float
+    commission_amount: float
     deal_date: datetime = Field(default_factory=datetime.utcnow)
 
 class Reminder(SQLModel, table=True):
     """جدول یادآورها و تقویم کاری مشاوران"""
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.id", index=True) # مشاوری که یادآور برای اوست
-    client_id: Optional[int] = Field(default=None, foreign_key="client.id") # اگر یادآور مربوط به مشتری خاصی است
-    property_id: Optional[int] = Field(default=None, foreign_key="property.id") # اگر یادآور برای فایل خاصی است
-    title: str # موضوع یادآور (مثلا: بازدید از ملک سجاد)
-    description: Optional[str] = None # توضیحات تکمیلی
-    remind_date: datetime # تاریخ و زمان دقیق یادآوری
-    is_completed: bool = Field(default=False) # آیا انجام شده یا خیر؟
+    user_id: int = Field(foreign_key="users.id", index=True)
+    client_id: Optional[int] = Field(default=None, foreign_key="client.id")
+    property_id: Optional[int] = Field(default=None, foreign_key="property.id")
+    title: str 
+    description: Optional[str] = None
+    remind_date: datetime
+    is_completed: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class TicketStatus(str, Enum):
@@ -162,10 +148,10 @@ class TicketStatus(str, Enum):
 class Ticket(SQLModel, table=True):
     """جدول تیکت‌های پشتیبانی داخلی"""
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.id", index=True) # فرستنده تیکت
-    subject: str # موضوع درخواست
-    message: str # متن کامل
-    answer: Optional[str] = None # پاسخ مدیر (در صورت وجود)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    subject: str
+    message: str
+    answer: Optional[str] = None
     status: TicketStatus = Field(default=TicketStatus.PENDING)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

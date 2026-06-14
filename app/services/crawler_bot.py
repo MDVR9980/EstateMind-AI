@@ -1,5 +1,3 @@
-# مسیر فایل: app/services/crawler_bot.py
-
 import time
 from playwright.sync_api import sync_playwright
 from sqlmodel import Session, select

@@ -1,5 +1,3 @@
-<!-- مسیر فایل: app/templates/dashboard/properties_list.html -->
-
 {% extends "base.html" %}
 
 {% block content %}
@@ -102,7 +100,6 @@
                         {% if prop.has_parking %}<span class="flex items-center gap-1 text-emerald-600"><i class="ph-fill ph-car"></i> پارکینگ</span>{% endif %}
                     </div>
 
-                    <!-- دکمه‌های اکشن (جدید) -->
                     <div class="mt-auto flex flex-wrap gap-2">
                         <button onclick="aiMatch({{ prop.id }})" class="flex-1 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 text-white font-bold py-2 rounded-xl text-xs shadow-md flex items-center justify-center gap-1 transition">
                             <i class="ph-fill ph-magic-wand"></i> مچینگ

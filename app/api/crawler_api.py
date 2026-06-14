@@ -1,5 +1,3 @@
-# مسیر فایل: app/api/crawler_api.py
-
 import sys
 import subprocess
 from fastapi import APIRouter, Depends, HTTPException, Request

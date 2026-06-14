@@ -1,5 +1,3 @@
-# مسیر فایل: app/api/forms_api.py
-
 import os
 import shutil
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form

@@ -41,7 +41,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# 👇 اتصال تمام APIهای هوش مصنوعی و لاگین 👇
+
 app.include_router(properties_router)
 app.include_router(auth_router)
 app.include_router(clients_router)
@@ -56,7 +56,6 @@ app.include_router(superadmin_router)
 app.include_router(match_router)
 app.include_router(forms_router)
 
-# تنظیمات فایل‌های استاتیک و قالب‌های HTML
 os.makedirs("app/static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -64,10 +63,6 @@ templates = Jinja2Templates(directory="app/templates")
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-
-# ==========================================
-# روت‌های HTML (رابط کاربری) و محافظت امنیتی
-# ==========================================
 
 def get_current_user(request: Request, session: Session):
     """بررسی توکن و استخراج اطلاعات کاربری که لاگین کرده است"""
@@ -159,7 +154,7 @@ async def render_settings(request: Request, session: Session = Depends(get_sessi
             "page_title": "تنظیمات و مدارک",
             "user": user,
             "tickets": user_tickets,
-            "forms": agency_forms # 👈 ارسال فرم‌ها به قالب
+            "forms": agency_forms
         }
     )
 

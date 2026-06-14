@@ -1,5 +1,3 @@
-# مسیر فایل: app/services/ai_engine.py
-
 import os
 import json
 import re
@@ -8,7 +6,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# اتصال به سرورهای NVIDIA برای استفاده از مدل قدرتمند Mistral
 nvidia_client = None
 if os.getenv("NVIDIA_API_KEY"):
     try:
@@ -43,7 +40,7 @@ def analyze_property_text(ad_text: str) -> dict:
     """
 
     if not nvidia_client:
-        return _mock_ai_response() # اگر کلید API ست نشده بود، برای جلوگیری از کرش سیستم دیتای فیک می‌دهد
+        return _mock_ai_response()
 
     try:
         response = nvidia_client.chat.completions.create(
@@ -53,7 +50,6 @@ def analyze_property_text(ad_text: str) -> dict:
         )
         raw_output = response.choices[0].message.content.strip()
         
-        # استخراج هوشمندانه بلاک JSON در صورتی که AI متن اضافه تولید کرد
         json_match = re.search(r'```(?:json)?(.*?)```', raw_output, re.DOTALL)
         if json_match: 
             raw_output = json_match.group(1).strip()

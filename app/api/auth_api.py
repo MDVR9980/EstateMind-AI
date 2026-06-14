@@ -1,5 +1,3 @@
-# مسیر فایل: app/api/auth_api.py
-
 from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from pydantic import BaseModel
 from sqlmodel import Session, select

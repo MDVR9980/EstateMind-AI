@@ -1,5 +1,3 @@
-# مسیر فایل: app/core/security.py
-
 import os
 from datetime import datetime, timedelta
 import bcrypt

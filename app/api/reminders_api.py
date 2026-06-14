@@ -1,5 +1,3 @@
-# مسیر فایل: app/api/reminders_api.py
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session
