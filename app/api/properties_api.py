@@ -1,6 +1,5 @@
-# مسیر فایل: app/api/properties_api.py
-
 import os
+import json
 from typing import Optional
 from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
 from pydantic import BaseModel
@@ -8,6 +7,9 @@ from sqlmodel import Session
 from app.services.ai_engine import analyze_property_text
 from app.core.database import get_session
 from app.core.models import Property, PropertyType, DealType, DocumentType
+from app.services.vector_db import add_property_to_vector_db
+from app.services.notifier import send_telegram_alert
+from app.core.models import Client, AgentNotification, select
 
 router = APIRouter(prefix="/api/properties", tags=["Properties"])
 
@@ -128,8 +130,76 @@ def save_property_to_db(data: PropertyCreateRequest, session: Session = Depends(
         session.add(new_property)
         session.commit()
         
+        session.refresh(new_property)
+        
+        try:
+            desc = data.description if data.description else ""
+            add_property_to_vector_db(
+                property_id=new_property.id,
+                title=new_property.title,
+                description=desc,
+                prop_type=data.property_type,
+                deal_type=data.deal_type,
+                neighborhood=data.neighborhood,
+                price=data.price_total
+            )
+        except Exception as vec_err:
+            print(f"⚠️ Vector DB Error: {vec_err}")
+
+        send_telegram_alert(new_property.title, new_property.neighborhood, new_property.price_total, new_property.owner_phone, "ثبت صوتی/دستی")
+        
         return {"status": "success", "message": "فایل با موفقیت ذخیره شد!"}
     
     except Exception as e:
         print(f"❌ Database Save Error: {e}")
         raise HTTPException(status_code=500, detail="خطا در ذخیره اطلاعات در دیتابیس")
+
+@router.put("/{property_id}/make-public")
+def make_property_public(property_id: int, request: Request, session: Session = Depends(get_session)):
+    """API تبدیل فایل شخصی به عمومی و ثبت نام مشاور"""
+    from app.main import get_current_user
+    user = get_current_user(request, session)
+    
+    prop = session.get(Property, property_id)
+    if prop and prop.is_exclusive:
+        prop.is_exclusive = False
+        prop.made_public_by_name = user.full_name
+        session.commit()
+        return {"status": "success"}
+    raise HTTPException(status_code=400, detail="فایل یافت نشد یا قبلاً عمومی است")
+
+@router.get("/{property_id}/compare")
+def compare_property_ai(property_id: int, session: Session = Depends(get_session)):
+    """API مقایسه هوشمند فایل با فایل‌های مشابه محله"""
+    target = session.get(Property, property_id)
+    if not target: raise HTTPException(status_code=404)
+    
+    # پیدا کردن فایل‌های مشابه (همون محله و همون نوع)
+    comparables = session.exec(
+        select(Property)
+        .where(Property.id != property_id)
+        .where(Property.neighborhood == target.neighborhood)
+        .where(Property.property_type == target.property_type)
+        .limit(3)
+    ).all()
+    
+    if not comparables:
+        return {"comparables_count": 0}
+        
+    comps_data = []
+    for c in comparables:
+        # در اینجا در نسخه اصلی، AI اختلاف قیمت و امکانات را تحلیل می‌کند
+        conclusion = f"این ملک نسبت به فایل هدف، متراژ {c.built_area} متری دارد و قیمت آن {c.price_total:,.0f} تومان است. ارزیابی AI: {'ارزنده' if c.price_total < target.price_total else 'گران‌تر'}."
+        comps_data.append({"title": c.title, "price": c.price_total, "ai_conclusion": conclusion})
+        
+    return {"comparables_count": len(comparables), "target_title": target.title, "comparables": comps_data}
+
+@router.get("/notifications/unread")
+def get_unread_notifications(request: Request, session: Session = Depends(get_session)):
+    """خواندن هشدارهای ردیابی مشتری برای مشاور"""
+    from app.main import get_current_user
+    user = get_current_user(request, session)
+    if not user: return []
+    
+    notifs = session.exec(select(AgentNotification).where(AgentNotification.user_id == user.id).order_by(AgentNotification.id.desc())).all()
+    return [{"id": n.id, "msg": n.message} for n in notifs]

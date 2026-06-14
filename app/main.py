@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 from app.core.models import (
     Property, Client, Deal,
-    Reminder, Ticket, User
+    Reminder, Ticket, User, Agency 
 )
 from app.core.database import create_db_and_tables, get_session  
 from app.api.properties_api import router as properties_router
@@ -24,6 +24,8 @@ from app.api.users_api import router as users_router
 from app.api.chatbot_api import router as chatbot_router
 from app.api.crawler_api import router as crawler_router
 from app.api.webhooks_api import router as webhooks_router
+from app.api.superadmin_api import router as superadmin_router
+from app.api.match_api import router as match_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -51,6 +53,8 @@ app.include_router(users_router)
 app.include_router(chatbot_router)
 app.include_router(crawler_router)
 app.include_router(webhooks_router)
+app.include_router(superadmin_router) 
+app.include_router(match_router)
 
 # تنظیمات فایل‌های استاتیک و قالب‌های HTML
 os.makedirs("app/static", exist_ok=True)
@@ -188,3 +192,22 @@ async def render_smart_catalog(client_id: int, request: Request, session: Sessio
     matched_properties = session.exec(select(Property).where(Property.status == "active").where(Property.deal_type == client.deal_type_requested)).all()
     top_matches = matched_properties[:3]
     return templates.TemplateResponse(request=request, name="showroom/catalog.html", context={"request": request, "page_title": f"پیشنهادات ویژه {client.name}", "client": client, "properties": top_matches})
+
+@app.get("/super-admin")
+async def render_superadmin(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user(request, session)
+    if not user or user.role != "SUPER_ADMIN": 
+        return RedirectResponse(url="/") # فقط سوپر ادمین حق ورود دارد!
+        
+    agencies = session.exec(select(Agency).order_by(Agency.id.desc())).all()
+    
+    return templates.TemplateResponse(
+        request=request, 
+        name="dashboard/super_admin.html", 
+        context={
+            "request": request, 
+            "page_title": "اتاق فرمان SaaS",
+            "user": user,
+            "agencies": agencies
+        }
+    )

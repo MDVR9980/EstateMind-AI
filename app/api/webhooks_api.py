@@ -6,6 +6,7 @@ from sqlmodel import Session, select
 from app.core.database import get_session
 from app.core.models import Property, PropertyType, DealType
 import json
+from app.services.notifier import send_telegram_alert
 
 router = APIRouter(prefix="/api/webhooks", tags=["Webhooks"])
 
@@ -47,8 +48,12 @@ def receive_from_n8n(data: N8nPayload, session: Session = Depends(get_session)):
         )
         session.add(new_prop)
         session.commit()
+
+
+        send_telegram_alert(new_prop.title, new_prop.neighborhood, new_prop.price_total, new_prop.owner_phone, "اتوماسیون n8n")
         
         print(f"🎉 [n8n Webhook] فایل جدید از n8n با موفقیت ذخیره شد: {new_prop.title}")
+
         return {"status": "success", "message": "فایل n8n با موفقیت در CRM ذخیره شد!"}
         
     except Exception as e:

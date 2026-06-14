@@ -115,6 +115,8 @@ class Property(SQLModel, table=True):
     created_by_id: Optional[int] = Field(default=None, foreign_key="users.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    made_public_by_name: Optional[str] = None
+
 class Client(SQLModel, table=True):
     """جدول مشتریان (خریدار/مستاجر) در قیف فروش"""
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -126,6 +128,7 @@ class Client(SQLModel, table=True):
     budget_limit: Optional[float] = Field(default=0) 
     funnel_stage: FunnelStage = Field(default=FunnelStage.LEAD)
     last_interaction: datetime = Field(default_factory=datetime.utcnow)
+    client_category: str = Field(default="عادی")
 
 class Deal(SQLModel, table=True):
     """جدول معاملات (برای داشبورد مالی و محاسبه کمیسیون)"""
@@ -165,3 +168,19 @@ class Ticket(SQLModel, table=True):
     answer: Optional[str] = None # پاسخ مدیر (در صورت وجود)
     status: TicketStatus = Field(default=TicketStatus.PENDING)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class AgentNotification(SQLModel, table=True):
+    """جدول هشدارها و ردیابی هوشمند مشتریان برای هر مشاور"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    message: str
+    is_read: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class UploadedForm(SQLModel, table=True):
+    """جدول زونکن مدارک و فرم‌های خام آژانس"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    agency_id: int = Field(foreign_key="agency.id", index=True)
+    title: str
+    file_path: str
+    uploaded_at: datetime = Field(default_factory=datetime.utcnow)

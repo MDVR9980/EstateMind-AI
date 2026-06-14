@@ -105,32 +105,53 @@
         });
     });
 
-    function aiMatch(clientId, clientName) {
+    async function aiMatch(clientId, clientName) {
         Swal.fire({
-            title: 'موتور مچینگ AI...',
-            html: `در حال تطابق فایل‌ها برای <b>${clientName}</b>`,
-            timer: 1500,
-            timerProgressBar: true,
+            title: 'موتور مچینگ AI... 🧠',
+            html: `در حال بررسی معنایی (Semantic) فایل‌ها برای <b>${clientName}</b>`,
+            allowOutsideClick: false,
             didOpen: () => { Swal.showLoading() }
-        }).then(() => {
-            // ساخت لینک اختصاصی کاتالوگ
-            const catalogUrl = `${window.location.origin}/catalog/${clientId}`;
-            
-            Swal.fire({
-                icon: 'success',
-                title: 'فایل‌های مناسب یافت شد!',
-                html: `<p class="text-sm mb-4">کاتالوگ اختصاصی برای مشتری ساخته شد. روی لینک زیر کلیک کنید تا آن را ببینید یا برای مشتری کپی کنید:</p>
-                       <a href="${catalogUrl}" target="_blank" class="text-primary-600 font-bold bg-primary-50 px-4 py-2 rounded-lg border border-primary-100 block break-all text-xs text-left dir-ltr shadow-inner">${catalogUrl}</a>`,
-                confirmButtonText: 'کپی کردن لینک',
-                showCancelButton: true,
-                cancelButtonText: 'بستن'
-            }).then((result) => {
-                if(result.isConfirmed) {
-                    navigator.clipboard.writeText(catalogUrl);
-                    Swal.fire({icon: 'success', title: 'کپی شد!', text: 'لینک در کلیپ‌بورد ذخیره شد.', timer: 1500, showConfirmButton: false});
-                }
-            });
         });
+
+        try {
+            const res = await fetch(`/api/match/client/${clientId}`);
+            const data = await res.json();
+            
+            if (res.ok && data.matches.length > 0) {
+                // تولید لیست فایل‌های پیدا شده برای نمایش
+                let filesHtml = data.matches.map(m => 
+                    `<div class="bg-slate-50 border border-slate-200 p-2 rounded-lg mb-2 text-right text-sm">
+                        <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs font-bold float-left">%${m.score}</span>
+                        <b>${m.title}</b><br>
+                        <span class="text-xs text-slate-500">${m.price.toLocaleString()} تومان</span>
+                    </div>`
+                ).join('');
+
+                const catalogUrl = `${window.location.origin}/catalog/${clientId}`;
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: `${data.matches.length} فایل متناسب یافت شد!`,
+                    html: `
+                        <div class="mb-4">${filesHtml}</div>
+                        <p class="text-xs mb-2 text-slate-500">لینک کاتالوگ هوشمند این مشتری:</p>
+                        <a href="${catalogUrl}" target="_blank" class="text-primary-600 font-bold bg-primary-50 px-4 py-2 rounded-lg border border-primary-100 block break-all text-xs text-left dir-ltr shadow-inner">${catalogUrl}</a>
+                    `,
+                    confirmButtonText: 'کپی کردن لینک',
+                    showCancelButton: true,
+                    cancelButtonText: 'بستن'
+                }).then((result) => {
+                    if(result.isConfirmed) {
+                        navigator.clipboard.writeText(catalogUrl);
+                        Swal.fire({icon: 'success', title: 'کپی شد!', timer: 1500, showConfirmButton: false});
+                    }
+                });
+            } else {
+                Swal.fire('نتیجه‌ای یافت نشد', 'متاسفانه در حال حاضر فایلی که از لحاظ معنایی و بودجه با نیاز این مشتری مطابقت داشته باشد در سیستم وجود ندارد.', 'info');
+            }
+        } catch (e) {
+            Swal.fire('خطا', 'مشکلی در موتور جستجوی هوشمند پیش آمد.', 'error');
+        }
     }
 </script>
 {% endblock %}

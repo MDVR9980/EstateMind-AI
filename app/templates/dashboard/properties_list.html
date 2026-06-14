@@ -5,7 +5,7 @@
 {% block content %}
 <div class="max-w-7xl mx-auto">
     
-    <!-- هدر و دکمه ثبت فایل جدید -->
+    <!-- هدر و دکمه‌های اصلی -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
             <h2 class="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -44,13 +44,19 @@
         
         {% if properties %}
             {% for prop in properties %}
-            <div class="property-card bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col">
+            <div class="property-card bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col relative">
                 
-                <!-- بخش بالای کارت (تصویر فرضی و تگ‌ها) -->
+                <!-- اگر فایل شخصی است نشان بده -->
+                {% if prop.is_exclusive %}
+                    <div class="absolute top-0 right-0 w-0 h-0 border-t-[60px] border-t-amber-500 border-l-[60px] border-l-transparent z-10"></div>
+                    <i class="ph-fill ph-lock-key absolute top-2 right-2 text-white z-20 text-lg" title="فایل شخصی"></i>
+                {% endif %}
+
+                <!-- بخش بالای کارت -->
                 <div class="h-40 bg-slate-100 dark:bg-slate-800 relative overflow-hidden">
                     <div class="absolute inset-0 opacity-30 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9IiM5NGEzYjgiLz48L3N2Zz4=')]"></div>
                     
-                    <div class="absolute top-3 right-3 flex gap-2">
+                    <div class="absolute top-3 left-3 flex gap-2">
                         <span class="bg-white/90 dark:bg-darkcard/90 backdrop-blur-sm text-xs font-bold px-3 py-1 rounded-lg text-slate-700 dark:text-slate-200 shadow-sm">
                             {% if prop.deal_type == 'SALE' %}فروش{% elif prop.deal_type == 'RENT' %}رهن/اجاره{% else %}مشارکت{% endif %}
                         </span>
@@ -62,9 +68,17 @@
 
                 <!-- اطلاعات اصلی -->
                 <div class="p-5 flex-1 flex flex-col">
-                    <div class="flex justify-between items-start mb-2">
-                        <h3 class="font-bold text-slate-800 dark:text-white text-lg line-clamp-1 search-target">{{ prop.title }}</h3>
+                    
+                    <!-- عنوان و تگ عمومی‌کننده -->
+                    <div class="mb-2">
+                        <h3 class="font-bold text-slate-800 dark:text-white text-lg line-clamp-1 search-target mb-1">{{ prop.title }}</h3>
+                        {% if not prop.is_exclusive and prop.made_public_by_name %}
+                        <div class="bg-indigo-50 text-indigo-700 text-[10px] px-2 py-1 rounded-md font-bold w-fit border border-indigo-100 mt-1">
+                            <i class="ph-fill ph-megaphone"></i> عمومی شده توسط: {{ prop.made_public_by_name }}
+                        </div>
+                        {% endif %}
                     </div>
+
                     <p class="text-sm text-slate-500 dark:text-slate-400 mb-4 flex items-center gap-1 search-target">
                         <i class="ph-fill ph-map-pin text-rose-500"></i> {{ prop.neighborhood }}
                     </p>
@@ -88,10 +102,19 @@
                         {% if prop.has_parking %}<span class="flex items-center gap-1 text-emerald-600"><i class="ph-fill ph-car"></i> پارکینگ</span>{% endif %}
                     </div>
 
-                    <div class="mt-auto flex gap-2">
-                        <button onclick="aiMatch({{ prop.id }})" class="flex-1 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-bold py-2 rounded-xl text-xs shadow-md flex items-center justify-center gap-1 transition">
-                            <i class="ph-fill ph-magic-wand"></i> مچینگ با مشتری
+                    <!-- دکمه‌های اکشن (جدید) -->
+                    <div class="mt-auto flex flex-wrap gap-2">
+                        <button onclick="aiMatch({{ prop.id }})" class="flex-1 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 text-white font-bold py-2 rounded-xl text-xs shadow-md flex items-center justify-center gap-1 transition">
+                            <i class="ph-fill ph-magic-wand"></i> مچینگ
                         </button>
+                        <button onclick="compareAI({{ prop.id }})" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs shadow-md flex items-center justify-center gap-1 transition">
+                            <i class="ph-bold ph-scales"></i> مقایسه AI
+                        </button>
+                        {% if prop.is_exclusive %}
+                        <button onclick="makePublic({{ prop.id }})" title="عمومی کردن این فایل برای کل دفتر" class="w-10 h-10 bg-amber-100 hover:bg-amber-200 text-amber-600 rounded-xl flex items-center justify-center transition shadow-sm">
+                            <i class="ph-bold ph-globe"></i>
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -112,14 +135,11 @@
     function filterCards() {
         const input = document.getElementById('searchInput').value.toLowerCase();
         const cards = document.querySelectorAll('.property-card');
-        
         cards.forEach(card => {
             const textElements = card.querySelectorAll('.search-target');
             let matchFound = false;
             textElements.forEach(el => {
-                if (el.innerText.toLowerCase().includes(input)) {
-                    matchFound = true;
-                }
+                if (el.innerText.toLowerCase().includes(input)) matchFound = true;
             });
             card.style.display = matchFound ? '' : 'none';
         });
@@ -127,34 +147,24 @@
 
     function aiMatch(propertyId) {
         Swal.fire({
-            title: 'هوش مصنوعی...',
-            text: "در حال بررسی تطابق این فایل با خریداران موجود در قیف فروش...",
-            icon: 'info',
-            timer: 2000,
-            showConfirmButton: false
+            title: 'مچینگ هوشمند...',
+            text: "در حال بررسی تطابق این فایل با تمام خریداران موجود در قیف فروش...",
+            icon: 'info', timer: 2000, showConfirmButton: false
         });
     }
+
     async function startGhostCrawler() {
         Swal.fire({
             title: 'بیدار کردن ربات؟ 🕷️',
             text: 'آیا می‌خواهید ربات خزنده‌ی دیوار در پس‌زمینه شروع به اسکن آگهی‌ها کند؟',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'بله، ربات را بیدار کن',
-            cancelButtonText: 'انصراف'
+            icon: 'question', showCancelButton: true, confirmButtonText: 'بله، بیدار کن', cancelButtonText: 'انصراف'
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
                     const res = await fetch("/api/crawler/start", { method: "POST" });
                     const data = await res.json();
-                    
                     if (res.ok) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'ربات آغاز به کار کرد!',
-                            text: data.message,
-                            footer: 'شما می‌توانید به کارهای خود در سیستم برسید. فایل‌ها به صورت خودکار به این لیست اضافه می‌شوند.'
-                        });
+                        Swal.fire({icon: 'success', title: 'شروع به کار...', text: data.message});
                     } else {
                         Swal.fire('خطا', data.detail, 'error');
                     }
@@ -163,6 +173,42 @@
                 }
             }
         });
+    }
+
+    async function makePublic(id) {
+        Swal.fire({
+            title: 'عمومی کردن فایل؟',
+            text: 'این فایل از حالت شخصی خارج شده و برای تمام مشاوران آژانس قابل رویت خواهد شد. نام شما به عنوان یابنده ثبت می‌شود.',
+            icon: 'warning', showCancelButton: true, confirmButtonText: 'بله، عمومی کن', confirmButtonColor: '#10b981'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                const res = await fetch(`/api/properties/${id}/make-public`, {method: 'PUT'});
+                if(res.ok) window.location.reload();
+            }
+        });
+    }
+
+    async function compareAI(id) {
+        Swal.fire({title: 'در حال ارزیابی...', didOpen: () => { Swal.showLoading() }});
+        try {
+            const res = await fetch(`/api/properties/${id}/compare`);
+            const data = await res.json();
+            if(data.comparables_count === 0) {
+                Swal.fire('نیاز به دیتای بیشتر', 'هیچ فایل مشابه‌ای در این محله برای انجام مقایسه قیمت یافت نشد.', 'info');
+            } else {
+                let html = data.comparables.map(c => `
+                    <div class="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-4 rounded-xl mb-3 text-right text-sm">
+                        <b class="text-slate-800 dark:text-white text-base block mb-2">${c.title}</b>
+                        <span class="text-emerald-600 dark:text-emerald-400 font-bold font-mono text-lg">${c.price.toLocaleString()} تومان</span><br>
+                        <div class="mt-3 p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs leading-relaxed border border-indigo-100 dark:border-indigo-800">
+                            <i class="ph-bold ph-scales"></i> <b>نظر کارشناسی AI:</b><br>${c.ai_conclusion}
+                        </div>
+                    </div>`).join('');
+                Swal.fire({title: '⚖️ مقایسه هوشمند AI', html: html, confirmButtonText: 'بستن', width: 600});
+            }
+        } catch(e) {
+            Swal.fire('خطا', 'مشکل در برقراری ارتباط با موتور هوش مصنوعی', 'error');
+        }
     }
 </script>
 {% endblock %}

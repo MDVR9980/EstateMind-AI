@@ -1,0 +1,115 @@
+<!-- مسیر فایل: app/templates/dashboard/super_admin.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="ph-fill ph-crown text-emerald-500"></i> داشبورد سوپر ادمین (مدیریت پلتفرم)
+            </h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">مدیریت آژانس‌های خریدار نرم‌افزار، لایسنس‌ها و درآمد شما</p>
+        </div>
+        <button onclick="openAddAgencyModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg shadow-emerald-500/30 flex items-center gap-2 transition">
+            <i class="ph-bold ph-storefront"></i> ثبت آژانس جدید
+        </button>
+    </div>
+
+    <!-- لیست آژانس‌ها -->
+    <div class="bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-right text-sm">
+                <thead class="bg-emerald-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                    <tr>
+                        <th class="p-4 font-bold">نام آژانس</th>
+                        <th class="p-4 font-bold">مدیر / مالک</th>
+                        <th class="p-4 font-bold text-center">شماره تماس</th>
+                        <th class="p-4 font-bold text-center">شهر</th>
+                        <th class="p-4 font-bold text-center">وضعیت لایسنس</th>
+                        <th class="p-4 font-bold text-center">عملیات</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-slate-700 text-slate-700 dark:text-slate-300">
+                    {% for agency in agencies %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition">
+                        <td class="p-4 font-bold text-slate-800 dark:text-white">{{ agency.name }}</td>
+                        <td class="p-4">{{ agency.owner_name }}</td>
+                        <td class="p-4 text-center font-mono dir-ltr text-xs">{{ agency.phone }}</td>
+                        <td class="p-4 text-center">{{ agency.city }}</td>
+                        <td class="p-4 text-center">
+                            {% if agency.subscription_active %}
+                                <span class="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 py-1 rounded-full text-xs font-bold border border-emerald-200 dark:border-emerald-800">فعال</span>
+                            {% else %}
+                                <span class="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 px-3 py-1 rounded-full text-xs font-bold border border-rose-200 dark:border-rose-800">مسدود شده</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-4 text-center">
+                            <button onclick="toggleAgency({{ agency.id }}, '{{ agency.name }}')" class="bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 mx-auto">
+                                <i class="ph-bold ph-power"></i> تغییر وضعیت
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openAddAgencyModal() {
+        Swal.fire({
+            title: 'راه‌اندازی آژانس جدید 🏢',
+            html: `
+                <div class="text-right space-y-4 mt-4">
+                    <div><label class="block text-sm font-bold mb-1">نام آژانس *</label><input id="a-name" class="swal2-input w-full m-0 h-10 text-sm" placeholder="مثال: املاک رویال"></div>
+                    <div><label class="block text-sm font-bold mb-1">نام مالک / مدیر *</label><input id="a-owner" class="swal2-input w-full m-0 h-10 text-sm" placeholder="مثال: محمد امینی"></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-bold mb-1">شماره تماس *</label><input id="a-phone" dir="ltr" class="swal2-input w-full m-0 h-10 text-sm"></div>
+                        <div><label class="block text-sm font-bold mb-1">شهر *</label><input id="a-city" class="swal2-input w-full m-0 h-10 text-sm" value="مشهد"></div>
+                    </div>
+                    <hr class="my-4 border-gray-200">
+                    <div><label class="block text-sm font-bold mb-1 text-emerald-600">نام کاربری مدیر (برای ورود)</label><input id="a-user" dir="ltr" class="swal2-input w-full m-0 h-10 text-sm bg-emerald-50"></div>
+                    <div><label class="block text-sm font-bold mb-1 text-emerald-600">رمز عبور مدیر</label><input id="a-pass" type="text" dir="ltr" class="swal2-input w-full m-0 h-10 text-sm bg-emerald-50"></div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'ساخت و تحویل پنل',
+            cancelButtonText: 'انصراف',
+            confirmButtonColor: '#059669',
+            preConfirm: () => {
+                const name = document.getElementById('a-name').value;
+                const owner = document.getElementById('a-owner').value;
+                const user = document.getElementById('a-user').value;
+                if (!name || !owner || !user) { Swal.showValidationMessage('فیلدهای ضروری را پر کنید!'); return false; }
+                return { agency_name: name, owner_name: owner, phone: document.getElementById('a-phone').value, city: document.getElementById('a-city').value, admin_username: user, admin_password: document.getElementById('a-pass').value }
+            }
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    const res = await fetch("/api/super-admin/agencies/add", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(result.value) });
+                    if (res.ok) window.location.reload();
+                    else { const err = await res.json(); Swal.fire('خطا', err.detail, 'error'); }
+                } catch(e) { Swal.fire('خطا', 'مشکل شبکه', 'error'); }
+            }
+        });
+    }
+
+    async function toggleAgency(id, name) {
+        Swal.fire({
+            title: 'تغییر وضعیت',
+            text: `آیا می‌خواهید وضعیت دسترسی آژانس "${name}" را تغییر دهید؟ (در صورت مسدود شدن، پرسنل آن نمی‌توانند لاگین کنند)`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'بله، تغییر بده',
+        }).then(async (result) => {
+            if(result.isConfirmed) {
+                const res = await fetch(`/api/super-admin/agencies/${id}/toggle`, { method: 'PUT' });
+                if(res.ok) window.location.reload();
+            }
+        });
+    }
+</script>
+{% endblock %}
