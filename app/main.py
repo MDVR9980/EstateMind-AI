@@ -1,5 +1,3 @@
-# مسیر فایل: app/main.py
-
 import os
 import jwt
 from app.core.security import SECRET_KEY, ALGORITHM
@@ -10,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 from app.core.models import (
-    Property, Client, Deal,
+    Property, Client, Deal, UploadedForm,
     Reminder, Ticket, User, Agency 
 )
 from app.core.database import create_db_and_tables, get_session  
@@ -26,6 +24,7 @@ from app.api.crawler_api import router as crawler_router
 from app.api.webhooks_api import router as webhooks_router
 from app.api.superadmin_api import router as superadmin_router
 from app.api.match_api import router as match_router
+from app.api.forms_api import router as forms_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -55,15 +54,16 @@ app.include_router(crawler_router)
 app.include_router(webhooks_router)
 app.include_router(superadmin_router) 
 app.include_router(match_router)
+app.include_router(forms_router)
 
 # تنظیمات فایل‌های استاتیک و قالب‌های HTML
 os.makedirs("app/static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 templates = Jinja2Templates(directory="app/templates")
 
-from fastapi.responses import RedirectResponse
-import jwt
-from app.core.security import SECRET_KEY, ALGORITHM
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # ==========================================
 # روت‌های HTML (رابط کاربری) و محافظت امنیتی
@@ -143,7 +143,25 @@ async def render_financials(request: Request, session: Session = Depends(get_ses
 async def render_settings(request: Request, session: Session = Depends(get_session)):
     user = get_current_user(request, session)
     if not user: return RedirectResponse(url="/login")
-    return templates.TemplateResponse(request=request, name="dashboard/settings.html", context={"request": request, "page_title": "تنظیمات و پشتیبانی", "user": user})
+    
+    # خواندن تیکت‌های یوزر فعلی
+    from app.core.models import Ticket
+    user_tickets = session.exec(select(Ticket).where(Ticket.user_id == user.id).order_by(Ticket.id.desc())).all()
+    
+    # خواندن فرم‌های خام از زونکن
+    agency_forms = session.exec(select(UploadedForm).order_by(UploadedForm.id.desc())).all()
+    
+    return templates.TemplateResponse(
+        request=request, 
+        name="dashboard/settings.html", 
+        context={
+            "request": request, 
+            "page_title": "تنظیمات و مدارک",
+            "user": user,
+            "tickets": user_tickets,
+            "forms": agency_forms # 👈 ارسال فرم‌ها به قالب
+        }
+    )
 
 @app.get("/customers")
 async def render_customers(request: Request, session: Session = Depends(get_session)):

@@ -3,13 +3,13 @@ import json
 from typing import Optional
 from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
 from pydantic import BaseModel
-from sqlmodel import Session
+from sqlmodel import Session, select
 from app.services.ai_engine import analyze_property_text
 from app.core.database import get_session
 from app.core.models import Property, PropertyType, DealType, DocumentType
 from app.services.vector_db import add_property_to_vector_db
 from app.services.notifier import send_telegram_alert
-from app.core.models import Client, AgentNotification, select
+from app.core.models import Client, AgentNotification, Property
 
 router = APIRouter(prefix="/api/properties", tags=["Properties"])
 

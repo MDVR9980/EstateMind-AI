@@ -9,20 +9,21 @@
     <div class="lg:col-span-1">
         <div class="bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden sticky top-8">
             <div class="p-6 text-center border-b border-gray-100 dark:border-slate-700">
-                <img src="https://ui-avatars.com/api/?name=Ali+M&background=3b82f6&color=fff&size=128" alt="Profile" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-primary-50 dark:border-slate-800">
-                <h3 class="font-bold text-slate-800 dark:text-white text-lg">علی محمدی</h3>
-                <p class="text-sm text-slate-500 dark:text-slate-400">مدیر شعبه (Admin)</p>
+                <img src="https://ui-avatars.com/api/?name={{ user.full_name.replace(' ', '+') if user else 'Admin' }}&background=3b82f6&color=fff&size=128" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-primary-50 dark:border-slate-800 shadow-sm">
+                <h3 class="font-bold text-slate-800 dark:text-white text-lg">{{ user.full_name if user else 'مدیر' }}</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400">
+                    {% if user and (user.role == 'MANAGER' or user.role == 'SUPER_ADMIN') %}مدیر شعبه{% else %}مشاور املاک{% endif %}
+                </p>
             </div>
             <nav class="flex flex-col p-4 gap-2">
                 <button class="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400 font-bold transition">
-                    <i class="ph-fill ph-user"></i> پروفایل و حریم خصوصی
+                    <i class="ph-fill ph-shield-check"></i> حریم خصوصی
                 </button>
                 <button class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
-                    <i class="ph-fill ph-devices"></i> دستگاه‌های متصل (نشست‌ها)
+                    <i class="ph-fill ph-headset"></i> پشتیبانی و تیکت‌ها
                 </button>
-                <button class="flex items-center justify-between px-4 py-3 rounded-xl text-slate-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
-                    <div class="flex items-center gap-3"><i class="ph-fill ph-headset"></i> پشتیبانی و تیکت‌ها</div>
-                    <span class="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">۱</span>
+                <button class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
+                    <i class="ph-fill ph-folder-open"></i> زونکن مدارک
                 </button>
             </nav>
         </div>
@@ -31,56 +32,130 @@
     <!-- محتوای اصلی تنظیمات -->
     <div class="lg:col-span-3 space-y-6">
         
-        <!-- حریم خصوصی -->
+        <!-- ================= زونکن مدارک و فرم‌ها ================= -->
         <div class="bg-white dark:bg-darkcard p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700">
-            <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2"><i class="ph-fill ph-shield-check text-emerald-500"></i> حریم خصوصی و امنیت</h3>
+            <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+                <i class="ph-fill ph-folder-open text-blue-500"></i> زونکن مدارک و فرم‌های خام
+            </h3>
             
-            <div class="space-y-6">
-                <!-- تاگل (Toggle) -->
-                <div class="flex items-center justify-between pb-6 border-b border-gray-100 dark:border-slate-700">
-                    <div>
-                        <h4 class="font-bold text-slate-800 dark:text-white text-sm">فعال‌سازی ورود دو مرحله‌ای (2FA)</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">علاوه بر رمز عبور، پیامک تایید نیز به شماره موبایل شما ارسال شود.</p>
-                    </div>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" value="" class="sr-only peer" checked>
-                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:-translate-x-0 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-500"></div>
-                    </label>
+            <!-- فرم آپلود (فقط مدیر می‌بیند) -->
+            {% if user.role == 'MANAGER' or user.role == 'SUPER_ADMIN' %}
+            <form id="uploadForm" class="mb-8 p-5 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border border-gray-200 dark:border-slate-600 flex flex-col md:flex-row gap-4 items-end" onsubmit="submitDoc(event)">
+                <div class="flex-1 w-full">
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">عنوان فرم (مثلا مبایعه نامه)</label>
+                    <input type="text" id="doc-title" required class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-xl p-3 outline-none focus:border-blue-500 text-sm">
                 </div>
-                
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h4 class="font-bold text-slate-800 dark:text-white text-sm">محدودیت دسترسی مکانی (IP)</h4>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">مشاوران زیرمجموعه فقط بتوانند با اینترنت شعبه به سیستم لاگین کنند.</p>
-                    </div>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" value="" class="sr-only peer">
-                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:-translate-x-0 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-500"></div>
-                    </label>
+                <div class="flex-1 w-full">
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">فایل (PDF/Word/Image)</label>
+                    <input type="file" id="doc-file" required class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-xl p-2 outline-none text-sm cursor-pointer">
                 </div>
+                <button type="submit" id="btn-upload" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition whitespace-nowrap flex items-center gap-2">
+                    <i class="ph-bold ph-upload-simple"></i> آپلود فرم
+                </button>
+            </form>
+            {% endif %}
+
+            <!-- لیست فایل‌های آپلود شده -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% if forms %}
+                    {% for f in forms %}
+                    <div class="border border-gray-200 dark:border-slate-700 rounded-2xl p-4 flex items-center gap-4 hover:shadow-md transition bg-white dark:bg-slate-800/50 group">
+                        <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-500 dark:bg-blue-900/30 flex items-center justify-center text-2xl shrink-0 group-hover:scale-110 transition-transform">
+                            <i class="ph-fill ph-file-text"></i>
+                        </div>
+                        <div class="flex-1 overflow-hidden">
+                            <h4 class="font-bold text-slate-800 dark:text-white truncate text-sm">{{ f.title }}</h4>
+                            <p class="text-[10px] text-slate-500 dir-ltr text-right mt-1">{{ f.uploaded_at.strftime('%Y-%m-%d') }}</p>
+                        </div>
+                        <!-- مرورگر فایل‌های PDF یا عکس را باز و دانلود می‌کند -->
+                        <a href="/{{ f.file_path }}" target="_blank" download class="w-10 h-10 rounded-xl bg-gray-100 hover:bg-blue-100 hover:text-blue-600 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 flex items-center justify-center transition shrink-0" title="دانلود فایل">
+                            <i class="ph-bold ph-download-simple"></i>
+                        </a>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="col-span-full text-center text-slate-400 py-8 bg-gray-50/50 dark:bg-slate-800/30 rounded-2xl border border-dashed border-gray-300 dark:border-slate-700">
+                        <i class="ph-fill ph-folder-open text-5xl mb-2 opacity-50"></i>
+                        <p class="text-sm font-bold">هیچ فرمی در زونکن آپلود نشده است.</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
 
-        <!-- تیکت‌های پشتیبانی -->
-        <div class="bg-white dark:bg-darkcard p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><i class="ph-fill ph-envelope-simple text-primary-500"></i> ارسال تیکت جدید</h3>
-                <span class="text-xs font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-3 py-1 rounded-full">زمان پاسخگویی: ۵ دقیقه</span>
-            </div>
-            
-            <form class="space-y-4">
+        <!-- ================= تیکت‌های پشتیبانی ================= -->
+        <div class="bg-white dark:bg-darkcard p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-hidden">
+            <h3 class="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-6">
+                <i class="ph-fill ph-envelope-simple-open text-primary-500"></i> ارسال تیکت جدید
+            </h3>
+            <form id="ticketForm" class="space-y-4 relative z-10" onsubmit="submitTicket(event)">
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">موضوع تیکت</label>
-                    <input type="text" placeholder="مثال: درخواست تغییر نام شعبه" class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none">
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">موضوع درخواست <span class="text-rose-500">*</span></label>
+                    <input type="text" id="t-subject" required placeholder="مثال: درخواست تغییر نام شعبه در کاتالوگ" class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none transition text-sm">
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">توضیحات</label>
-                    <textarea rows="4" placeholder="متن درخواست خود را بنویسید..." class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none"></textarea>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">توضیحات کامل <span class="text-rose-500">*</span></label>
+                    <textarea id="t-message" required rows="4" placeholder="متن درخواست خود را کامل بنویسید..." class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none transition text-sm"></textarea>
                 </div>
-                <button type="button" class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition">ارسال تیکت</button>
+                <div class="flex justify-end pt-2">
+                    <button id="btn-submit-ticket" type="submit" class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-primary-500/30 transition flex items-center gap-2">
+                        <i class="ph-bold ph-paper-plane-right"></i> ارسال پیام
+                    </button>
+                </div>
             </form>
         </div>
 
     </div>
 </div>
+
+<script>
+    // اسکریپت ارسال تیکت
+    async function submitTicket(event) {
+        event.preventDefault(); 
+        const btn = document.getElementById('btn-submit-ticket');
+        const subject = document.getElementById('t-subject').value;
+        const message = document.getElementById('t-message').value;
+
+        btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> در حال ارسال...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch("/api/tickets/add", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ subject: subject, message: message })
+            });
+
+            if (response.ok) {
+                Swal.fire({icon: 'success', title: 'ارسال شد!', text: 'تیکت شما با موفقیت ثبت شد.', confirmButtonText: 'متوجه شدم'})
+                .then(() => window.location.reload());
+            } else Swal.fire('خطا', 'مشکلی در ارسال تیکت پیش آمد.', 'error');
+        } catch (error) { Swal.fire('خطا', 'عدم ارتباط با سرور.', 'error'); } 
+        finally { btn.innerHTML = '<i class="ph-bold ph-paper-plane-right"></i> ارسال پیام'; btn.disabled = false; }
+    }
+
+    // اسکریپت آپلود زونکن
+    async function submitDoc(event) {
+        event.preventDefault();
+        const btn = document.getElementById('btn-upload');
+        const title = document.getElementById('doc-title').value;
+        const fileInput = document.getElementById('doc-file');
+        
+        if(fileInput.files.length === 0) return;
+
+        const formData = new FormData();
+        formData.append("title", title);
+        formData.append("file", fileInput.files[0]);
+
+        btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> در حال آپلود...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch("/api/forms/upload", { method: "POST", body: formData });
+            if (response.ok) {
+                Swal.fire({icon: 'success', title: 'آپلود شد!', timer: 1500, showConfirmButton: false})
+                .then(() => window.location.reload());
+            } else Swal.fire('خطا', 'مشکلی در آپلود پیش آمد.', 'error');
+        } catch (error) { Swal.fire('خطا', 'عدم ارتباط با سرور.', 'error'); } 
+        finally { btn.innerHTML = '<i class="ph-bold ph-upload-simple"></i> آپلود فرم'; btn.disabled = false; }
+    }
+</script>
 {% endblock %}
