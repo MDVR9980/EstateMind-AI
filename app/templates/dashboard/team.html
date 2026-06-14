@@ -1,0 +1,184 @@
+<!-- مسیر فایل: app/templates/dashboard/team.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    
+    <!-- هدر صفحه -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="ph-fill ph-users-three text-blue-500"></i> مدیریت تیم و پرسنل
+            </h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">مدیریت مشاوران، مدیران رنج و دسترسی‌های آن‌ها</p>
+        </div>
+        <button onclick="openAddUserModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg shadow-blue-500/30 flex items-center gap-2 transition">
+            <i class="ph-bold ph-user-plus"></i> استخدام مشاور جدید
+        </button>
+    </div>
+
+    <!-- شبکه‌ی کارت‌های پرسنل -->
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        
+        {% if agents %}
+            {% for agent in agents %}
+            <div class="bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 p-6 flex flex-col items-center text-center relative overflow-hidden group transition hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-800">
+                
+                <!-- افکت بک‌گراند بر اساس نقش -->
+                {% if agent.role == 'MANAGER' %}
+                    <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-purple-500/20 to-transparent"></div>
+                {% else %}
+                    <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-blue-500/10 to-transparent"></div>
+                {% endif %}
+
+                <!-- دکمه حذف -->
+                <button onclick="deleteUser({{ agent.id }}, '{{ agent.full_name }}')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <i class="ph-bold ph-trash"></i>
+                </button>
+
+                <!-- آواتار -->
+                <div class="relative z-10 mb-4">
+                    <img src="https://ui-avatars.com/api/?name={{ agent.full_name.replace(' ', '+') }}&background=random&color=fff&size=128" class="w-20 h-20 rounded-full border-4 border-white dark:border-darkcard shadow-md">
+                    <span class="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 border-2 border-white dark:border-darkcard rounded-full"></span>
+                </div>
+
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white">{{ agent.full_name }}</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 font-mono dir-ltr mt-1">{{ agent.username }}</p>
+
+                <!-- تگ نقش -->
+                <div class="mt-4 mb-6">
+                    {% if agent.role == 'MANAGER' %}
+                        <span class="bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 border border-purple-200 dark:border-purple-800/50 px-3 py-1 rounded-full text-xs font-bold">
+                            مدیر رنج
+                        </span>
+                    {% else %}
+                        <span class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 px-3 py-1 rounded-full text-xs font-bold">
+                            مشاور فروش / اجاره
+                        </span>
+                    {% endif %}
+                </div>
+
+                <!-- آمار کارکرد فرضی -->
+                <div class="w-full grid grid-cols-2 gap-2 border-t border-gray-100 dark:border-slate-700 pt-4">
+                    <div class="text-center">
+                        <p class="text-[10px] text-slate-400 mb-1">فایل‌های ثبت‌شده</p>
+                        <p class="font-bold text-slate-700 dark:text-slate-200">12</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-[10px] text-slate-400 mb-1">مشتریان در قیف</p>
+                        <p class="font-bold text-slate-700 dark:text-slate-200">5</p>
+                    </div>
+                </div>
+
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-span-full bg-white dark:bg-darkcard rounded-3xl border border-dashed border-gray-300 dark:border-slate-700 p-12 text-center">
+                <i class="ph-fill ph-users-three text-6xl text-slate-300 dark:text-slate-600 mb-4"></i>
+                <h3 class="text-xl font-bold text-slate-700 dark:text-slate-300 mb-2">تیم شما خالی است!</h3>
+                <p class="text-sm text-slate-500 mb-6">برای شروع کار آژانس، اولین مشاور یا مدیر رنج خود را استخدام کنید.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    function openAddUserModal() {
+        const isDark = document.documentElement.classList.contains('dark');
+        
+        Swal.fire({
+            title: 'استخدام پرسنل جدید 👔',
+            html: `
+                <div class="text-right space-y-4 mt-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-1">نام و نام خانوادگی *</label>
+                        <input id="u-name" class="swal2-input w-full m-0 h-10 text-sm" placeholder="مثال: رضا کریمی">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">نام کاربری (موبایل) *</label>
+                        <input id="u-user" dir="ltr" class="swal2-input w-full m-0 h-10 text-sm" placeholder="09...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">رمز عبور پیش‌فرض *</label>
+                        <input id="u-pass" type="password" dir="ltr" class="swal2-input w-full m-0 h-10 text-sm" placeholder="***">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="col-span-2">
+                            <label class="block text-sm font-bold mb-1">نقش در آژانس *</label>
+                            <select id="u-role" class="swal2-input w-full m-0 h-10 text-sm py-0">
+                                <option value="agent">مشاور فروش / اجاره</option>
+                                <option value="manager">مدیر رنج (Range Manager)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1 text-primary-600">محله‌های هدف فعالیت (اختیاری)</label>
+                        <input id="u-target" class="swal2-input w-full m-0 h-10 text-sm" placeholder="مثال: سجاد، هاشمیه">
+                        <p class="text-[10px] text-slate-400 mt-1">ربات فایل‌یاب دیوار، فایل‌های این محله‌ها را برای این مشاور شکار می‌کند.</p>
+                    </div>
+                </div>
+            `,
+            background: isDark ? '#1e293b' : '#ffffff',
+            color: isDark ? '#f8fafc' : '#1e293b',
+            showCancelButton: true,
+            confirmButtonText: 'ثبت در سیستم',
+            cancelButtonText: 'انصراف',
+            preConfirm: () => {
+                const name = document.getElementById('u-name').value;
+                const user = document.getElementById('u-user').value;
+                const pass = document.getElementById('u-pass').value;
+                if (!name || !user || !pass) {
+                    Swal.showValidationMessage('نام، نام کاربری و رمز عبور الزامی است!');
+                    return false;
+                }
+                return {
+                    full_name: name,
+                    username: user,
+                    password: pass,
+                    role: document.getElementById('u-role').value,
+                    target_neighborhoods: document.getElementById('u-target').value
+                }
+            }
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    const res = await fetch("/api/users/add", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(result.value)
+                    });
+                    
+                    if (res.ok) {
+                        Swal.fire({icon: 'success', title: 'انجام شد!', text: 'مشاور جدید ثبت شد.', timer: 1500}).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        const err = await res.json();
+                        Swal.fire('خطا', err.detail || 'نام کاربری تکراری است!', 'error');
+                    }
+                } catch (error) {
+                    Swal.fire('خطا', 'مشکل در ارتباط با سرور', 'error');
+                }
+            }
+        });
+    }
+
+    function deleteUser(userId, name) {
+        Swal.fire({
+            title: 'حذف پرسنل؟',
+            text: `آیا از حذف ${name} مطمئن هستید؟ دسترسی او به سیستم قطع خواهد شد.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            confirmButtonText: 'بله، حذف کن',
+            cancelButtonText: 'انصراف'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                const res = await fetch(`/api/users/${userId}`, { method: 'DELETE' });
+                if(res.ok) window.location.reload();
+            }
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,133 @@
+<!-- مسیر فایل: app/templates/dashboard/properties_list.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    
+    <!-- هدر و دکمه ثبت فایل جدید -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="ph-fill ph-buildings text-primary-500"></i> بانک اطلاعات املاک
+            </h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">مدیریت فایل‌ها، فیلتر پیشرفته و تطابق با مشتریان</p>
+        </div>
+        <button onclick="window.location.href='/properties/add'" class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-primary-500/30 flex items-center gap-2 transition">
+            <i class="ph-bold ph-plus"></i> ثبت فایل جدید
+        </button>
+    </div>
+
+    <!-- فیلترهای هوشمند جستجو -->
+    <div class="bg-white dark:bg-darkcard p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 mb-8 flex flex-wrap gap-4 items-center">
+        <div class="flex-1 min-w-[200px] relative">
+            <i class="ph ph-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+            <input type="text" id="searchInput" onkeyup="filterCards()" placeholder="جستجو در عنوان، محله یا کد فایل..." class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-xl py-2.5 pr-10 pl-4 outline-none focus:border-primary-500 text-sm">
+        </div>
+        <select class="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-xl py-2.5 px-4 outline-none text-sm min-w-[150px]">
+            <option value="all">همه معاملات</option>
+            <option value="sale">فروش</option>
+            <option value="rent">رهن و اجاره</option>
+        </select>
+        <button class="bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2">
+            <i class="ph-bold ph-faders"></i> فیلترهای بیشتر
+        </button>
+    </div>
+
+    <!-- گالری کارت‌های املاک -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="propertiesGrid">
+        
+        {% if properties %}
+            {% for prop in properties %}
+            <div class="property-card bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col">
+                
+                <!-- بخش بالای کارت (تصویر فرضی و تگ‌ها) -->
+                <div class="h-40 bg-slate-100 dark:bg-slate-800 relative overflow-hidden">
+                    <div class="absolute inset-0 opacity-30 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9IiM5NGEzYjgiLz48L3N2Zz4=')]"></div>
+                    
+                    <div class="absolute top-3 right-3 flex gap-2">
+                        <span class="bg-white/90 dark:bg-darkcard/90 backdrop-blur-sm text-xs font-bold px-3 py-1 rounded-lg text-slate-700 dark:text-slate-200 shadow-sm">
+                            {% if prop.deal_type == 'SALE' %}فروش{% elif prop.deal_type == 'RENT' %}رهن/اجاره{% else %}مشارکت{% endif %}
+                        </span>
+                        <span class="bg-emerald-500/90 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-lg shadow-sm">
+                            {% if prop.property_type == 'APARTMENT' %}آپارتمان{% elif prop.property_type == 'VILLA' %}ویلایی{% elif prop.property_type == 'LAND' %}زمین/کلنگی{% else %}تجاری{% endif %}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- اطلاعات اصلی -->
+                <div class="p-5 flex-1 flex flex-col">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="font-bold text-slate-800 dark:text-white text-lg line-clamp-1 search-target">{{ prop.title }}</h3>
+                    </div>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mb-4 flex items-center gap-1 search-target">
+                        <i class="ph-fill ph-map-pin text-rose-500"></i> {{ prop.neighborhood }}
+                    </p>
+
+                    <!-- قیمت -->
+                    <div class="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-3 mb-4 border border-gray-100 dark:border-slate-700">
+                        <p class="text-[10px] text-slate-400 mb-1">قیمت کل / رهن:</p>
+                        <p class="font-bold text-primary-600 dark:text-primary-400 font-mono text-left dir-ltr">
+                            {% if prop.price_total > 0 %}
+                                {{ "{:,.0f}".format(prop.price_total) }} <span class="text-xs font-sans text-slate-500">تومان</span>
+                            {% else %}
+                                <span class="font-sans">توافقی</span>
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <!-- ویژگی‌های کلیدی -->
+                    <div class="flex gap-4 text-xs font-bold text-slate-600 dark:text-slate-300 mb-6 border-b border-gray-100 dark:border-slate-700 pb-4">
+                        <span class="flex items-center gap-1"><i class="ph-fill ph-ruler text-slate-400"></i> {{ prop.built_area }} متر</span>
+                        <span class="flex items-center gap-1"><i class="ph-fill ph-bed text-slate-400"></i> {{ prop.rooms }} خواب</span>
+                        {% if prop.has_parking %}<span class="flex items-center gap-1 text-emerald-600"><i class="ph-fill ph-car"></i> پارکینگ</span>{% endif %}
+                    </div>
+
+                    <div class="mt-auto flex gap-2">
+                        <button onclick="aiMatch({{ prop.id }})" class="flex-1 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-bold py-2 rounded-xl text-xs shadow-md flex items-center justify-center gap-1 transition">
+                            <i class="ph-fill ph-magic-wand"></i> مچینگ با مشتری
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-span-full flex flex-col items-center justify-center p-12 text-center bg-white dark:bg-darkcard rounded-3xl border border-gray-100 dark:border-slate-700">
+                <i class="ph-fill ph-folder-open text-6xl text-slate-300 dark:text-slate-600 mb-4"></i>
+                <h3 class="text-xl font-bold text-slate-700 dark:text-slate-300 mb-2">هیچ فایلی یافت نشد!</h3>
+                <p class="text-sm text-slate-500 mb-6">هنوز هیچ ملکی در دیتابیس ثبت نشده است.</p>
+                <button onclick="window.location.href='/properties/add'" class="bg-primary-600 text-white px-6 py-2.5 rounded-xl font-bold">اولین ملک را ثبت کنید</button>
+            </div>
+        {% endif %}
+
+    </div>
+</div>
+
+<script>
+    function filterCards() {
+        const input = document.getElementById('searchInput').value.toLowerCase();
+        const cards = document.querySelectorAll('.property-card');
+        
+        cards.forEach(card => {
+            const textElements = card.querySelectorAll('.search-target');
+            let matchFound = false;
+            textElements.forEach(el => {
+                if (el.innerText.toLowerCase().includes(input)) {
+                    matchFound = true;
+                }
+            });
+            card.style.display = matchFound ? '' : 'none';
+        });
+    }
+
+    function aiMatch(propertyId) {
+        Swal.fire({
+            title: 'هوش مصنوعی...',
+            text: "در حال بررسی تطابق این فایل با خریداران موجود در قیف فروش...",
+            icon: 'info',
+            timer: 2000,
+            showConfirmButton: false
+        });
+    }
+</script>
+{% endblock %}

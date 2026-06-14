@@ -138,3 +138,30 @@ class Deal(SQLModel, table=True):
     deal_price: float # مبلغ معامله
     commission_amount: float # کمیسیون دریافتی
     deal_date: datetime = Field(default_factory=datetime.utcnow)
+
+class Reminder(SQLModel, table=True):
+    """جدول یادآورها و تقویم کاری مشاوران"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True) # مشاوری که یادآور برای اوست
+    client_id: Optional[int] = Field(default=None, foreign_key="client.id") # اگر یادآور مربوط به مشتری خاصی است
+    property_id: Optional[int] = Field(default=None, foreign_key="property.id") # اگر یادآور برای فایل خاصی است
+    title: str # موضوع یادآور (مثلا: بازدید از ملک سجاد)
+    description: Optional[str] = None # توضیحات تکمیلی
+    remind_date: datetime # تاریخ و زمان دقیق یادآوری
+    is_completed: bool = Field(default=False) # آیا انجام شده یا خیر؟
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class TicketStatus(str, Enum):
+    PENDING = "در انتظار پاسخ"
+    ANSWERED = "پاسخ داده شده"
+    CLOSED = "بسته شده"
+
+class Ticket(SQLModel, table=True):
+    """جدول تیکت‌های پشتیبانی داخلی"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True) # فرستنده تیکت
+    subject: str # موضوع درخواست
+    message: str # متن کامل
+    answer: Optional[str] = None # پاسخ مدیر (در صورت وجود)
+    status: TicketStatus = Field(default=TicketStatus.PENDING)
+    created_at: datetime = Field(default_factory=datetime.utcnow)

@@ -1,7 +1,7 @@
 <!-- مسیر فایل: app/templates/base.html -->
 
 <!DOCTYPE html>
-<html lang="fa" dir="rtl" class="light"> <!-- برای حالت تاریک کلاس dark به این تگ اضافه می‌شود -->
+<html lang="fa" dir="rtl" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,10 +9,10 @@
     
     <!-- فونت وزیرمتن -->
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
-    <!-- آیکون‌های Phosphor (مدرن‌تر از FontAwesome) -->
+    <!-- آیکون‌های Phosphor -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     
-    <!-- Tailwind CSS (CDN برای توسعه سریع) -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -22,17 +22,15 @@
                     fontFamily: { sans: ['Vazirmatn', 'sans-serif'] },
                     colors: {
                         primary: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 900: '#1e3a8a' },
-                        darkbg: '#0f172a', /* رنگ پس زمینه حالت تاریک */
-                        darkcard: '#1e293b' /* رنگ کارت ها در حالت تاریک */
+                        darkbg: '#0f172a',
+                        darkcard: '#1e293b'
                     }
                 }
             }
         }
     </script>
     <style>
-        /* ترانزیشن نرم برای تغییر تم تاریک و روشن */
         body { transition: background-color 0.3s ease, color 0.3s ease; }
-        /* پنهان کردن اسکرول‌بار اما حفظ قابلیت اسکرول */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -56,10 +54,14 @@
         <!-- لینک‌های منو -->
         <nav class="flex-1 overflow-y-auto no-scrollbar py-6 px-4 space-y-2">
             <p class="text-xs font-bold text-slate-400 mb-4 px-2">نمای کلی</p>
-            
-            <a href="/" class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400 font-bold transition">
+            <a href="/" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
                 <i class="ph ph-squares-four text-xl"></i> داشبورد
             </a>
+
+            <a href="/team" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
+                <i class="ph ph-users-three text-xl"></i> تیم من (مشاوران)
+            </a>
+
             <a href="/funnel" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
                 <i class="ph ph-funnel text-xl"></i> قیف فروش (CRM)
             </a>
@@ -80,9 +82,16 @@
             <a href="/financials" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
                 <i class="ph ph-chart-line-up text-xl"></i> گزارشات مالی
             </a>
-            <!-- 👇 این لینک را اینجا اضافه کنید 👇 -->
+
+            <a href="/reminders" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition relative">
+                <i class="ph ph-bell-ringing text-xl"></i> تقویم و یادآورها
+                <span class="absolute left-2 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-bounce">جدید</span>
+            </a>
+            <a href="/tickets" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
+                <i class="ph ph-headset text-xl"></i> پشتیبانی و تیکت‌ها
+            </a>
             <a href="/settings" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
-                <i class="ph ph-robot text-xl"></i> تنظیمات و تیکت‌ها
+                <i class="ph ph-robot text-xl"></i>تنظیمات
             </a>
         </nav>
 
@@ -97,7 +106,7 @@
     <!-- بخش اصلی محتوا -->
     <main class="flex-1 flex flex-col h-full relative overflow-hidden">
         
-        <!-- هدر بالای صفحه (Top Navbar) با افکت شیشه‌ای -->
+        <!-- هدر بالای صفحه -->
         <header class="h-20 bg-white/80 dark:bg-darkcard/80 backdrop-blur-md border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-8 z-10">
             <div class="flex items-center gap-4">
                 <h2 class="text-2xl font-bold text-slate-800 dark:text-white">{{ page_title }}</h2>
@@ -126,40 +135,14 @@
             </div>
         </header>
 
-        <!-- محتوای متغیر صفحات (اینجا پر می‌شود) -->
+        <!-- محتوای متغیر صفحات -->
         <div class="flex-1 overflow-y-auto p-8 relative">
             {% block content %}
-            <!-- کدهای صفحات دیگر در اینجا رندر می‌شوند -->
             {% endblock %}
         </div>
     </main>
 
-    <script>
-        // اسکریپت مدیریت تم تاریک و روشن
-        const htmlTag = document.documentElement;
-        const themeIcon = document.getElementById('theme-icon');
-
-        // چک کردن تم ذخیره شده یا تم سیستم
-        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            htmlTag.classList.add('dark');
-            themeIcon.classList.replace('ph-moon', 'ph-sun');
-        } else {
-            htmlTag.classList.remove('dark');
-            themeIcon.classList.replace('ph-sun', 'ph-moon');
-        }
-
-        function toggleTheme() {
-            htmlTag.classList.toggle('dark');
-            if (htmlTag.classList.contains('dark')) {
-                localStorage.setItem('theme', 'dark');
-                themeIcon.classList.replace('ph-moon', 'ph-sun');
-            } else {
-                localStorage.setItem('theme', 'light');
-                themeIcon.classList.replace('ph-sun', 'ph-moon');
-            }
-        }
-    </script>
-
+    <!-- کتابخانه SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
@@ -186,13 +169,12 @@
             }
         }
 
-        // ۲. هایلایت کردن منوی فعال در سایدبار (Active Route)
+        // ۲. هایلایت کردن منوی فعال در سایدبار
         document.addEventListener("DOMContentLoaded", () => {
             const currentPath = window.location.pathname;
             const navLinks = document.querySelectorAll("aside nav a");
             
             navLinks.forEach(link => {
-                // اگر لینک دقیقاً با آدرس فعلی یکی بود
                 if (link.getAttribute("href") === currentPath || (currentPath.includes(link.getAttribute("href")) && link.getAttribute("href") !== "/")) {
                     link.classList.remove("text-slate-600", "hover:bg-gray-100", "dark:text-slate-300", "dark:hover:bg-slate-800");
                     link.classList.add("bg-primary-50", "text-primary-600", "dark:bg-primary-900/30", "dark:text-primary-400", "font-bold");
@@ -200,7 +182,7 @@
             });
         });
 
-        // ۳. تابع جهانی برای سه‌رقم سه‌رقم کردن قیمت‌ها در اینپوت‌ها (Global Number Formatter)
+        // ۳. تابع جهانی برای سه‌رقم سه‌رقم کردن قیمت‌ها
         function formatNumberInput(inputElement) {
             let val = inputElement.value.replace(/,/g, '');
             if(isNaN(val) || val === '') {
@@ -210,7 +192,7 @@
             inputElement.value = parseInt(val).toLocaleString('en-US');
         }
         
-        // خروج از سیستم یکپارچه با SweetAlert
+        // ۴. خروج از سیستم یکپارچه با SweetAlert
         function logoutSystem() {
             Swal.fire({
                 title: 'خروج از سیستم؟',
@@ -227,6 +209,5 @@
             });
         }
     </script>
-
 </body>
 </html>

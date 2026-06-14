@@ -7,12 +7,18 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
-from app.core.models import Property, Client, Deal
+from app.core.models import (
+    Property, Client, Deal,
+    Reminder, Ticket, User
+)
 from app.core.database import create_db_and_tables, get_session  
 from app.api.properties_api import router as properties_router
 from app.api.auth_api import router as auth_router
 from app.api.clients_api import router as clients_router
 from app.api.deals_api import router as deals_router
+from app.api.reminders_api import router as reminders_router
+from app.api.tickets_api import router as tickets_router
+from app.api.users_api import router as users_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -34,6 +40,9 @@ app.include_router(properties_router)
 app.include_router(auth_router)
 app.include_router(clients_router)
 app.include_router(deals_router)
+app.include_router(reminders_router)
+app.include_router(tickets_router)
+app.include_router(users_router)
 
 # تنظیمات فایل‌های استاتیک و قالب‌های HTML
 os.makedirs("app/static", exist_ok=True)
@@ -125,3 +134,60 @@ async def render_partnership(request: Request, session: Session = Depends(get_se
     lands = session.exec(select(Property).where(Property.deal_type == DealType.PARTNERSHIP).order_by(Property.id.desc())).all()
     builders = session.exec(select(Client).where(Client.deal_type_requested == DealType.PARTNERSHIP).order_by(Client.id.desc())).all()
     return templates.TemplateResponse(request=request, name="dashboard/partnership.html", context={"request": request, "page_title": "دپارتمان مشارکت", "lands": lands, "builders": builders})
+
+@app.get("/reminders")
+async def render_reminders(request: Request, session: Session = Depends(get_session)):
+    if not check_auth(request): return RedirectResponse(url="/login")
+    
+    # گرفتن تمام یادآورها (تکمیل نشده‌ها اول)
+    reminders_list = session.exec(
+        select(Reminder).order_by(Reminder.is_completed, Reminder.remind_date.asc())
+    ).all()
+    
+    # گرفتن مشتریان برای نمایش در لیست انتخاب پاپ‌آپ
+    active_clients = session.exec(select(Client)).all()
+    
+    return templates.TemplateResponse(
+        request=request, 
+        name="dashboard/reminders.html", 
+        context={
+            "request": request, 
+            "page_title": "تقویم و یادآورها",
+            "reminders": reminders_list,
+            "clients": active_clients
+        }
+    )
+
+@app.get("/tickets")
+async def render_tickets(request: Request, session: Session = Depends(get_session)):
+    if not check_auth(request): return RedirectResponse(url="/login")
+    
+    # خواندن تیکت‌ها از دیتابیس
+    tickets_list = session.exec(select(Ticket).order_by(Ticket.id.desc())).all()
+    
+    return templates.TemplateResponse(
+        request=request, 
+        name="dashboard/tickets.html", 
+        context={
+            "request": request, 
+            "page_title": "پشتیبانی و تیکت‌ها",
+            "tickets": tickets_list
+        }
+    )
+
+@app.get("/team")
+async def render_team(request: Request, session: Session = Depends(get_session)):
+    if not check_auth(request): return RedirectResponse(url="/login")
+    
+    # گرفتن تمام پرسنل آژانس به جز خود ادمین اصلی (admin)
+    agents = session.exec(select(User).where(User.username != "admin").order_by(User.id.desc())).all()
+    
+    return templates.TemplateResponse(
+        request=request, 
+        name="dashboard/team.html", 
+        context={
+            "request": request, 
+            "page_title": "مدیریت تیم و مشاوران",
+            "agents": agents
+        }
+    )

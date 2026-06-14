@@ -207,7 +207,7 @@
     document.addEventListener("DOMContentLoaded", function () {
         const isDark = document.documentElement.classList.contains('dark');
         var options = {
-            series: [{ name: 'درآمد', data: [0, 0, 0, 0, 0, {{ total_revenue }}] }], // دیتای واقعی درآمد کل در ماه آخر
+            series: [{ name: 'درآمد', data: [0, 0, 0, 0, 0, parseInt("{{ total_revenue }}") || 0] }],
             chart: { type: 'area', height: 320, toolbar: { show: false }, background: 'transparent' },
             colors: ['#3b82f6'],
             stroke: { curve: 'smooth', width: 3 },

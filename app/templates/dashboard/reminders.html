@@ -1,0 +1,158 @@
+<!-- مسیر فایل: app/templates/dashboard/reminders.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    
+    <!-- هدر صفحه -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="ph-fill ph-alarm text-amber-500"></i> تقویم کاری و یادآورها
+            </h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">مدیریت بازدیدها، تماس‌ها و جلسات روزانه</p>
+        </div>
+        <button onclick="openReminderModal()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg shadow-amber-500/30 flex items-center gap-2 transition">
+            <i class="ph-bold ph-plus"></i> ثبت یادآور جدید
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        <!-- ستون کارهای باز (در انتظار) -->
+        <div class="md:col-span-2">
+            <h3 class="font-bold text-slate-800 dark:text-white mb-4">کارهای پیش‌رو (Pending)</h3>
+            <div class="space-y-4">
+                {% set has_pending = false %}
+                {% for r in reminders %}
+                    {% if not r.is_completed %}
+                    {% set has_pending = true %}
+                    <div class="bg-white dark:bg-darkcard border-l-4 border-amber-500 p-4 rounded-xl shadow-sm hover:shadow-md transition flex justify-between items-center group">
+                        <div class="flex items-start gap-3">
+                            <div class="bg-amber-100 text-amber-600 dark:bg-amber-900/30 w-10 h-10 rounded-full flex items-center justify-center text-xl mt-1">
+                                <i class="ph-fill ph-bell-ringing"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 dark:text-white text-md">{{ r.title }}</h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">{{ r.description }}</p>
+                                <div class="flex gap-3 mt-3 text-[10px] font-bold">
+                                    <span class="bg-gray-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded-md dir-ltr flex items-center gap-1">
+                                        <i class="ph-bold ph-clock"></i> {{ r.remind_date.strftime('%Y-%m-%d | %H:%M') }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="markAsDone({{ r.id }})" class="opacity-0 group-hover:opacity-100 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                            <i class="ph-bold ph-check"></i> انجام شد
+                        </button>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+
+                {% if not has_pending %}
+                    <div class="bg-gray-50/50 dark:bg-slate-800/30 border border-dashed border-gray-300 dark:border-slate-700 p-8 rounded-2xl text-center">
+                        <i class="ph-fill ph-coffee text-5xl text-slate-300 mb-2"></i>
+                        <p class="text-sm font-bold text-slate-500">هیچ کارِ باز و معلقی ندارید! یک قهوه بنوشید.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ستون کارهای انجام شده (تاریخچه) -->
+        <div class="md:col-span-1">
+            <h3 class="font-bold text-slate-800 dark:text-white mb-4">کارهای انجام شده (History)</h3>
+            <div class="bg-white dark:bg-darkcard rounded-2xl border border-gray-100 dark:border-slate-700 p-4 space-y-3 h-[500px] overflow-y-auto no-scrollbar">
+                {% for r in reminders %}
+                    {% if r.is_completed %}
+                    <div class="p-3 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700 opacity-60">
+                        <div class="flex items-center gap-2 mb-1">
+                            <i class="ph-fill ph-check-circle text-emerald-500 text-lg"></i>
+                            <h4 class="font-bold text-sm text-slate-600 dark:text-slate-300 line-through">{{ r.title }}</h4>
+                        </div>
+                        <p class="text-[10px] text-slate-400 pr-7 dir-ltr text-right">{{ r.remind_date.strftime('%Y-%m-%d | %H:%M') }}</p>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // اطلاعات مشتریان برای مودال
+    const clientsList = [
+        {% for c in clients %} {id: {{ c.id }}, name: "{{ c.name }} ({{ c.phone }})"}, {% endfor %}
+    ];
+
+    function openReminderModal() {
+        let clientsOptions = clientsList.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        
+        Swal.fire({
+            title: 'ثبت یادآور جدید ⏰',
+            html: `
+                <div class="text-right space-y-4 mt-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-1">عنوان یادآور *</label>
+                        <input id="rm-title" class="swal2-input w-full m-0 h-10 text-sm" placeholder="مثال: تماس با مالک جهت تخفیف">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">تاریخ و ساعت یادآوری *</label>
+                        <input type="datetime-local" id="rm-date" class="swal2-input w-full m-0 h-10 text-sm dir-ltr">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">مشتری مرتبط (اختیاری)</label>
+                        <select id="rm-client" class="swal2-input w-full m-0 h-10 text-sm py-0">
+                            <option value="0">بدون مشتری</option>
+                            ${clientsOptions}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">توضیحات تکمیلی</label>
+                        <textarea id="rm-desc" class="swal2-textarea w-full m-0 text-sm p-3" placeholder="توضیحات..."></textarea>
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'ثبت در تقویم',
+            cancelButtonText: 'انصراف',
+            confirmButtonColor: '#f59e0b',
+            preConfirm: () => {
+                const title = document.getElementById('rm-title').value;
+                const date = document.getElementById('rm-date').value;
+                if (!title || !date) {
+                    Swal.showValidationMessage('عنوان و زمان یادآور الزامی است!');
+                    return false;
+                }
+                return {
+                    title: title,
+                    remind_date: date,
+                    client_id: parseInt(document.getElementById('rm-client').value),
+                    description: document.getElementById('rm-desc').value
+                };
+            }
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    const res = await fetch("/api/reminders/add", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(result.value)
+                    });
+                    if (res.ok) window.location.reload();
+                } catch (e) {
+                    Swal.fire('خطا', 'ارتباط با سرور قطع شد.', 'error');
+                }
+            }
+        });
+    }
+
+    async function markAsDone(id) {
+        try {
+            const res = await fetch(`/api/reminders/${id}/complete`, { method: "PUT" });
+            if (res.ok) window.location.reload();
+        } catch(e) { console.error(e); }
+    }
+</script>
+{% endblock %}
