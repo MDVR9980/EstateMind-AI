@@ -1,0 +1,86 @@
+<!-- مسیر فایل: app/templates/dashboard/settings.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
+    
+    <!-- سایدبار تنظیمات -->
+    <div class="lg:col-span-1">
+        <div class="bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden sticky top-8">
+            <div class="p-6 text-center border-b border-gray-100 dark:border-slate-700">
+                <img src="https://ui-avatars.com/api/?name=Ali+M&background=3b82f6&color=fff&size=128" alt="Profile" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-primary-50 dark:border-slate-800">
+                <h3 class="font-bold text-slate-800 dark:text-white text-lg">علی محمدی</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400">مدیر شعبه (Admin)</p>
+            </div>
+            <nav class="flex flex-col p-4 gap-2">
+                <button class="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400 font-bold transition">
+                    <i class="ph-fill ph-user"></i> پروفایل و حریم خصوصی
+                </button>
+                <button class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
+                    <i class="ph-fill ph-devices"></i> دستگاه‌های متصل (نشست‌ها)
+                </button>
+                <button class="flex items-center justify-between px-4 py-3 rounded-xl text-slate-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
+                    <div class="flex items-center gap-3"><i class="ph-fill ph-headset"></i> پشتیبانی و تیکت‌ها</div>
+                    <span class="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">۱</span>
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- محتوای اصلی تنظیمات -->
+    <div class="lg:col-span-3 space-y-6">
+        
+        <!-- حریم خصوصی -->
+        <div class="bg-white dark:bg-darkcard p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700">
+            <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2"><i class="ph-fill ph-shield-check text-emerald-500"></i> حریم خصوصی و امنیت</h3>
+            
+            <div class="space-y-6">
+                <!-- تاگل (Toggle) -->
+                <div class="flex items-center justify-between pb-6 border-b border-gray-100 dark:border-slate-700">
+                    <div>
+                        <h4 class="font-bold text-slate-800 dark:text-white text-sm">فعال‌سازی ورود دو مرحله‌ای (2FA)</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">علاوه بر رمز عبور، پیامک تایید نیز به شماره موبایل شما ارسال شود.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" value="" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:-translate-x-0 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-500"></div>
+                    </label>
+                </div>
+                
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h4 class="font-bold text-slate-800 dark:text-white text-sm">محدودیت دسترسی مکانی (IP)</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">مشاوران زیرمجموعه فقط بتوانند با اینترنت شعبه به سیستم لاگین کنند.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" value="" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:-translate-x-0 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-500"></div>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- تیکت‌های پشتیبانی -->
+        <div class="bg-white dark:bg-darkcard p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><i class="ph-fill ph-envelope-simple text-primary-500"></i> ارسال تیکت جدید</h3>
+                <span class="text-xs font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-3 py-1 rounded-full">زمان پاسخگویی: ۵ دقیقه</span>
+            </div>
+            
+            <form class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">موضوع تیکت</label>
+                    <input type="text" placeholder="مثال: درخواست تغییر نام شعبه" class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">توضیحات</label>
+                    <textarea rows="4" placeholder="متن درخواست خود را بنویسید..." class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none"></textarea>
+                </div>
+                <button type="button" class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition">ارسال تیکت</button>
+            </form>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

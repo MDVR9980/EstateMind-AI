@@ -1,0 +1,278 @@
+<!-- مسیر فایل: app/templates/dashboard/add_property.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="max-w-4xl mx-auto">
+    
+    <!-- نوار پیشرفت (Stepper) -->
+    <div class="mb-8 relative">
+        <div class="overflow-hidden h-2 mb-4 text-xs flex rounded-full bg-gray-200 dark:bg-slate-700">
+            <div id="progress-bar" style="width: 25%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-primary-500 transition-all duration-500"></div>
+        </div>
+        <div class="flex justify-between text-xs font-bold text-slate-400 dark:text-slate-500 px-1">
+            <span class="text-primary-600 dark:text-primary-400" id="step-label-1">۱. نوع و دستیار صوتی</span>
+            <span id="step-label-2">۲. آدرس و لوکیشن</span>
+            <span id="step-label-3">۳. مشخصات و امکانات</span>
+            <span id="step-label-4">۴. مالی و تصاویر</span>
+        </div>
+    </div>
+
+    <!-- فرم اصلی -->
+    <div class="bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden relative min-h-[500px]">
+        
+        <!-- ================= مرحله 1 ================= -->
+        <div id="step-1" class="step-content p-8 transition-opacity duration-300">
+            
+            <!-- باکس جادویی دستیار صوتی -->
+            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-100 dark:border-indigo-800/50 p-6 rounded-2xl mb-8 flex flex-col items-center text-center">
+                <div class="w-16 h-16 bg-white dark:bg-darkcard rounded-full shadow-md flex items-center justify-center mb-4 relative">
+                    <!-- افکت پالس برای ضبط -->
+                    <div id="recording-pulse" class="absolute inset-0 bg-rose-500 rounded-full animate-ping hidden"></div>
+                    <button id="btn-voice" onclick="toggleVoiceAI()" class="relative z-10 w-12 h-12 bg-gradient-to-tr from-rose-500 to-pink-500 text-white rounded-full flex items-center justify-center text-2xl hover:scale-105 transition-transform shadow-lg shadow-rose-500/40">
+                        <i class="ph-fill ph-microphone"></i>
+                    </button>
+                </div>
+                <h3 class="text-lg font-bold text-indigo-900 dark:text-indigo-300 mb-2">دستیار صوتی هوشمند (Voice to Form)</h3>
+                <p class="text-sm text-indigo-700/80 dark:text-indigo-400/80 max-w-md">دکمه را بزنید و مشخصات ملک را صحبت کنید. (مثال: یک آپارتمان ۱۲۰ متری، ۳ خوابه در وکیل آباد، قیمت ۵ میلیارد)</p>
+                <p id="voice-status" class="text-rose-600 dark:text-rose-400 text-xs font-bold mt-4 h-4"></p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">نوع معامله *</label>
+                    <select id="deal_type" onchange="toggleDealFields()" class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none">
+                        <option value="sale">فروش</option>
+                        <option value="rent">رهن و اجاره</option>
+                        <option value="partnership">مشارکت در ساخت</option>
+                        <option value="barter">تهاتر</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">نوع ملک *</label>
+                    <select id="prop_type" class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none">
+                        <option value="apartment">آپارتمان</option>
+                        <option value="villa">ویلایی</option>
+                        <option value="land">زمین و کلنگی</option>
+                        <option value="shop">مغازه / تجاری</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= مرحله 2 ================= -->
+        <div id="step-2" class="step-content p-8 hidden opacity-0 transition-opacity duration-300">
+            <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2"><i class="ph-fill ph-map-pin text-primary-500"></i> موقعیت و آدرس</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">شهر</label>
+                    <input type="text" id="city" value="مشهد" class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">محله / منطقه</label>
+                    <input type="text" id="neighborhood" placeholder="مثال: سجاد" class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">آدرس دقیق (محرمانه - فقط برای شما)</label>
+                    <input type="text" id="address" placeholder="مثال: نبش بهارستان ۴، پلاک ۱۲" class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none">
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= مرحله 3 ================= -->
+        <div id="step-3" class="step-content p-8 hidden opacity-0 transition-opacity duration-300">
+            <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2"><i class="ph-fill ph-blueprint text-primary-500"></i> مشخصات فنی</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">متراژ (متر مربع)</label>
+                    <input type="number" id="area" placeholder="120" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">تعداد خواب</label>
+                    <input type="number" id="rooms" placeholder="3" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">سال ساخت</label>
+                    <input type="number" id="age" placeholder="1402" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none">
+                </div>
+            </div>
+
+            <div class="mt-6">
+                <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">امکانات رفاهی</label>
+                <div class="flex flex-wrap gap-3">
+                    <!-- چک باکس‌های استایل دار (Chips) -->
+                    <label class="cursor-pointer">
+                        <input type="checkbox" class="peer sr-only" checked>
+                        <span class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 peer-checked:bg-primary-500 peer-checked:text-white peer-checked:border-primary-500 transition">آسانسور</span>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="checkbox" class="peer sr-only" checked>
+                        <span class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 peer-checked:bg-primary-500 peer-checked:text-white peer-checked:border-primary-500 transition">پارکینگ</span>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="checkbox" class="peer sr-only">
+                        <span class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 peer-checked:bg-primary-500 peer-checked:text-white peer-checked:border-primary-500 transition">روف گاردن</span>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="checkbox" class="peer sr-only" id="has_master">
+                        <span class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 peer-checked:bg-primary-500 peer-checked:text-white peer-checked:border-primary-500 transition">خواب مستر</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= مرحله 4 ================= -->
+        <div id="step-4" class="step-content p-8 hidden opacity-0 transition-opacity duration-300">
+            
+            <!-- فیلدهای فروش / اجاره -->
+            <div id="financial-standard">
+                <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2"><i class="ph-fill ph-wallet text-emerald-500"></i> اطلاعات مالی</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">قیمت کل (تومان)</label>
+                        <input type="text" id="price" placeholder="مثال: 5,000,000,000" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">وضعیت سند</label>
+                        <select class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none">
+                            <option>تک برگ (شش دانگ)</option>
+                            <option>قولنامه‌ای (وکالتی)</option>
+                            <option>اوقافی</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- فیلدهای تخصصی مشارکت در ساخت (داینامیک ظاهر می‌شود) -->
+            <div id="financial-partnership" class="hidden">
+                <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2"><i class="ph-fill ph-handshake text-amber-500"></i> شرایط مشارکت در ساخت</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">درصد سهم مالک (%)</label>
+                        <input type="number" placeholder="مثال: 60" dir="ltr" class="w-full bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700/50 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-amber-500 p-3 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">درصد سهم سازنده (%)</label>
+                        <input type="number" placeholder="مثال: 40" dir="ltr" class="w-full bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700/50 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-amber-500 p-3 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">مبلغ بلاعوض (تومان)</label>
+                        <input type="text" placeholder="مبلغ درخواستی مالک" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none">
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- دکمه‌های ناوبری (Navigation) پایین فرم -->
+        <div class="absolute bottom-0 left-0 w-full p-4 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 flex justify-between items-center">
+            <button id="btn-prev" onclick="changeStep(-1)" class="hidden px-5 py-2.5 rounded-xl font-bold text-slate-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition">مرحله قبل</button>
+            <div class="flex-1"></div>
+            <button id="btn-next" onclick="changeStep(1)" class="px-5 py-2.5 rounded-xl font-bold text-white bg-primary-600 hover:bg-primary-700 shadow-md transition">مرحله بعد</button>
+            <button id="btn-submit" onclick="submitForm()" class="hidden px-5 py-2.5 rounded-xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 shadow-md transition gap-2 items-center">
+                <i class="ph-bold ph-check"></i> ثبت نهایی در CRM
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    let currentStep = 1;
+    const totalSteps = 4;
+
+    // منطق جابجایی بین مراحل و پر شدن پروگرس‌بار
+    function changeStep(direction) {
+        document.getElementById(`step-${currentStep}`).classList.add('hidden', 'opacity-0');
+        document.getElementById(`step-label-${currentStep}`).classList.remove('text-primary-600', 'dark:text-primary-400');
+        
+        currentStep += direction;
+        
+        document.getElementById(`step-${currentStep}`).classList.remove('hidden');
+        // تاخیر کوچک برای اعمال ترانزیشن نرم (CSS fade in)
+        setTimeout(() => {
+            document.getElementById(`step-${currentStep}`).classList.remove('opacity-0');
+        }, 50);
+
+        document.getElementById(`step-label-${currentStep}`).classList.add('text-primary-600', 'dark:text-primary-400');
+        
+        // آپدیت پروگرس بار
+        document.getElementById('progress-bar').style.width = `${(currentStep / totalSteps) * 100}%`;
+
+        // مدیریت دکمه‌ها
+        document.getElementById('btn-prev').classList.toggle('hidden', currentStep === 1);
+        if (currentStep === totalSteps) {
+            document.getElementById('btn-next').classList.add('hidden');
+            document.getElementById('btn-submit').classList.remove('hidden');
+            document.getElementById('btn-submit').classList.add('flex');
+        } else {
+            document.getElementById('btn-next').classList.remove('hidden');
+            document.getElementById('btn-submit').classList.add('hidden');
+            document.getElementById('btn-submit').classList.remove('flex');
+        }
+    }
+
+    // تغییر فرمت‌های مالی در صورت انتخاب "مشارکت در ساخت"
+    function toggleDealFields() {
+        const dealType = document.getElementById('deal_type').value;
+        const stdFields = document.getElementById('financial-standard');
+        const partFields = document.getElementById('financial-partnership');
+        
+        if (dealType === 'partnership') {
+            stdFields.classList.add('hidden');
+            partFields.classList.remove('hidden');
+        } else {
+            stdFields.classList.remove('hidden');
+            partFields.classList.add('hidden');
+        }
+    }
+
+    // ============================================================
+    // شبیه‌سازی جادوی هوش مصنوعی (Voice AI)
+    // ============================================================
+    let isRecording = false;
+    function toggleVoiceAI() {
+        const pulse = document.getElementById('recording-pulse');
+        const status = document.getElementById('voice-status');
+        
+        if (!isRecording) {
+            isRecording = true;
+            pulse.classList.remove('hidden');
+            status.innerText = "در حال شنیدن صدای شما... 🔴";
+            
+            // شبیه‌سازی ۳ ثانیه صحبت کردن مشاور
+            setTimeout(() => {
+                isRecording = false;
+                pulse.classList.add('hidden');
+                status.classList.replace('text-rose-600', 'text-primary-600');
+                status.classList.replace('dark:text-rose-400', 'dark:text-primary-400');
+                status.innerText = "در حال تحلیل صوت توسط هوش مصنوعی... 🧠";
+                
+                // شبیه‌سازی پر شدن خودکار فرم‌ها پس از تحلیل AI
+                setTimeout(() => {
+                    status.innerText = "✨ فرم‌ها با موفقیت استخراج و تکمیل شد!";
+                    
+                    // تزریق جادویی دیتای استخراج شده از ویس به فیلدهای فرم:
+                    document.getElementById('neighborhood').value = 'سجاد';
+                    document.getElementById('area').value = '120';
+                    document.getElementById('rooms').value = '3';
+                    document.getElementById('price').value = '5,000,000,000';
+                    document.getElementById('has_master').checked = true;
+                    
+                    // به صورت اتوماتیک کاربر را به مرحله تایید (مثلا مرحله 3) بفرست
+                    setTimeout(() => changeStep(1), 1000);
+                    setTimeout(() => changeStep(1), 2000);
+                    
+                }, 1500);
+            }, 3000);
+        }
+    }
+
+    function submitForm() {
+        alert("اطلاعات فایل در دیتابیس CRM ذخیره شد و به عنوان مچینگ به مشتریان مرتبط پیشنهاد داده خواهد شد.");
+        window.location.href = "/";
+    }
+</script>
+
+{% endblock %}

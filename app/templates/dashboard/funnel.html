@@ -1,0 +1,142 @@
+<!-- مسیر فایل: app/templates/dashboard/funnel.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<!-- اضافه کردن کتابخانه SortableJS برای قابلیت Drag & Drop -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+<!-- هدر ابزارها -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <div class="flex items-center gap-2">
+        <input type="text" placeholder="جستجوی مشتری، موبایل یا کد..." class="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-darkcard dark:text-white w-72 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition text-sm">
+        <button class="bg-white dark:bg-darkcard border border-gray-200 dark:border-slate-700 p-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition">
+            <i class="ph ph-funnel-simple text-lg"></i>
+        </button>
+    </div>
+    
+    <button class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-primary-500/30 flex items-center gap-2 transition">
+        <i class="ph-bold ph-plus"></i> ثبت مشتری جدید
+    </button>
+</div>
+
+<!-- بورد کانبان (Kanban Board) -->
+<div class="flex gap-6 h-[calc(100vh-220px)] overflow-x-auto pb-4 no-scrollbar">
+    
+    {% for stage in stages %}
+    <!-- ستون مرحله -->
+    <div class="flex-shrink-0 w-80 flex flex-col rounded-2xl bg-gray-100/50 dark:bg-slate-800/30 border border-gray-200 dark:border-slate-700 overflow-hidden">
+        
+        <!-- هدر ستون -->
+        <div class="p-4 border-b-2 {{ stage.color }} bg-white dark:bg-darkcard flex justify-between items-center">
+            <h3 class="font-bold text-slate-800 dark:text-white text-sm">{{ stage.name }}</h3>
+            <span class="bg-gray-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold px-2.5 py-1 rounded-full">
+                <!-- عدد فرضی -->
+                {% if loop.index == 1 %}۳{% elif loop.index == 2 %}۱{% else %}۰{% endif %}
+            </span>
+        </div>
+
+        <!-- بدنه ستون (Dropzone) -->
+        <div class="p-3 flex-1 overflow-y-auto sortable-list" data-stage-id="{{ stage.id }}">
+            
+            {% if loop.index == 1 %}
+            <!-- کارت مشتری نمونه ۱ -->
+            <div class="bg-white dark:bg-darkcard p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 mb-3 cursor-grab active:cursor-grabbing hover:shadow-md transition">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 flex items-center justify-center font-bold text-xs">اح</div>
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-800 dark:text-white">امیرحسین رضایی</h4>
+                            <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">0912***4567</p>
+                        </div>
+                    </div>
+                    <button class="text-slate-400 hover:text-rose-500 transition"><i class="ph ph-dots-three text-lg"></i></button>
+                </div>
+                
+                <div class="mb-3">
+                    <p class="text-xs font-bold text-slate-600 dark:text-slate-300">خرید آپارتمان (سجاد، هاشمیه)</p>
+                    <p class="text-xs text-emerald-600 dark:text-emerald-400 font-bold mt-1 dir-ltr text-right">تا 12,000,000,000 T</p>
+                </div>
+
+                <div class="flex items-center justify-between border-t border-gray-100 dark:border-slate-700 pt-3 mt-1">
+                    <span class="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-900/30 px-2 py-1 rounded-md font-bold flex items-center gap-1">
+                        <i class="ph-fill ph-clock"></i> پیگیری امروز
+                    </span>
+                    <!-- دکمه جادویی هوش مصنوعی -->
+                    <button onclick="showAIPrediction()" class="text-[10px] text-white bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 px-2.5 py-1 rounded-md font-bold shadow-sm flex items-center gap-1 transition">
+                        <i class="ph-fill ph-sparkle"></i> ۲ پیشنهاد AI
+                    </button>
+                </div>
+            </div>
+
+            <!-- کارت مشتری نمونه ۲ -->
+            <div class="bg-white dark:bg-darkcard p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 mb-3 cursor-grab active:cursor-grabbing hover:shadow-md transition">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-full bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 flex items-center justify-center font-bold text-xs">س‌م</div>
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-800 dark:text-white">سارا محمدی</h4>
+                            <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">0935***8899</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <p class="text-xs font-bold text-slate-600 dark:text-slate-300">رهن کامل ویلایی (وکیل آباد)</p>
+                    <p class="text-xs text-emerald-600 dark:text-emerald-400 font-bold mt-1 dir-ltr text-right">800,000,000 T</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if loop.index == 2 %}
+            <!-- کارت مشتری نمونه ۳ (مرحله بازدید) -->
+            <div class="bg-white dark:bg-darkcard p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 mb-3 cursor-grab active:cursor-grabbing hover:shadow-md transition">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">مج</div>
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-800 dark:text-white">محمد جوادی</h4>
+                    </div>
+                </div>
+                <p class="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">تهاتر مغازه با آپارتمان</p>
+                <div class="bg-gray-50 dark:bg-slate-800 p-2 rounded-lg text-[10px] text-slate-500 dark:text-slate-400 border border-gray-100 dark:border-slate-700 flex items-center gap-2">
+                    <i class="ph-fill ph-map-pin text-primary-500 text-sm"></i> امروز ساعت ۱۸ بازدید هماهنگ شد.
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+    {% endfor %}
+
+</div>
+
+<!-- اسکریپت فعال‌سازی Drag and Drop -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const columns = document.querySelectorAll('.sortable-list');
+        
+        columns.forEach(col => {
+            new Sortable(col, {
+                group: 'shared', // اجازه میدهد کارت‌ها بین ستون‌ها جابه‌جا شوند
+                animation: 150,
+                ghostClass: 'opacity-30', // ظاهر کارت در حال کشیده شدن
+                
+                // وقتی کارتی در یک ستون جدید رها شد، این تابع اجرا می‌شود
+                onEnd: function (evt) {
+                    const itemEl = evt.item;  // کارت جابه‌جا شده
+                    const toStage = evt.to.getAttribute('data-stage-id'); // آیدی ستون مقصد
+                    console.log(`Lead moved to: ${toStage}`);
+                    
+                    // اینجا در آینده یک درخواست AJAX/Fetch به بک‌اند (FastAPI) می‌زنیم 
+                    // تا مرحله جدید مشتری در دیتابیس ذخیره شود.
+                }
+            });
+        });
+    });
+
+    function showAIPrediction() {
+        // از SweetAlert2 استفاده میکنیم (چون شما در سورس قبلی داشتید)
+        // فعلا یک آلرت ساده میزنیم تا بعدا به API مچینگ وصل کنیم
+        alert("هوش مصنوعی: بر اساس تحلیل پردازش زبان طبیعی، فایل 'کد 809 - آپارتمان 140 متری سجاد' با بودجه و نیاز این مشتری 92% تطابق دارد. \nآیا کاتالوگ برای مشتری پیامک شود؟");
+    }
+</script>
+{% endblock %}

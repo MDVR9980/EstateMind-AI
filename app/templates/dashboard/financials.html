@@ -1,0 +1,196 @@
+<!-- مسیر فایل: app/templates/dashboard/financials.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<!-- کتابخانه ApexCharts برای نمودارهای فوق‌حرفه‌ای و تعاملی -->
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+<!-- هدر و دکمه اکسپورت اکسل -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+    <div>
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-white">گزارش عملکرد شعبه</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">خلاصه وضعیت مالی و کمیسیون‌های دریافتی در سال جاری</p>
+    </div>
+    <div class="flex gap-3">
+        <!-- دکمه‌ای که در سیستم رقیب هم بود اما اینجا مدرن‌تر است -->
+        <button onclick="exportToExcel()" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-400 font-bold py-2.5 px-5 rounded-xl shadow-sm flex items-center gap-2 transition">
+            <i class="ph-bold ph-microsoft-excel-logo text-lg"></i> خروجی اکسل (Excel)
+        </button>
+    </div>
+</div>
+
+<!-- ویجت‌های مالی -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-gradient-to-br from-primary-500 to-primary-700 p-6 rounded-3xl shadow-lg shadow-primary-500/30 text-white relative overflow-hidden">
+        <div class="absolute -right-6 -top-6 text-white/10 text-9xl"><i class="ph-fill ph-wallet"></i></div>
+        <div class="relative z-10">
+            <p class="text-primary-100 font-medium mb-1">جمع کل درآمد شعبه (امسال)</p>
+            <h3 class="text-3xl font-bold mb-4 font-mono dir-ltr text-right">4,250,000,000 <span class="text-sm font-sans">تومان</span></h3>
+            <div class="flex items-center gap-2 text-xs bg-white/20 w-fit px-3 py-1 rounded-full backdrop-blur-sm">
+                <i class="ph-bold ph-trend-up"></i> +۱۲٪ رشد نسبت به سال قبل
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-darkcard p-6 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-sm relative overflow-hidden">
+        <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-500 dark:bg-emerald-900/30 flex items-center justify-center text-xl">
+                <i class="ph-fill ph-buildings"></i>
+            </div>
+            <span class="text-slate-400"><i class="ph-bold ph-dots-three text-xl"></i></span>
+        </div>
+        <p class="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">سهم خالص دفتر (سود)</p>
+        <h3 class="text-2xl font-bold text-slate-800 dark:text-white font-mono dir-ltr text-right">2,125,000,000 <span class="text-sm font-sans text-slate-500">ت</span></h3>
+    </div>
+
+    <div class="bg-white dark:bg-darkcard p-6 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-sm relative overflow-hidden">
+        <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-full bg-amber-50 text-amber-500 dark:bg-amber-900/30 flex items-center justify-center text-xl">
+                <i class="ph-fill ph-users"></i>
+            </div>
+            <span class="text-slate-400"><i class="ph-bold ph-dots-three text-xl"></i></span>
+        </div>
+        <p class="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">سهم پرداختی به مشاورین</p>
+        <h3 class="text-2xl font-bold text-slate-800 dark:text-white font-mono dir-ltr text-right">2,125,000,000 <span class="text-sm font-sans text-slate-500">ت</span></h3>
+    </div>
+</div>
+
+<!-- بخش چارت و جدول -->
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+    
+    <!-- نمودار درآمد ماهانه -->
+    <div class="xl:col-span-2 bg-white dark:bg-darkcard p-6 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-sm">
+        <h3 class="font-bold text-slate-800 dark:text-white mb-6">روند درآمد کمیسیون در ۶ ماه گذشته</h3>
+        <div id="revenue-chart" class="w-full h-80"></div>
+    </div>
+
+    <!-- آخرین معاملات ثبت شده -->
+    <div class="xl:col-span-1 bg-white dark:bg-darkcard p-6 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-sm flex flex-col">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="font-bold text-slate-800 dark:text-white">آخرین قراردادها</h3>
+            <button class="text-primary-500 hover:text-primary-600 text-sm font-bold transition">مشاهده همه</button>
+        </div>
+        
+        <div class="flex flex-col gap-4 overflow-y-auto no-scrollbar flex-1">
+            <!-- معامله ۱ -->
+            <div class="flex items-center gap-4 p-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-slate-800/50 transition border border-transparent hover:border-gray-100 dark:hover:border-slate-700">
+                <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 flex items-center justify-center font-bold">
+                    <i class="ph-bold ph-check"></i>
+                </div>
+                <div class="flex-1">
+                    <h4 class="text-sm font-bold text-slate-800 dark:text-white">فروش آپارتمان هاشمیه</h4>
+                    <p class="text-xs text-slate-500">مشاور: امیرحسین</p>
+                </div>
+                <div class="text-left">
+                    <p class="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">120 M</p>
+                    <p class="text-[10px] text-slate-400">کمیسیون کل</p>
+                </div>
+            </div>
+
+            <!-- معامله ۲ -->
+            <div class="flex items-center gap-4 p-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-slate-800/50 transition border border-transparent hover:border-gray-100 dark:hover:border-slate-700">
+                <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 flex items-center justify-center font-bold">
+                    <i class="ph-bold ph-key"></i>
+                </div>
+                <div class="flex-1">
+                    <h4 class="text-sm font-bold text-slate-800 dark:text-white">رهن کامل ویلایی</h4>
+                    <p class="text-xs text-slate-500">مشاور: سارا</p>
+                </div>
+                <div class="text-left">
+                    <p class="text-sm font-bold text-blue-600 dark:text-blue-400 font-mono">45 M</p>
+                    <p class="text-[10px] text-slate-400">کمیسیون کل</p>
+                </div>
+            </div>
+            
+            <!-- معامله ۳ -->
+            <div class="flex items-center gap-4 p-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-slate-800/50 transition border border-transparent hover:border-gray-100 dark:hover:border-slate-700">
+                <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/30 flex items-center justify-center font-bold">
+                    <i class="ph-bold ph-handshake"></i>
+                </div>
+                <div class="flex-1">
+                    <h4 class="text-sm font-bold text-slate-800 dark:text-white">مشارکت پروژه سجاد</h4>
+                    <p class="text-xs text-slate-500">مدیر رنج: علی</p>
+                </div>
+                <div class="text-left">
+                    <p class="text-sm font-bold text-amber-600 dark:text-amber-400 font-mono">350 M</p>
+                    <p class="text-[10px] text-slate-400">کمیسیون کل</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // تنظیمات چارت ApexCharts
+    document.addEventListener("DOMContentLoaded", function () {
+        const isDark = document.documentElement.classList.contains('dark');
+        const textColor = isDark ? '#94a3b8' : '#64748b'; // slate-400 : slate-500
+
+        var options = {
+            series: [{
+                name: 'درآمد (میلیون تومان)',
+                data: [120, 250, 180, 390, 210, 450] // دیتای فرضی
+            }],
+            chart: {
+                type: 'area', // نمودار منطقه‌ای (بسیار جذاب‌تر از میله‌ای خشک)
+                height: 320,
+                fontFamily: 'Vazirmatn, sans-serif',
+                toolbar: { show: false },
+                background: 'transparent'
+            },
+            colors: ['#3b82f6'], // رنگ primary-500
+            fill: {
+                type: 'gradient',
+                gradient: {
+                    shadeIntensity: 1,
+                    opacityFrom: 0.4,
+                    opacityTo: 0.05,
+                    stops: [0, 90, 100]
+                }
+            },
+            dataLabels: { enabled: false },
+            stroke: { curve: 'smooth', width: 3 },
+            xaxis: {
+                categories: ['دی', 'بهمن', 'اسفند', 'فروردین', 'اردیبهشت', 'خرداد'],
+                labels: { style: { colors: textColor } },
+                axisBorder: { show: false },
+                axisTicks: { show: false }
+            },
+            yaxis: {
+                labels: { style: { colors: textColor } }
+            },
+            grid: {
+                borderColor: isDark ? '#334155' : '#f1f5f9', // slate-700 : slate-100
+                strokeDashArray: 4,
+            },
+            theme: { mode: isDark ? 'dark' : 'light' }
+        };
+
+        var chart = new ApexCharts(document.querySelector("#revenue-chart"), options);
+        chart.render();
+
+        // آپدیت تم چارت وقتی کاربر حالت شب/روز را تغییر می‌دهد
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.attributeName === "class") {
+                    const darkNow = document.documentElement.classList.contains('dark');
+                    chart.updateOptions({
+                        theme: { mode: darkNow ? 'dark' : 'light' },
+                        grid: { borderColor: darkNow ? '#334155' : '#f1f5f9' },
+                        xaxis: { labels: { style: { colors: darkNow ? '#94a3b8' : '#64748b' } } },
+                        yaxis: { labels: { style: { colors: darkNow ? '#94a3b8' : '#64748b' } } }
+                    });
+                }
+            });
+        });
+        observer.observe(document.documentElement, { attributes: true });
+    });
+
+    // شبیه‌سازی دانلود اکسل
+    function exportToExcel() {
+        alert("📊 در نسخه نهایی بک‌اند، کتابخانه OpenPyXL دیتای دیتابیس را به یک فایل Excel تبدیل کرده و اینجا دانلود می‌شود.");
+    }
+</script>
+
+{% endblock %}
