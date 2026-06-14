@@ -1,12 +1,13 @@
 # مسیر فایل: app/api/crawler_api.py
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
-from sqlmodel import Session, select  # 👈 select به جای درست خود برگشت!
+import sys
+import subprocess
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlmodel import Session, select
 from app.core.database import get_session
-from app.services.crawler_bot import run_ghost_crawler
 import jwt
 from app.core.security import SECRET_KEY, ALGORITHM
-from app.core.models import User  # 👈 اینجا فقط User باقی ماند
+from app.core.models import User
 
 router = APIRouter(prefix="/api/crawler", tags=["Crawler"])
 
@@ -19,18 +20,29 @@ def get_current_user_api(request: Request, session: Session):
     except: return None
 
 @router.post("/start")
-def start_crawler_bot(request: Request, bg_tasks: BackgroundTasks, session: Session = Depends(get_session)):
+def start_crawler_bot(request: Request, session: Session = Depends(get_session)):
     user = get_current_user_api(request, session)
     if not user:
         raise HTTPException(status_code=401, detail="باید لاگین باشید")
         
     # استفاده از محله هدف مشاور (یا پیش‌فرض "سجاد")
-    target_hood = user.target_neighborhoods if user.target_neighborhoods else "سجاد"
+    # ما در اینجا اگر مشاور چند محله داشت (با کاما جدا شده)، فعلاً اولی را برمی‌داریم
+    target_hood = "سجاد"
+    if user.target_neighborhoods:
+        target_hood = user.target_neighborhoods.split(",")[0].strip()
     
-    # 🚀 ارسال ربات به پس‌زمینه (Background Thread)
-    bg_tasks.add_task(run_ghost_crawler, "mashhad", target_hood, user.id)
-    
-    return {
-        "status": "success", 
-        "message": f"ربات خزنده‌ی نامرئی بیدار شد و در حال اسکن محله '{target_hood}' است. تا دقایقی دیگر فایل‌ها اضافه خواهند شد!"
-    }
+    # 🚀 بیدار کردن ربات در سیستم‌عامل (اجرای ایزوله بدون قفل کردن سرور)
+    try:
+        # مسیر دقیق فایل ربات
+        script_path = "scripts/ghost_crawler.py"
+        
+        # Popen ربات را اجرا می‌کند و در پس‌زمینه رها می‌کند
+        subprocess.Popen([sys.executable, script_path, "mashhad", target_hood, str(user.id)])
+        
+        return {
+            "status": "success", 
+            "message": f"ربات خزنده‌ی نامرئی بیدار شد و در حال اسکن محله '{target_hood}' است. شما می‌توانید به کارهای خود برسید!"
+        }
+    except Exception as e:
+        print(f"❌ Crawler execution error: {e}")
+        raise HTTPException(status_code=500, detail="خطا در راه‌اندازی ربات")
