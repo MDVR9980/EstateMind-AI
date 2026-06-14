@@ -46,12 +46,21 @@
             </div>
 
             <!-- فرم ورود با پیامک (OTP) -->
-            <form id="form-otp" class="space-y-4">
-                <div>
+            <form id="form-otp" class="space-y-4" onsubmit="event.preventDefault();">
+                <!-- مرحله ۱: گرفتن موبایل -->
+                <div id="otp-step-1">
                     <label class="block text-sm font-bold text-slate-300 mb-2">شماره موبایل</label>
-                    <input type="text" placeholder="09123456789" dir="ltr" class="w-full bg-slate-900/50 border border-slate-700 text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none text-left">
+                    <input type="text" id="otp-phone" placeholder="مثلا: admin یا 0912..." dir="ltr" class="w-full bg-slate-900/50 border border-slate-700 text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none text-left">
+                    <button type="button" id="btn-send-otp" onclick="requestOTP()" class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary-500/30 transition mt-4">ارسال کد تایید</button>
                 </div>
-                <button type="button" class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary-500/30 transition mt-4">ارسال کد تایید</button>
+                
+                <!-- مرحله ۲: گرفتن کد تایید (پیش‌فرض مخفی) -->
+                <div id="otp-step-2" class="hidden">
+                    <label class="block text-sm font-bold text-slate-300 mb-2">کد ۵ رقمی پیامک شده</label>
+                    <input type="text" id="otp-code" placeholder="- - - - -" dir="ltr" class="w-full bg-slate-900/50 border border-slate-700 text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none text-center tracking-[1em] font-mono text-xl font-bold">
+                    <button type="button" id="btn-verify-otp" onclick="submitOTP()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-emerald-500/30 transition mt-4">تایید و ورود به سیستم</button>
+                    <p onclick="resetOTPForm()" class="text-xs text-primary-400 text-center mt-4 cursor-pointer hover:underline">اصلاح شماره موبایل</p>
+                </div>
             </form>
 
             <!-- فرم ورود با کلمه عبور (پنهان به صورت پیش‌فرض) -->
@@ -138,6 +147,72 @@
                 btn.innerText = "ورود به سیستم";
                 btn.disabled = false;
             }
+        }
+
+        async function requestOTP() {
+            const phone = document.getElementById('otp-phone').value;
+            const btn = document.getElementById('btn-send-otp');
+            if(!phone) { Swal.fire('خطا', 'شماره موبایل را وارد کنید.', 'warning'); return; }
+
+            btn.innerHTML = 'در حال ارسال...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/auth/send-otp', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: phone })
+                });
+
+                if(res.ok) {
+                    // تغییر ظاهر فرم به مرحله وارد کردن کد
+                    document.getElementById('otp-step-1').classList.add('hidden');
+                    document.getElementById('otp-step-2').classList.remove('hidden');
+                    Swal.fire({icon:'success', title:'کد ارسال شد', text:'لطفاً کد پیامک شده را وارد کنید.', timer: 2000, showConfirmButton: false});
+                } else {
+                    const err = await res.json();
+                    Swal.fire('خطا', err.detail, 'error');
+                }
+            } catch(e) {
+                Swal.fire('خطا', 'ارتباط با سرور قطع است.', 'error');
+            } finally {
+                btn.innerHTML = 'ارسال کد تایید';
+                btn.disabled = false;
+            }
+        }
+
+        async function submitOTP() {
+            const phone = document.getElementById('otp-phone').value;
+            const code = document.getElementById('otp-code').value;
+            const btn = document.getElementById('btn-verify-otp');
+            if(!code) return;
+
+            btn.innerHTML = 'در حال بررسی...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/auth/verify-otp', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: phone, code: code })
+                });
+
+                if(res.ok) {
+                    window.location.href = '/'; // ورود موفق
+                } else {
+                    const err = await res.json();
+                    Swal.fire('خطا', err.detail, 'error');
+                }
+            } catch(e) {
+                Swal.fire('خطا', 'خطای شبکه', 'error');
+            } finally {
+                btn.innerHTML = 'تایید و ورود به سیستم';
+                btn.disabled = false;
+            }
+        }
+
+        function resetOTPForm() {
+            document.getElementById('otp-step-2').classList.add('hidden');
+            document.getElementById('otp-step-1').classList.remove('hidden');
+            document.getElementById('otp-code').value = '';
         }
     </script>
 </body>

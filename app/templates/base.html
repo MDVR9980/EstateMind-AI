@@ -57,14 +57,20 @@
             <a href="/" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
                 <i class="ph ph-squares-four text-xl"></i> داشبورد
             </a>
-
-            <a href="/team" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
-                <i class="ph ph-users-three text-xl"></i> تیم من (مشاوران)
-            </a>
-
             <a href="/funnel" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
                 <i class="ph ph-funnel text-xl"></i> قیف فروش (CRM)
             </a>
+
+            <!-- این منوها فقط برای ادمین و مدیر رنج باز است -->
+            {% if user and (user.role == 'MANAGER' or user.role == 'SUPER_ADMIN') %}
+            <p class="text-xs font-bold text-rose-500 mt-6 mb-4 px-2">مدیریت آژانس (ویژه مدیران)</p>
+            <a href="/financials" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
+                <i class="ph ph-chart-line-up text-xl"></i> گزارشات مالی و درآمد
+            </a>
+            <a href="/team" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
+                <i class="ph ph-users-three text-xl"></i> تیم من (مشاوران)
+            </a>
+            {% endif %}
 
             <p class="text-xs font-bold text-slate-400 mt-6 mb-4 px-2">مشتری و ملک</p>
             <a href="/properties/add" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
@@ -75,23 +81,18 @@
             </a>
             <a href="/partnership" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition relative">
                 <i class="ph ph-handshake text-xl"></i> مشارکت در ساخت
-                <span class="absolute left-2 bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">جدید</span>
+                <span class="absolute left-2 bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">تخصصی</span>
             </a>
 
-            <p class="text-xs font-bold text-slate-400 mt-6 mb-4 px-2">مالی و ابزار</p>
-            <a href="/financials" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
-                <i class="ph ph-chart-line-up text-xl"></i> گزارشات مالی
-            </a>
-
+            <p class="text-xs font-bold text-slate-400 mt-6 mb-4 px-2">ارتباطات و تنظیمات</p>
             <a href="/reminders" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition relative">
                 <i class="ph ph-bell-ringing text-xl"></i> تقویم و یادآورها
-                <span class="absolute left-2 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-bounce">جدید</span>
             </a>
             <a href="/tickets" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
                 <i class="ph ph-headset text-xl"></i> پشتیبانی و تیکت‌ها
             </a>
             <a href="/settings" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
-                <i class="ph ph-robot text-xl"></i>تنظیمات
+                <i class="ph ph-gear text-xl"></i> پروفایل و تنظیمات
             </a>
         </nav>
 
@@ -124,13 +125,15 @@
                     <span class="absolute top-1 right-1 w-3 h-3 bg-rose-500 border-2 border-white dark:border-darkcard rounded-full"></span>
                 </button>
 
-                <!-- پروفایل کاربر -->
+                <!-- پروفایل کاربر به صورت داینامیک -->
                 <div class="flex items-center gap-3 pl-4 border-l border-gray-200 dark:border-slate-700">
                     <div class="text-left hidden sm:block">
-                        <p class="text-sm font-bold text-slate-800 dark:text-white">علی محمدی</p>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">مدیر شعبه (Admin)</p>
+                        <p class="text-sm font-bold text-slate-800 dark:text-white">{{ user.full_name if user else 'مدیر سیستم' }}</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">
+                            {% if user and (user.role == 'MANAGER' or user.role == 'SUPER_ADMIN') %}مدیر شعبه{% else %}مشاور املاک{% endif %}
+                        </p>
                     </div>
-                    <img src="https://ui-avatars.com/api/?name=Ali+M&background=3b82f6&color=fff" alt="User" class="w-10 h-10 rounded-full border-2 border-primary-200 shadow-sm">
+                    <img src="https://ui-avatars.com/api/?name={{ user.full_name.replace(' ', '+') if user else 'Admin' }}&background=3b82f6&color=fff" alt="User" class="w-10 h-10 rounded-full border-2 border-primary-200 shadow-sm">
                 </div>
             </div>
         </header>
@@ -207,6 +210,129 @@
                     window.location.href = '/login';
                 }
             });
+        }
+    </script>
+
+    <!-- ============================================== -->
+    <!-- ویجت چت‌بات شناور هوش مصنوعی (AI Chatbot) -->
+    <!-- ============================================== -->
+    
+    <!-- دکمه شناور باز کردن چت -->
+    <button onclick="toggleChatbot()" class="fixed bottom-6 left-6 z-50 w-16 h-16 bg-gradient-to-tr from-purple-600 to-indigo-600 text-white rounded-full flex items-center justify-center text-3xl shadow-lg shadow-purple-500/40 hover:scale-110 transition-transform">
+        <i class="ph-fill ph-robot"></i>
+    </button>
+
+    <!-- پنل چت (مخفی به صورت پیش‌فرض) -->
+    <div id="ai-chatbot-panel" class="fixed bottom-24 left-6 z-50 w-80 md:w-96 bg-white dark:bg-darkcard rounded-3xl shadow-2xl border border-gray-200 dark:border-slate-700 flex flex-col overflow-hidden transition-all duration-300 translate-y-10 opacity-0 pointer-events-none" style="height: 500px;">
+        
+        <!-- هدر چت‌بات -->
+        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 p-4 flex justify-between items-center text-white">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-xl backdrop-blur-sm"><i class="ph-fill ph-sparkle"></i></div>
+                <div>
+                    <h3 class="font-bold text-sm">دستیار هوشمند CRM</h3>
+                    <p class="text-[10px] text-purple-200">متصل به دیتابیس آژانس</p>
+                </div>
+            </div>
+            <button onclick="toggleChatbot()" class="text-white/70 hover:text-white transition"><i class="ph-bold ph-x text-xl"></i></button>
+        </div>
+
+        <!-- محیط چت (پیام‌ها) -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-900/50">
+            <!-- پیام خوش‌آمدگویی پیش‌فرض -->
+            <div class="flex gap-3">
+                <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex-shrink-0 flex items-center justify-center"><i class="ph-fill ph-robot"></i></div>
+                <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl rounded-tr-none border border-gray-100 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300 shadow-sm">
+                    سلام! 👋 من دستیار هوشمند شما هستم. می‌تونی مشخصات یه فایل خاص رو ازم بپرسی، یا بگی فلان مشتری رو برات سرچ کنم. چطور می‌تونم کمکت کنم؟
+                </div>
+            </div>
+        </div>
+
+        <!-- تایپینگ ایندیکیتور (مخفی) -->
+        <div id="chat-typing" class="px-14 pb-2 hidden">
+            <span class="text-xs text-slate-400 animate-pulse">هوش مصنوعی در حال پردازش...</span>
+        </div>
+
+        <!-- ورودی چت -->
+        <div class="p-3 bg-white dark:bg-darkcard border-t border-gray-100 dark:border-slate-700 flex gap-2">
+            <input type="text" id="chat-input" onkeypress="handleChatKey(event)" placeholder="سوالت رو بپرس..." class="flex-1 bg-gray-100 dark:bg-slate-800 border-none rounded-xl px-4 text-sm outline-none text-slate-800 dark:text-white focus:ring-2 focus:ring-purple-500 transition">
+            <button onclick="sendChatMessage()" class="w-12 h-12 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex items-center justify-center transition shadow-md">
+                <i class="ph-fill ph-paper-plane-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- اسکریپت کنترل چت‌بات -->
+    <script>
+        function toggleChatbot() {
+            const panel = document.getElementById('ai-chatbot-panel');
+            if (panel.classList.contains('opacity-0')) {
+                panel.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
+            } else {
+                panel.classList.add('translate-y-10', 'opacity-0', 'pointer-events-none');
+            }
+        }
+
+        function handleChatKey(e) {
+            if (e.key === 'Enter') sendChatMessage();
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            const chatBox = document.getElementById('chat-messages');
+            const typingInd = document.getElementById('chat-typing');
+
+            // اضافه کردن پیام کاربر به صفحه
+            chatBox.innerHTML += `
+                <div class="flex gap-3 flex-row-reverse">
+                    <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex-shrink-0 flex items-center justify-center"><i class="ph-fill ph-user"></i></div>
+                    <div class="bg-blue-600 text-white p-3 rounded-2xl rounded-tl-none text-sm shadow-sm">
+                        ${message}
+                    </div>
+                </div>
+            `;
+            input.value = '';
+            chatBox.scrollTop = chatBox.scrollHeight;
+            typingInd.classList.remove('hidden');
+
+            try {
+                // ارسال درخواست به سرور
+                const res = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: message })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    // اضافه کردن پاسخ AI به صفحه
+                    typingInd.classList.add('hidden');
+                    chatBox.innerHTML += `
+                        <div class="flex gap-3">
+                            <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex-shrink-0 flex items-center justify-center"><i class="ph-fill ph-robot"></i></div>
+                            <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl rounded-tr-none border border-gray-100 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300 shadow-sm leading-relaxed whitespace-pre-wrap">
+                                ${data.reply}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    throw new Error();
+                }
+            } catch (err) {
+                typingInd.classList.add('hidden');
+                chatBox.innerHTML += `
+                    <div class="flex gap-3">
+                        <div class="bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 p-3 rounded-2xl rounded-tr-none text-sm border border-rose-200">
+                            ❌ مشکلی در ارتباط با هوش مصنوعی پیش آمد.
+                        </div>
+                    </div>
+                `;
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
     </script>
 </body>

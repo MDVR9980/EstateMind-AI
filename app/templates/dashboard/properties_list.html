@@ -13,9 +13,14 @@
             </h2>
             <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">مدیریت فایل‌ها، فیلتر پیشرفته و تطابق با مشتریان</p>
         </div>
-        <button onclick="window.location.href='/properties/add'" class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-primary-500/30 flex items-center gap-2 transition">
-            <i class="ph-bold ph-plus"></i> ثبت فایل جدید
-        </button>
+        <div class="flex gap-3">
+            <button onclick="startGhostCrawler()" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-slate-900/30 flex items-center gap-2 transition animate-pulse">
+                <i class="ph-fill ph-spider"></i> بیدار کردن ربات خزنده
+            </button>
+            <button onclick="window.location.href='/properties/add'" class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-primary-500/30 flex items-center gap-2 transition">
+                <i class="ph-bold ph-plus"></i> ثبت فایل جدید
+            </button>
+        </div>
     </div>
 
     <!-- فیلترهای هوشمند جستجو -->
@@ -127,6 +132,36 @@
             icon: 'info',
             timer: 2000,
             showConfirmButton: false
+        });
+    }
+    async function startGhostCrawler() {
+        Swal.fire({
+            title: 'بیدار کردن ربات؟ 🕷️',
+            text: 'آیا می‌خواهید ربات خزنده‌ی دیوار در پس‌زمینه شروع به اسکن آگهی‌ها کند؟',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'بله، ربات را بیدار کن',
+            cancelButtonText: 'انصراف'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    const res = await fetch("/api/crawler/start", { method: "POST" });
+                    const data = await res.json();
+                    
+                    if (res.ok) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'ربات آغاز به کار کرد!',
+                            text: data.message,
+                            footer: 'شما می‌توانید به کارهای خود در سیستم برسید. فایل‌ها به صورت خودکار به این لیست اضافه می‌شوند.'
+                        });
+                    } else {
+                        Swal.fire('خطا', data.detail, 'error');
+                    }
+                } catch (e) {
+                    Swal.fire('خطا', 'مشکل ارتباطی با سرور', 'error');
+                }
+            }
         });
     }
 </script>

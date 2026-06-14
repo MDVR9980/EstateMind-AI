@@ -1,30 +1,25 @@
 <!-- مسیر فایل: app/templates/dashboard/index.html -->
-
 {% extends "base.html" %}
 
 {% block content %}
 
 <!-- باکس خوش‌آمدگویی (Hero Section) -->
 <div class="bg-gradient-to-l from-primary-600 to-primary-800 rounded-3xl p-8 text-white shadow-xl shadow-primary-500/20 mb-8 relative overflow-hidden flex items-center justify-between">
-    <!-- افکت‌های بک‌گراند -->
     <div class="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
     
     <div class="relative z-10">
-        <h2 class="text-3xl font-bold mb-2">روز بخیر، علی عزیز! 👋</h2>
-        <p class="text-primary-100 text-sm">هوش مصنوعی از دیشب تاکنون <b class="text-white">۱۴ فایل جدید</b> شکار کرده و با ۳ مشتری شما تطابق داده است.</p>
+        <h2 class="text-3xl font-bold mb-2">روز بخیر، {{ user.full_name }} عزیز! 👋</h2>
+        <p class="text-primary-100 text-sm">به سیستم مدیریت هوشمند املاک خوش آمدید. عملکرد شما در حال بررسی است.</p>
     </div>
     
     <div class="relative z-10 flex gap-3">
-        <button class="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition">
+        <button onclick="window.location.href='/properties/add'" class="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition">
             <i class="ph ph-microphone-stage text-xl"></i> ثبت صوتی ملک
-        </button>
-        <button class="bg-white text-primary-700 hover:bg-gray-50 px-5 py-2.5 rounded-xl font-bold text-sm shadow-md transition">
-            شروع کار امروز
         </button>
     </div>
 </div>
 
-<!-- ویجت‌های آماری (Stats) -->
+<!-- ویجت‌های آماری زنده (Live Stats) -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     
     <div class="bg-white dark:bg-darkcard p-6 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm flex items-center gap-4">
@@ -32,8 +27,8 @@
             <i class="ph-fill ph-handshake"></i>
         </div>
         <div>
-            <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">قرارداد فروش (ماه)</p>
-            <h3 class="text-2xl font-bold text-slate-800 dark:text-white mt-1">۱۲ <span class="text-xs text-emerald-500 font-normal">معامله</span></h3>
+            <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">کل قراردادهای فروش</p>
+            <h3 class="text-2xl font-bold text-slate-800 dark:text-white mt-1">{{ stats.sales }} <span class="text-xs text-emerald-500 font-normal">معامله</span></h3>
         </div>
     </div>
 
@@ -42,8 +37,8 @@
             <i class="ph-fill ph-key"></i>
         </div>
         <div>
-            <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">قرارداد اجاره (ماه)</p>
-            <h3 class="text-2xl font-bold text-slate-800 dark:text-white mt-1">۸ <span class="text-xs text-amber-500 font-normal">معامله</span></h3>
+            <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">کل قراردادهای اجاره</p>
+            <h3 class="text-2xl font-bold text-slate-800 dark:text-white mt-1">{{ stats.rents }} <span class="text-xs text-amber-500 font-normal">معامله</span></h3>
         </div>
     </div>
 
@@ -52,20 +47,19 @@
             <i class="ph-fill ph-users-three"></i>
         </div>
         <div>
-            <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">لیدهای در جریان (قیف)</p>
-            <h3 class="text-2xl font-bold text-slate-800 dark:text-white mt-1">۴۵ <span class="text-xs text-blue-500 font-normal">مشتری</span></h3>
+            <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">لیدهای سیستم (مشتریان)</p>
+            <h3 class="text-2xl font-bold text-slate-800 dark:text-white mt-1">{{ stats.leads }} <span class="text-xs text-blue-500 font-normal">نفر</span></h3>
         </div>
     </div>
 
     <div class="bg-white dark:bg-darkcard p-6 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm flex items-center gap-4 relative overflow-hidden">
-        <!-- افکت نور هوش مصنوعی -->
         <div class="absolute -right-4 -top-4 w-16 h-16 bg-purple-500 opacity-20 blur-xl rounded-full"></div>
         <div class="w-14 h-14 rounded-full bg-purple-50 dark:bg-purple-900/30 text-purple-500 flex items-center justify-center text-2xl z-10">
             <i class="ph-fill ph-robot"></i>
         </div>
         <div class="z-10">
-            <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">مچینگ هوشمند (امروز)</p>
-            <h3 class="text-2xl font-bold text-slate-800 dark:text-white mt-1">۳ <span class="text-xs text-purple-500 font-normal">تطابق یافت شد</span></h3>
+            <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">مچینگ هوشمند AI</p>
+            <h3 class="text-2xl font-bold text-slate-800 dark:text-white mt-1">{{ stats.ai_matches }} <span class="text-xs text-purple-500 font-normal">تطابق یافت شد</span></h3>
         </div>
     </div>
 
