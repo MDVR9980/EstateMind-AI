@@ -1,0 +1,30 @@
+# Web Framework
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+jinja2>=3.1.3         # 👈 موتور قالب‌ساز جدید ما برای HTML
+python-multipart>=0.0.6
+
+# Database & ORM
+sqlmodel>=0.0.14
+psycopg2-binary>=2.9.0
+alembic>=1.13.1       # 👈 برای مایگریشن و آپدیت دیتابیس در آینده
+
+# Security
+passlib[bcrypt]>=1.7.4
+PyJWT>=2.8.0
+
+# AI & Data
+chromadb>=0.4.22
+sentence_transformers>=2.2.2
+openai>=1.12.0
+
+# Scraping & Tasks
+playwright>=1.41.0
+apscheduler>=3.10.4
+requests>=2.31.0
+
+# Utils
+python-dotenv>=1.0.0
+jdatetime>=4.1.1
+openpyxl>=3.1.2       # 👈 برای خروجی اکسل گزارشات مالی
+pandas>=2.2.0         # 👈 برای تحلیل داده‌های نمودارهای داشبورد
