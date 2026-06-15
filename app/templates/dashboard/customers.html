@@ -1,11 +1,8 @@
 {% extends "base.html" %}
 
 {% block content %}
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <div class="max-w-7xl mx-auto">
     
-    <!-- هدر صفحه -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
             <h2 class="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -13,19 +10,17 @@
             </h2>
             <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">مدیریت خریداران، درخواست‌ها و اتصال به قیف فروش</p>
         </div>
-        <button onclick="openAddClientModal()" class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-primary-500/30 flex items-center gap-2 transition">
+        <button onclick="openAddClientModal()" class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2.5 px-6 rounded-2xl shadow-lg shadow-primary-500/30 flex items-center gap-2 transition">
             <i class="ph-bold ph-user-plus"></i> ثبت مشتری جدید
         </button>
     </div>
 
-    <!-- جدول / لیست مشتریان -->
     <div class="bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
-        
         <div class="p-5 border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/30 flex items-center justify-between">
             <h3 class="font-bold text-slate-800 dark:text-white text-sm">لیست لیدهای فعال</h3>
             <div class="relative w-64">
                 <i class="ph ph-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                <input type="text" id="searchClient" onkeyup="filterClients()" placeholder="جستجوی نام یا موبایل..." class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-lg py-2 pr-10 pl-4 outline-none focus:border-primary-500 text-xs">
+                <input type="text" id="searchClient" onkeyup="filterClients()" placeholder="جستجوی نام یا موبایل..." class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl py-2.5 pr-10 pl-4 outline-none focus:border-primary-500 text-xs">
             </div>
         </div>
 
@@ -53,7 +48,7 @@
                             </td>
                             <td class="p-4 text-center font-mono text-xs dir-ltr client-phone">{{ client.phone }}</td>
                             <td class="p-4 text-center">
-                                <span class="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 py-1 rounded-lg text-xs font-bold border border-emerald-200 dark:border-emerald-800/50">
+                                <span class="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 py-1 rounded-full text-xs font-bold border border-emerald-200 dark:border-emerald-800/50">
                                     {% if client.deal_type_requested == 'SALE' %}خرید{% elif client.deal_type_requested == 'RENT' %}رهن و اجاره{% else %}مشارکت{% endif %}
                                 </span>
                             </td>
@@ -70,11 +65,8 @@
                                 </span>
                             </td>
                             <td class="p-4 text-center flex justify-center gap-2">
-                                <button onclick="aiClientMatch('{{ client.name }}')" class="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-bold py-1.5 px-3 rounded-lg text-xs shadow-sm flex items-center gap-1 transition" title="یافتن ملک مناسب با هوش مصنوعی">
+                                <button onclick="aiClientMatch('{{ client.name }}')" class="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-bold py-1.5 px-3 rounded-xl text-xs shadow-sm flex items-center gap-1 transition">
                                     <i class="ph-fill ph-magic-wand"></i> مچینگ AI
-                                </button>
-                                <button class="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 w-8 h-8 rounded-lg flex items-center justify-center transition">
-                                    <i class="ph-bold ph-pencil-simple"></i>
                                 </button>
                             </td>
                         </tr>
@@ -91,116 +83,76 @@
             </table>
         </div>
     </div>
-
 </div>
 
 <script>
-    // جستجوی زنده در جدول
     function filterClients() {
         const input = document.getElementById('searchClient').value.toLowerCase();
         const rows = document.querySelectorAll('.client-row');
-        
         rows.forEach(row => {
             const name = row.querySelector('.client-name').innerText.toLowerCase();
             const phone = row.querySelector('.client-phone').innerText.toLowerCase();
-            if (name.includes(input) || phone.includes(input)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
+            row.style.display = (name.includes(input) || phone.includes(input)) ? '' : 'none';
         });
     }
 
-    // شبیه‌سازی مچینگ AI
     function aiClientMatch(clientName) {
         Swal.fire({
             title: 'در حال پردازش هوش مصنوعی...',
             html: `هوش مصنوعی در حال بررسی تمام فایل‌های املاک برای تطابق با نیازهای <b>${clientName}</b> است.`,
-            timer: 2000,
-            timerProgressBar: true,
-            didOpen: () => { Swal.showLoading() }
-        }).then((result) => {
+            timer: 2000, timerProgressBar: true, didOpen: () => { Swal.showLoading() }
+        }).then(() => {
             Swal.fire({
-                icon: 'success',
-                title: '۳ فایل متناسب یافت شد!',
+                icon: 'success', title: '۳ فایل متناسب یافت شد!',
                 text: 'فایل "آپارتمان 120 متری سجاد" با 94% تطابق بهترین گزینه است. آیا برای مشتری پیامک شود؟',
-                showCancelButton: true,
-                confirmButtonText: 'بله، ارسال کن',
-                cancelButtonText: 'بستن'
+                showCancelButton: true, confirmButtonText: 'بله، ارسال کن', cancelButtonText: 'بستن'
             });
         });
     }
 
-    function openDealModal() {
-        let clientsOptions = clientsList.map(c => `<option value="${c.id}">${c.name} (${c.phone})</option>`).join('');
-        let propsOptions = propertiesList.map(p => `<option value="${p.id}" data-price="${p.price}">${p.title}</option>`).join('');
-
+    function openAddClientModal() {
         Swal.fire({
-            title: 'ثبت قرارداد جدید 🤝',
+            title: 'ثبت مشتری جدید 👤',
             html: `
                 <div class="text-right space-y-4 mt-4">
                     <div>
-                        <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">انتخاب مشتری</label>
-                        <select id="swal-client" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-sm text-slate-800 dark:text-white appearance-none">
-                            ${clientsOptions || '<option disabled selected>مشتری فعالی نیست</option>'}
+                        <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">نام و نام خانوادگی <span class="text-rose-500 text-[10px] font-normal mr-1">(الزامی)</span></label>
+                        <input id="swal-name" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="مثال: سارا محمدی">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">شماره موبایل <span class="text-rose-500 text-[10px] font-normal mr-1">(الزامی)</span></label>
+                        <input id="swal-phone" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="0912...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">نوع درخواست <span class="text-rose-500 text-[10px] font-normal mr-1">(الزامی)</span></label>
+                        <select id="swal-deal" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white appearance-none">
+                            <option value="sale">خرید ملک</option>
+                            <option value="rent">رهن و اجاره</option>
+                            <option value="partnership">مشارکت / سرمایه‌گذاری</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">انتخاب فایل ملک</label>
-                        <select id="swal-property" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-sm text-slate-800 dark:text-white appearance-none" onchange="autoCalculateCommission()">
-                            <option value="0" data-price="0">-- انتخاب کنید --</option>
-                            ${propsOptions || '<option disabled>فایلی موجود نیست</option>'}
-                        </select>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">نوع قرارداد</label>
-                            <select id="swal-type" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-sm text-slate-800 dark:text-white appearance-none">
-                                <option value="فروش">خرید و فروش</option><option value="رهن و اجاره">رهن و اجاره</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">مبلغ معامله</label>
-                            <input id="swal-price" type="text" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-sm font-mono text-slate-800 dark:text-white" onkeyup="formatPriceInput(this); autoCalculateCommission()">
-                        </div>
-                    </div>
-                    <div class="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 p-4 rounded-2xl mt-4">
-                        <label class="block text-sm font-bold text-primary-800 dark:text-primary-400 mb-1">کمیسیون دریافتی (تومان)</label>
-                        <input id="swal-commission" type="text" dir="ltr" class="w-full bg-white dark:bg-slate-900 border border-primary-200 dark:border-primary-800 rounded-xl p-3 outline-none text-sm font-mono text-primary-700 dark:text-primary-400" onkeyup="formatPriceInput(this)">
-                        <p class="text-[10px] text-primary-600 mt-2 font-bold price-word-output min-h-[15px]"></p>
+                        <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">سقف بودجه (تومان)</label>
+                        <input id="swal-budget" type="text" dir="ltr" onkeyup="formatPriceInput(this)" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white font-mono" placeholder="مثال: 5,000,000,000">
+                        <p class="text-[11px] text-primary-600 dark:text-primary-400 font-bold mt-1 price-word-output min-h-[20px]"></p>
                     </div>
                 </div>
             `,
-            showCancelButton: true, confirmButtonText: 'ثبت نهایی معامله', cancelButtonText: 'انصراف',
+            showCancelButton: true, confirmButtonText: 'ذخیره در قیف فروش', cancelButtonText: 'انصراف',
             preConfirm: () => {
-                const client_id = document.getElementById('swal-client').value;
-                const property_id = document.getElementById('swal-property').value;
-                const price = document.getElementById('swal-price').value.replace(/,/g, '');
-                const commission = document.getElementById('swal-commission').value.replace(/,/g, '');
-
-                if (!client_id || client_id == "0" || !price || !commission) { Swal.showValidationMessage('اطلاعات ضروری را پر کنید!'); return false; }
-                return { client_id: parseInt(client_id), property_id: property_id == "0" ? 0 : parseInt(property_id), deal_type: document.getElementById('swal-type').value, deal_price: parseFloat(price), commission_amount: parseFloat(commission) };
+                const name = document.getElementById('swal-name').value;
+                const phone = document.getElementById('swal-phone').value;
+                if (!name || !phone) { Swal.showValidationMessage('نام و موبایل الزامی است!'); return false; }
+                return { name: name, phone: phone, deal_type_requested: document.getElementById('swal-deal').value, budget_limit: parseFloat(document.getElementById('swal-budget').value.replace(/,/g, '')) || 0 }
             }
         }).then(async (result) => {
             if (result.isConfirmed) {
-                await fetch("/api/deals/add", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(result.value) });
-                window.location.reload();
+                try {
+                    const res = await fetch("/api/clients/add", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(result.value) });
+                    if (res.ok) { window.location.reload(); }
+                } catch (e) { Swal.fire('خطا', 'مشکل شبکه!', 'error'); }
             }
         });
-    }
-
-    function autoCalculateCommission() {
-        let manualPrice = document.getElementById('swal-price').value.replace(/,/g, '');
-        let finalPrice = manualPrice ? parseFloat(manualPrice) : parseFloat(document.getElementById('swal-property').options[document.getElementById('swal-property').selectedIndex].getAttribute('data-price') || 0);
-        
-        if (!manualPrice && finalPrice > 0) {
-            document.getElementById('swal-price').value = finalPrice.toLocaleString('en-US');
-        }
-        if(finalPrice > 0) {
-            let commissionInput = document.getElementById('swal-commission');
-            commissionInput.value = (finalPrice * 0.005).toLocaleString('en-US');
-            formatPriceInput(commissionInput); // آپدیت حروف
-        }
     }
 </script>
 {% endblock %}
