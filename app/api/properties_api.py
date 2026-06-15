@@ -1,7 +1,13 @@
 import os
+import shutil
 import json
-from typing import Optional
-from fastapi import APIRouter, File, UploadFile, HTTPException, Depends, Request
+import io
+from PIL import Image, ImageDraw, ImageFont
+from typing import Optional, List
+from fastapi import (
+    APIRouter, File, UploadFile, 
+    HTTPException, Depends, Request
+)
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from app.services.ai_engine import analyze_property_text
@@ -37,6 +43,15 @@ class PropertyCreateRequest(BaseModel):
     owner_phone: Optional[str] = None
     is_exclusive: bool = False
     description: Optional[str] = None
+
+class PropertyEditRequest(BaseModel):
+    title: Optional[str] = None
+    price_total: Optional[float] = None
+    contact_phone: Optional[str] = None
+    ai_pros: Optional[str] = None
+    ai_cons: Optional[str] = None
+    publisher: Optional[str] = None
+    image_urls: Optional[List[str]] = None # 👈 این خط برای ذخیره تغییرات عکس/فیلم اضافه شد
 
 @router.post("/voice-parse")
 async def parse_voice_to_form(audio: UploadFile = File(...)):
@@ -203,3 +218,153 @@ def get_unread_notifications(request: Request, session: Session = Depends(get_se
     
     notifs = session.exec(select(AgentNotification).where(AgentNotification.user_id == user.id).order_by(AgentNotification.id.desc())).all()
     return [{"id": n.id, "msg": n.message} for n in notifs]
+
+
+os.makedirs("uploads/properties", exist_ok=True)
+
+@router.post("/{property_id}/upload-media")
+async def upload_property_media(property_id: int, request: Request, file: UploadFile = File(...), session: Session = Depends(get_session)):
+    """API آپلود مستقیم عکس یا فیلم (mp4) برای یک ملک خاص"""
+    from app.main import get_current_user
+    user = get_current_user(request, session)
+    if not user: raise HTTPException(401)
+    
+    prop = session.get(Property, property_id)
+    if not prop: raise HTTPException(404)
+    
+    # ساخت اسم یکتا برای فایل
+    file_ext = file.filename.split(".")[-1]
+    import random
+    file_name = f"{prop.id}_{random.randint(1000,9999)}.{file_ext}"
+    file_path = f"uploads/properties/{file_name}"
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # اضافه کردن به دیتابیس
+    current_media = json.loads(prop.image_urls) if prop.image_urls else []
+    current_media.append(f"/{file_path}")
+    prop.image_urls = json.dumps(current_media)
+    session.commit()
+    
+    return {"status": "success", "url": f"/{file_path}"}
+
+@router.put("/{property_id}/edit")
+def edit_and_sync_property(property_id: int, req_data: PropertyEditRequest, request: Request, session: Session = Depends(get_session)):
+    from app.main import get_current_user
+    user = get_current_user(request, session)
+    if not user: raise HTTPException(401)
+
+    prop = session.get(Property, property_id)
+    if not prop: raise HTTPException(status_code=404)
+    
+    if req_data.title is not None: prop.title = req_data.title
+    if req_data.price_total is not None: prop.price_total = req_data.price_total
+    if req_data.contact_phone is not None: prop.contact_phone = req_data.contact_phone
+    if req_data.ai_pros is not None: prop.ai_pros = req_data.ai_pros
+    if req_data.ai_cons is not None: prop.ai_cons = req_data.ai_cons
+    if req_data.publisher is not None: prop.publisher = req_data.publisher
+    if req_data.image_urls is not None: prop.image_urls = json.dumps(req_data.image_urls) # ذخیره لیست جدید مدیاها
+    
+    session.commit()
+    return {"message": "ویرایش با موفقیت انجام شد."}
+
+# ==========================================
+# 🗺️ API ارسال اطلاعات برای نقشه هوشمند
+# ==========================================
+@router.get("/map-data")
+def get_map_data(request: Request, session: Session = Depends(get_session)):
+    from app.main import get_current_user
+    user = get_current_user(request, session)
+    if not user: raise HTTPException(401)
+    
+    # گرفتن تمام فایل‌های آژانس
+    properties = session.exec(select(Property).where(Property.agency_id == user.agency_id)).all()
+    
+    map_items = []
+    for p in properties:
+        # چون دیوار لوکیشن دقیق نمیده، ما بر اساس قیمت فایل رو ارزیابی میکنیم
+        # برای نمایش رو نقشه، مختصات حدودی محله‌ها رو نیاز داریم (میتونیم از API نشان بگیریم، اما اینجا سیمولیت میکنیم)
+        # پین سبز = اکازیون، پین قرمز = گران، پین آبی = عادی
+        color = "blue"
+        if p.price_total:
+            if p.price_total < 5000000000: color = "green"
+            elif p.price_total > 15000000000: color = "red"
+
+        map_items.append({
+            "id": p.id,
+            "title": p.title,
+            "neighborhood": p.neighborhood,
+            "price": f"{int(p.price_total):,} تومان" if p.price_total else "توافقی",
+            "type": p.deal_type,
+            "color": color
+        })
+        
+    return {"status": "success", "data": map_items}
+
+# ==========================================
+# 🖼️ تابع جادویی واترمارک اتوماتیک روی عکس‌ها
+# ==========================================
+def add_watermark(image_path: str, text: str = "EstateMind AI CRM"):
+    try:
+        # باز کردن عکس اصلی
+        img = Image.open(image_path).convert("RGBA")
+        width, height = img.size
+        
+        # ساخت یک لایه شفاف برای واترمارک
+        txt_layer = Image.new('RGBA', img.size, (255,255,255,0))
+        draw = ImageDraw.Draw(txt_layer)
+        
+        # تنظیم فونت (اگر فونت نبود، از پیش‌فرض استفاده میکنه)
+        try: font = ImageFont.truetype("app/static/Vazirmatn-Regular.ttf", int(width/20))
+        except: font = ImageFont.load_default()
+        
+        # محاسبه سایز متن برای قرار دادن در مرکز متمایل به پایین
+        text_bbox = draw.textbbox((0, 0), text, font=font)
+        text_w = text_bbox[2] - text_bbox[0]
+        text_h = text_bbox[3] - text_bbox[1]
+        
+        x = (width - text_w) / 2
+        y = height - text_h - 50
+        
+        # رسم متن با رنگ سفید و سایه مشکی (نیمه شفاف)
+        draw.text((x+2, y+2), text, font=font, fill=(0, 0, 0, 128)) # سایه
+        draw.text((x, y), text, font=font, fill=(255, 255, 255, 180)) # متن اصلی
+        
+        # ترکیب لایه واترمارک با عکس اصلی
+        watermarked = Image.alpha_composite(img, txt_layer)
+        
+        # ذخیره مجدد عکس
+        watermarked.convert("RGB").save(image_path, "JPEG", quality=90)
+    except Exception as e:
+        print(f"Watermark Error: {e}")
+
+# 🌟 حالا باید API آپلودی که تو پیام قبل ساختیم رو آپدیت کنیم تا واترمارک بزنه:
+# تو کدهات تابع upload_property_media رو پیدا کن و با این جایگزینش کن:
+@router.post("/{property_id}/upload-media")
+async def upload_property_media(property_id: int, request: Request, file: UploadFile = File(...), session: Session = Depends(get_session)):
+    from app.main import get_current_user
+    user = get_current_user(request, session)
+    if not user: raise HTTPException(401)
+    
+    prop = session.get(Property, property_id)
+    if not prop: raise HTTPException(404)
+    
+    file_ext = file.filename.split(".")[-1].lower()
+    import random
+    file_name = f"{prop.id}_{random.randint(1000,9999)}.{file_ext}"
+    file_path = f"uploads/properties/{file_name}"
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # 🔥 اعمال واترمارک فقط روی عکس‌ها (نه ویدیوها)
+    if file_ext in ['jpg', 'jpeg', 'png']:
+        add_watermark(file_path, f"املاک {user.full_name} | {prop.contact_phone}")
+        
+    current_media = json.loads(prop.image_urls) if prop.image_urls else []
+    current_media.append(f"/{file_path}")
+    prop.image_urls = json.dumps(current_media)
+    session.commit()
+    
+    return {"status": "success", "url": f"/{file_path}"}
