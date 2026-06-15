@@ -329,29 +329,36 @@ os.makedirs("uploads/properties", exist_ok=True)
 
 @router.post("/{property_id}/upload-media")
 async def upload_property_media(property_id: int, request: Request, file: UploadFile = File(...), session: Session = Depends(get_session)):
-    """API آپلود عکس و فیلم با رفع باگ احراز هویت"""
-    user = get_current_user_local(request, session) # <--- باگ اینجا بود، فیکس شد
+    """API قدرتمند آپلود عکس و فیلم (MP4)"""
+    user = get_current_user_local(request, session)
     if not user: raise HTTPException(401)
     
     prop = session.get(Property, property_id)
     if not prop: raise HTTPException(404)
     
+    # اطمینان از وجود پوشه ذخیره‌سازی
+    os.makedirs("uploads/properties", exist_ok=True)
+    
     file_ext = file.filename.split(".")[-1].lower()
     import random
-    file_name = f"{prop.id}_{random.randint(1000,9999)}.{file_ext}"
+    file_name = f"prop_{prop.id}_{random.randint(10000,99999)}.{file_ext}"
     file_path = f"uploads/properties/{file_name}"
     
+    # ذخیره امن فایل
     with open(file_path, "wb") as buffer:
-        import shutil
         shutil.copyfileobj(file.file, buffer)
         
-    if file_ext in ['jpg', 'jpeg', 'png']:
-        add_watermark(file_path, f"املاک {user.full_name} | {prop.contact_phone}")
+    # ثبت مسیر در دیتابیس
+    import json
+    current_media = []
+    if hasattr(prop, 'image_urls') and prop.image_urls:
+        try: current_media = json.loads(prop.image_urls)
+        except: pass
         
-    current_media = json.loads(prop.image_urls) if prop.image_urls else []
     current_media.append(f"/{file_path}")
     prop.image_urls = json.dumps(current_media)
     session.commit()
+    
     return {"status": "success", "url": f"/{file_path}"}
 
 # ==========================================

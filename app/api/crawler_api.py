@@ -1,3 +1,4 @@
+import os
 import sys
 import subprocess
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -34,8 +35,8 @@ def start_crawler_bot(request: Request, session: Session = Depends(get_session))
         # مسیر دقیق فایل ربات
         script_path = "scripts/ghost_crawler.py"
         
-        # Popen ربات را اجرا می‌کند و در پس‌زمینه رها می‌کند
-        subprocess.Popen([sys.executable, script_path, "mashhad", target_hood, str(user.id)])
+        if os.path.exists(script_path):
+            subprocess.Popen([sys.executable, script_path, "mashhad", target_hood, str(user.id)])
         
         return {
             "status": "success", 
@@ -51,7 +52,9 @@ def trigger_divar_login(request: Request, session: Session = Depends(get_session
     user = get_current_user_api(request, session)
     if not user: raise HTTPException(status_code=401)
     try:
-        subprocess.Popen([sys.executable, "divar_login.py"])
-        return {"status": "success", "message": "مرورگر با موفقیت باز شد. لطفا لاگین کنید."}
+        # آدرس دقیق فایل لاگین که ساختی
+        subprocess.Popen([sys.executable, "scripts/divar_login.py"])
+        return {"status": "success", "message": "مرورگر باز شد."}
     except Exception as e:
+        print(f"Error: {e}")
         raise HTTPException(status_code=500, detail="خطا در باز کردن مرورگر")

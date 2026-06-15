@@ -23,6 +23,9 @@
             <button onclick="toggleMapView()" id="btn-map-toggle" class="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 font-bold py-2.5 px-5 rounded-2xl transition flex items-center gap-2">
                 <i class="ph-bold ph-map-trifold"></i> نمایش نقشه
             </button>
+            <button onclick="loginDivar()" class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-2.5 px-5 rounded-2xl shadow-lg shadow-rose-500/30 flex items-center gap-2 transition">
+                <i class="ph-bold ph-sign-in"></i> لاگین در دیوار (شماره‌یاب)
+            </button>
             <button onclick="startGhostCrawler()" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 px-5 rounded-2xl shadow-lg shadow-slate-900/30 flex items-center gap-2 transition animate-pulse">
                 <i class="ph-fill ph-spider"></i> بیدار کردن ربات خزنده
             </button>
@@ -65,8 +68,8 @@
                     {% endif %}
                     
                     <div class="absolute top-2 right-2 flex gap-1">
-                        <span class="bg-primary-600/90 text-white backdrop-blur text-[10px] font-bold px-2 py-1 rounded-lg">{{ prop.property_type }}</span>
-                        <span class="bg-gray-900/80 text-white backdrop-blur text-[10px] font-bold px-2 py-1 rounded-lg">{% if prop.deal_type == 'SALE' %}فروش{% elif prop.deal_type == 'RENT' %}رهن/اجاره{% else %}مشارکت{% endif %}</span>
+                        <span class="bg-primary-600/90 text-white backdrop-blur text-[10px] font-bold px-2 py-1 rounded-lg">{{ prop.property_type.value }}</span>
+                        <span class="bg-gray-900/80 text-white backdrop-blur text-[10px] font-bold px-2 py-1 rounded-lg">{% if prop.deal_type.value == 'SALE' %}فروش{% elif prop.deal_type.value == 'RENT' %}رهن/اجاره{% else %}مشارکت{% endif %}</span>
                     </div>
 
                     {% if prop.is_exclusive %}
@@ -126,7 +129,7 @@
         {% else %}
             <div class="col-span-full flex flex-col items-center justify-center p-12 text-center bg-white dark:bg-darkcard rounded-3xl border border-gray-100 dark:border-slate-700">
                 <i class="ph-fill ph-folder-open text-6xl text-slate-300 dark:text-slate-600 mb-4"></i>
-                <h3 class="text-xl font-bold text-slate-700 dark:text-slate-300 mb-2">هیچ فایلی یافت نشد!</h3>
+                <h3 class="text-xl font-bold text-slate-700 dark:text-slate-300 mb-2" id="empty-state-msg">هیچ فایلی یافت نشد!</h3>
             </div>
         {% endif %}
     </div>
@@ -374,40 +377,83 @@
         const grid = document.getElementById('propertiesGrid');
         const mapContainer = document.getElementById('smart-map-container');
         const btn = document.getElementById('btn-map-toggle');
+        
+        // پیدا کردن پیام "هیچ فایلی یافت نشد" (در صورت وجود)
+        const emptyState = document.getElementById('empty-state-msg');
 
         mapIsVisible = !mapIsVisible;
 
         if (mapIsVisible) {
-            // مخفی کردن کارتها و نمایش نقشه
             document.querySelectorAll('.property-card').forEach(c => c.style.display = 'none');
+            if(emptyState) emptyState.style.display = 'none'; // مخفی کردن ارور خالی بودن
+            
             mapContainer.classList.remove('hidden');
             btn.innerHTML = '<i class="ph-bold ph-cards"></i> نمایش کارت‌ها';
             
             if (!map) {
-                map = L.map('smart-map-container').setView([36.29, 59.60], 12); 
+                // مرکز نقشه پیش‌فرض (مشهد)
+                map = L.map('smart-map-container').setView([36.30, 59.58], 12); 
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© EstateMind AI CRM' }).addTo(map);
 
-                Swal.fire({title:'بارگذاری نقشه...', didOpen:()=>{Swal.showLoading()}});
+                Swal.fire({title:'بارگذاری نقشه حرارتی...', didOpen:()=>{Swal.showLoading()}});
                 try {
                     let res = await fetch('/api/properties/map-data');
                     let data = await res.json();
                     Swal.close();
                     
                     data.data.forEach(p => {
-                        let lat = 36.29 + (Math.random() - 0.5) * 0.1;
-                        let lng = 59.60 + (Math.random() - 0.5) * 0.1;
+                        let lat = 36.30 + (Math.random() - 0.5) * 0.08;
+                        let lng = 59.58 + (Math.random() - 0.5) * 0.08;
                         let markerColor = p.color === 'green' ? 'green' : (p.color === 'red' ? 'red' : 'blue');
                         
                         L.circleMarker([lat, lng], { color: markerColor, radius: 8, fillOpacity: 0.7 }).addTo(map)
-                        .bindPopup(`<div dir="rtl" class="text-right font-sans"><b>${p.title}</b><br/>محله: ${p.neighborhood}<br/><span style="color:${markerColor}; font-weight:bold;">${p.price}</span><br/><a href="/catalog/property/${p.id}" target="_blank" style="color:blue; text-decoration:underline;">مشاهده فایل</a></div>`);
+                        .bindPopup(`<div dir="rtl" class="text-right font-sans"><b>${p.title}</b><br/>محله: ${p.neighborhood}<br/><span style="color:${markerColor}; font-weight:bold;">${p.price}</span><br/><a href="/catalog/property/${p.id}" target="_blank" style="color:blue; text-decoration:underline;">مشاهده کاتالوگ</a></div>`);
                     });
                 } catch(e) { Swal.close(); }
             }
+            // رفرش کردن سایز نقشه بعد از نمایش
+            setTimeout(() => { map.invalidateSize(); }, 300);
         } else {
-            // بازگشت به حالت کارت‌ها
             document.querySelectorAll('.property-card').forEach(c => c.style.display = '');
+            if(emptyState) emptyState.style.display = '';
             mapContainer.classList.add('hidden');
             btn.innerHTML = '<i class="ph-bold ph-map-trifold"></i> نمایش نقشه';
+        }
+    }
+
+    // ربات خزنده‌ی دیوار (Ghost Crawler)
+    // ----------------------------------------------------
+    async function startGhostCrawler() {
+        Swal.fire({
+            title: 'راه‌اندازی ربات 🕷️',
+            text: 'در حال ارسال دستور بیدارباش به ربات هوشمند...',
+            didOpen: () => { Swal.showLoading() }
+        });
+        
+        try {
+            let res = await fetch('/api/crawler/start', {method: 'POST'});
+            if(res.ok) {
+                let data = await res.json();
+                Swal.fire('ربات فعال شد!', data.message, 'success');
+            } else {
+                Swal.fire('خطا', 'ارتباط با موتور ربات برقرار نشد.', 'error');
+            }
+        } catch(e) {
+            Swal.fire('خطای شبکه', 'لطفا از روشن بودن سرور بک‌اند مطمئن شوید.', 'error');
+        }
+    }
+
+    async function loginDivar() {
+        Swal.fire({
+            title: 'در حال باز کردن مرورگر...', 
+            text: 'یک پنجره مرورگر باز می‌شود. لطفاً شماره خود را وارد کرده و در دیوار لاگین کنید. پس از ورود، حتماً پنجره مرورگر را ببندید (ضربدر قرمز) تا اطلاعات ذخیره شود.', 
+            icon: 'info',
+            confirmButtonText: 'متوجه شدم'
+        });
+        try {
+            await fetch('/api/crawler/divar-login', {method: 'POST'});
+        } catch(e) {
+            console.error(e);
         }
     }
 </script>
