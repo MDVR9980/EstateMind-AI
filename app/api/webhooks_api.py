@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+import os
+import requests
+from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from app.core.database import get_session
@@ -6,12 +8,13 @@ from app.core.models import (
     Property, PropertyType, DealType,
     Requirement, Client, AgentNotification
 ) 
-import json
 from app.services.notifier import send_telegram_alert
 
 router = APIRouter(prefix="/api/webhooks", tags=["Webhooks"])
 
-# مدلی که دقیقاً با خروجی n8n شما مطابقت دارد
+# ==========================================
+# 1. بخش دریافت اطلاعات از اتوماسیون n8n
+# ==========================================
 class N8nPayload(BaseModel):
     agency_id: int
     token: str
@@ -23,8 +26,6 @@ class N8nPayload(BaseModel):
     publisher: str = "نامشخص"
     contact_phone: str = ""
     chat_link: str = ""
-
-from app.core.models import Requirement, Client, AgentNotification
 
 @router.post("/n8n-receive")
 def receive_from_n8n(data: N8nPayload, session: Session = Depends(get_session)):
@@ -60,14 +61,14 @@ def receive_from_n8n(data: N8nPayload, session: Session = Depends(get_session)):
         print(f"❌ Error in n8n Webhook: {e}")
         raise HTTPException(status_code=500, detail="خطا در ثبت دیتای n8n")
 
-import os
-import requests
-from fastapi import Request, BackgroundTasks
 
+# ==========================================
+# 2. بخش ربات تلگرام تعاملی مشتریان
+# ==========================================
 # متغیر گلوبال برای ذخیره موقت وضعیت چت مشتریان در حافظه
 CLIENT_BOT_STATES = {}
 
-TELEGRAM_CLIENT_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") # از همون توکن قبلی استفاده میکنیم یا میتونی یدونه جدید بسازی
+TELEGRAM_CLIENT_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") 
 
 def send_telegram_msg(chat_id, text, reply_markup=None):
     """تابع کمکی برای ارسال پیام به تلگرام"""
@@ -82,6 +83,10 @@ async def telegram_client_bot(request: Request, background_tasks: BackgroundTask
     try:
         data = await request.json()
         
+        # بررسی اینکه آیا 토کن بات در env وجود دارد یا خیر
+        if not TELEGRAM_CLIENT_BOT_TOKEN:
+            return {"status": "ignored", "reason": "No bot token configured"}
+
         # اگر کاربر دکمه‌ای را فشار داده باشد (Callback Query)
         if "callback_query" in data:
             chat_id = data["callback_query"]["message"]["chat"]["id"]
@@ -89,10 +94,10 @@ async def telegram_client_bot(request: Request, background_tasks: BackgroundTask
             
             if action == "buy":
                 CLIENT_BOT_STATES[chat_id] = {"step": "ask_hood", "deal_type": "فروش"}
-                send_telegram_msg(chat_id, "Отلی! 🏙️ **در کدام محله** به دنبال ملک هستید؟\n(مثال: سجاد، هاشمیه، وکیل آباد)")
+                send_telegram_msg(chat_id, "عالی! 🏙️ <b>در کدام محله</b> به دنبال ملک هستید؟\n(مثال: سجاد، هاشمیه، وکیل آباد)")
             elif action == "rent":
                 CLIENT_BOT_STATES[chat_id] = {"step": "ask_hood", "deal_type": "رهن و اجاره"}
-                send_telegram_msg(chat_id, "بسیار خب! 🏙️ **در کدام محله** به دنبال ملک هستید؟\n(مثال: سجاد، هاشمیه)")
+                send_telegram_msg(chat_id, "بسیار خب! 🏙️ <b>در کدام محله</b> به دنبال ملک هستید؟\n(مثال: سجاد، هاشمیه)")
             
             # پاسخ به تلگرام برای بستن لودینگ دکمه شیشه‌ای
             requests.get(f"https://api.telegram.org/bot{TELEGRAM_CLIENT_BOT_TOKEN}/answerCallbackQuery?callback_query_id={data['callback_query']['id']}")
@@ -125,7 +130,7 @@ async def telegram_client_bot(request: Request, background_tasks: BackgroundTask
             if user_state["step"] == "ask_hood":
                 user_state["hood"] = text
                 user_state["step"] = "ask_budget"
-                msg = f"محله '{text}' ثبت شد. 🎯\nحداکثر **بودجه** شما چقدر است؟\n(لطفاً فقط عدد را به تومان وارد کنید. مثال: 10000000000)"
+                msg = f"محله '<b>{text}</b>' ثبت شد. 🎯\nحداکثر <b>بودجه</b> شما چقدر است؟\n(لطفاً فقط عدد را به تومان وارد کنید. مثال: 10000000000)"
                 send_telegram_msg(chat_id, msg)
                 return {"status": "ok"}
 
@@ -159,19 +164,19 @@ async def telegram_client_bot(request: Request, background_tasks: BackgroundTask
 
                 # ارسال نتایج به مشتری
                 if not matches:
-                    send_telegram_msg(chat_id, f"😔 متأسفانه در حال حاضر فایلی در محله '{hood}' با بودجه شما در سیستم ما موجود نیست.\nدرخواست شما ثبت شد و به محض شکار فایل جدید، به شما اطلاع خواهیم داد!\n\nبرای جستجوی جدید /start را بزنید.")
+                    send_telegram_msg(chat_id, f"😔 متأسفانه در حال حاضر فایلی در محله <b>{hood}</b> با بودجه شما در سیستم ما موجود نیست.\nدرخواست شما ثبت شد و به محض شکار فایل جدید، به شما اطلاع خواهیم داد!\n\nبرای جستجوی جدید /start را بزنید.")
                 else:
-                    send_telegram_msg(chat_id, f"🎉 تبریک! **{len(matches)} فایل اکازیون** متناسب با نیاز شما در دیتابیس پیدا شد:\n⬇️⬇️⬇️")
+                    send_telegram_msg(chat_id, f"🎉 تبریک! <b>{len(matches)} فایل اکازیون</b> متناسب با نیاز شما در دیتابیس پیدا شد:\n⬇️⬇️⬇️")
                     
                     for m in matches[:3]: # ارسال حداکثر ۳ تا از بهترین فایل‌ها
                         price_str = f"{int(m.price_total):,} تومان" if m.price_total > 0 else "توافقی"
                         link = f"http://127.0.0.1:8000/catalog/property/{m.id}" # لینک کاتالوگ شما
                         
                         prop_msg = f"🏢 <b>{m.title}</b>\n"
-                        prop_msg += f"📍 محله: {m.neighborhood}\n"
-                        prop_msg += f"📐 متراژ: {m.built_area} متر | 🛏 خواب: {m.rooms}\n"
-                        prop_msg += f"💰 قیمت: {price_str}\n\n"
-                        prop_msg += f"✨ نقطه قوت: {m.ai_pros or 'موقعیت عالی'}\n"
+                        prop_msg += f"📍 <b>محله:</b> {m.neighborhood}\n"
+                        prop_msg += f"📐 <b>متراژ:</b> {m.built_area} متر | 🛏 <b>خواب:</b> {m.rooms}\n"
+                        prop_msg += f"💰 <b>قیمت:</b> {price_str}\n\n"
+                        prop_msg += f"✨ <b>نقطه قوت:</b> {m.ai_pros or 'موقعیت عالی'}\n"
                         
                         markup = {"inline_keyboard": [[{"text": "🌐 مشاهده کاتالوگ کامل و عکس‌ها", "url": link}]]}
                         send_telegram_msg(chat_id, prop_msg, reply_markup=markup)

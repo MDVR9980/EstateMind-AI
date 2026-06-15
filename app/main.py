@@ -219,3 +219,11 @@ async def render_superadmin(request: Request, session: Session = Depends(get_ses
             "agencies": agencies
         }
     )
+
+@app.get("/catalog/property/{property_id}")
+async def view_single_property(property_id: int, request: Request, session: Session = Depends(get_session)):
+    """رندر کردن صفحه کاتالوگ عمومی یک ملک برای مشتری"""
+    prop = session.get(Property, property_id)
+    if not prop: 
+        return HTMLResponse("<h1 style='text-align:center; margin-top:50px; font-family:tahoma;'>فایل یافت نشد یا حذف شده است.</h1>", status_code=404)
+    return templates.TemplateResponse("catalog_single.html", {"request": request, "prop": prop, "page_title": prop.title})

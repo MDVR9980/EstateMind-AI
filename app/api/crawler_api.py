@@ -44,3 +44,14 @@ def start_crawler_bot(request: Request, session: Session = Depends(get_session))
     except Exception as e:
         print(f"❌ Crawler execution error: {e}")
         raise HTTPException(status_code=500, detail="خطا در راه‌اندازی ربات")
+
+@router.post("/divar-login")
+def trigger_divar_login(request: Request, session: Session = Depends(get_session)):
+    """باز کردن مرورگر برای لاگین در دیوار جهت ذخیره نشست (Session)"""
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+    try:
+        subprocess.Popen([sys.executable, "divar_login.py"])
+        return {"status": "success", "message": "مرورگر با موفقیت باز شد. لطفا لاگین کنید."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="خطا در باز کردن مرورگر")
