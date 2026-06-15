@@ -54,6 +54,7 @@ class User(SQLModel, table=True):
     username: str = Field(unique=True, index=True) 
     hashed_password: str
     role: UserRole = Field(default=UserRole.AGENT)
+    target_neighborhoods: Optional[str] = None
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

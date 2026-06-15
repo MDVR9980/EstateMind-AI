@@ -18,11 +18,9 @@ class UserCreateRequest(BaseModel):
 def add_user(data: UserCreateRequest, session: Session = Depends(get_session)):
     """API استخدام و ثبت مشاور / مدیر رنج جدید"""
     try:
-        # بررسی تکراری نبودن نام کاربری
         if session.exec(select(User).where(User.username == data.username)).first():
             raise HTTPException(status_code=400, detail="این نام کاربری (موبایل) قبلاً در سیستم ثبت شده است.")
         
-        # مپ کردن نقش کاربر
         role_enum = UserRole.AGENT
         if data.role == "manager": 
             role_enum = UserRole.MANAGER

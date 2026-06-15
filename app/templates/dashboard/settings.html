@@ -33,40 +33,38 @@
         <!-- ================= زونکن مدارک و فرم‌ها ================= -->
         <div class="bg-white dark:bg-darkcard p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700">
             <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
-                <i class="ph-fill ph-folder-open text-blue-500"></i> زونکن مدارک و فرم‌های خام
+                <i class="ph-fill ph-folder-open text-primary-500"></i> زونکن مدارک و فرم‌های خام
             </h3>
             
-            <!-- فرم آپلود (فقط مدیر می‌بیند) -->
             {% if user.role == 'MANAGER' or user.role == 'SUPER_ADMIN' %}
             <form id="uploadForm" class="mb-8 p-5 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border border-gray-200 dark:border-slate-600 flex flex-col md:flex-row gap-4 items-end" onsubmit="submitDoc(event)">
                 <div class="flex-1 w-full">
-                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">عنوان فرم (مثلا مبایعه نامه)</label>
-                    <input type="text" id="doc-title" required class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-xl p-3 outline-none focus:border-blue-500 text-sm">
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">عنوان فرم</label>
+                    <input type="text" id="doc-title" required class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-sm">
                 </div>
                 <div class="flex-1 w-full">
                     <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">فایل (PDF/Word/Image)</label>
-                    <input type="file" id="doc-file" required class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-xl p-2 outline-none text-sm cursor-pointer">
+                    <input type="file" id="doc-file" required class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-2 outline-none text-sm cursor-pointer">
                 </div>
-                <button type="submit" id="btn-upload" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition whitespace-nowrap flex items-center gap-2">
+                <button type="submit" id="btn-upload" class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-6 rounded-2xl shadow-lg transition flex items-center gap-2">
                     <i class="ph-bold ph-upload-simple"></i> آپلود فرم
                 </button>
             </form>
             {% endif %}
 
-            <!-- لیست فایل‌های آپلود شده -->
+            <!-- لیست فایل‌ها -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {% if forms %}
                     {% for f in forms %}
                     <div class="border border-gray-200 dark:border-slate-700 rounded-2xl p-4 flex items-center gap-4 hover:shadow-md transition bg-white dark:bg-slate-800/50 group">
-                        <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-500 dark:bg-blue-900/30 flex items-center justify-center text-2xl shrink-0 group-hover:scale-110 transition-transform">
+                        <div class="w-12 h-12 rounded-full bg-primary-50 text-primary-500 dark:bg-primary-900/30 flex items-center justify-center text-2xl shrink-0 group-hover:scale-110 transition-transform">
                             <i class="ph-fill ph-file-text"></i>
                         </div>
                         <div class="flex-1 overflow-hidden">
                             <h4 class="font-bold text-slate-800 dark:text-white truncate text-sm">{{ f.title }}</h4>
                             <p class="text-[10px] text-slate-500 dir-ltr text-right mt-1">{{ f.uploaded_at.strftime('%Y-%m-%d') }}</p>
                         </div>
-                        <!-- مرورگر فایل‌های PDF یا عکس را باز و دانلود می‌کند -->
-                        <a href="/{{ f.file_path }}" target="_blank" download class="w-10 h-10 rounded-xl bg-gray-100 hover:bg-blue-100 hover:text-blue-600 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 flex items-center justify-center transition shrink-0" title="دانلود فایل">
+                        <a href="/{{ f.file_path }}" target="_blank" download class="w-10 h-10 rounded-xl bg-gray-100 hover:bg-primary-100 hover:text-primary-600 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 flex items-center justify-center transition shrink-0">
                             <i class="ph-bold ph-download-simple"></i>
                         </a>
                     </div>
