@@ -332,8 +332,13 @@
         }
 
         function formatPriceInput(inputElem) {
-            let val = inputElem.value.replace(/,/g, '').replace(/^0+/, ''); // حذف صفرهای اول و کاماها
-            if (!val || isNaN(val)) { inputElem.value = ''; if(inputElem.nextElementSibling) inputElem.nextElementSibling.innerText = ''; return; }
+            // این رجکس فقط صفرهای قبل از یک عدد دیگر رو پاک می‌کنه (مثلا 005 میشه 5 ولی 0 همون 0 میمونه)
+            let val = inputElem.value.replace(/,/g, '').replace(/^0+(?=\d)/, ''); 
+            if (!val || isNaN(val)) { 
+                inputElem.value = ''; 
+                if(inputElem.nextElementSibling) inputElem.nextElementSibling.innerText = ''; 
+                return; 
+            }
             inputElem.value = parseInt(val).toLocaleString('en-US');
             if(inputElem.nextElementSibling && inputElem.nextElementSibling.classList.contains('price-word-output')) {
                 inputElem.nextElementSibling.innerText = numberToPersianWords(parseInt(val));

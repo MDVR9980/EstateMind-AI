@@ -11,7 +11,7 @@
             </h2>
             <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">مدیریت مشاوران، مدیران رنج و دسترسی‌های آن‌ها</p>
         </div>
-        <button onclick="openAddUserModal()" class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg shadow-primary-500/30 flex items-center gap-2 transition">
+        <button onclick="openAddUserModal()" class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2.5 px-6 rounded-2xl shadow-lg shadow-primary-500/30 flex items-center gap-2 transition">
             <i class="ph-bold ph-user-plus"></i> استخدام مشاور جدید
         </button>
     </div>
@@ -21,24 +21,24 @@
         
         {% if agents %}
             {% for agent in agents %}
-            <div class="bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 p-6 flex flex-col items-center text-center relative overflow-hidden group transition hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-800">
+            <div class="bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 p-6 flex flex-col items-center text-center relative overflow-hidden group transition hover:shadow-lg hover:border-primary-200 dark:hover:border-primary-800">
                 
                 <!-- افکت بک‌گراند بر اساس نقش -->
                 {% if agent.role == 'MANAGER' %}
                     <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-purple-500/20 to-transparent"></div>
                 {% else %}
-                    <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-blue-500/10 to-transparent"></div>
+                    <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-primary-500/10 to-transparent"></div>
                 {% endif %}
 
                 <!-- دکمه حذف -->
-                <button onclick="deleteUser({{ agent.id }}, '{{ agent.full_name }}')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+                <button onclick="deleteUser({{ agent.id }}, '{{ agent.full_name }}')" class="absolute top-4 right-4 w-8 h-8 rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white dark:bg-rose-900/30 dark:hover:bg-rose-600 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
                     <i class="ph-bold ph-trash"></i>
                 </button>
 
                 <!-- آواتار -->
                 <div class="relative z-10 mb-4">
                     <img src="https://ui-avatars.com/api/?name={{ agent.full_name.replace(' ', '+') }}&background=random&color=fff&size=128" class="w-20 h-20 rounded-full border-4 border-white dark:border-darkcard shadow-md">
-                    <span class="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 border-2 border-white dark:border-darkcard rounded-full"></span>
+                    <span class="absolute bottom-0 right-0 w-4 h-4 bg-primary-500 border-2 border-white dark:border-darkcard rounded-full"></span>
                 </div>
 
                 <h3 class="text-lg font-bold text-slate-800 dark:text-white">{{ agent.full_name }}</h3>
@@ -47,9 +47,9 @@
                 <!-- تگ نقش -->
                 <div class="mt-4 mb-6">
                     {% if agent.role == 'MANAGER' %}
-                        <span class="bg-purple-50 text-purple-600 dark:bg-purple-900/30 border border-purple-200 px-3 py-1 rounded-full text-xs font-bold">مدیر رنج</span>
+                        <span class="bg-purple-50 text-purple-600 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800/50 px-3 py-1 rounded-full text-xs font-bold">مدیر رنج</span>
                     {% else %}
-                        <span class="bg-primary-50 text-primary-600 dark:bg-primary-900/30 border border-primary-200 px-3 py-1 rounded-full text-xs font-bold">مشاور فروش / اجاره</span>
+                        <span class="bg-primary-50 text-primary-600 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-800/50 px-3 py-1 rounded-full text-xs font-bold">مشاور فروش / اجاره</span>
                     {% endif %}
                 </div>
 
@@ -79,42 +79,38 @@
 
 <script>
     function openAddUserModal() {
-        const isDark = document.documentElement.classList.contains('dark');
-        
         Swal.fire({
             title: 'استخدام پرسنل جدید 👔',
             html: `
                 <div class="text-right space-y-4 mt-4">
                     <div>
-                        <label class="block text-sm font-bold mb-1">نام و نام خانوادگی *</label>
+                        <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">نام و نام خانوادگی <span class="text-rose-500 text-[10px] font-normal mr-1">(الزامی)</span></label>
                         <input id="u-name" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="مثال: رضا کریمی">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold mb-1">نام کاربری (موبایل) *</label>
+                        <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">نام کاربری (موبایل) <span class="text-rose-500 text-[10px] font-normal mr-1">(الزامی)</span></label>
                         <input id="u-user" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="09...">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold mb-1">رمز عبور پیش‌فرض *</label>
+                        <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">رمز عبور پیش‌فرض <span class="text-rose-500 text-[10px] font-normal mr-1">(الزامی)</span></label>
                         <input id="u-pass" type="password" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="***">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="col-span-2">
-                            <label class="block text-sm font-bold mb-1">نقش در آژانس *</label>
-                            <select id="u-role" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white">
+                            <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">نقش در آژانس <span class="text-rose-500 text-[10px] font-normal mr-1">(الزامی)</span></label>
+                            <select id="u-role" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white appearance-none">
                                 <option value="agent">مشاور فروش / اجاره</option>
                                 <option value="manager">مدیر رنج (Range Manager)</option>
                             </select>
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-bold mb-1 text-primary-600">محله‌های هدف فعالیت (اختیاری)</label>
-                        <input id="u-target" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="مثال: سجاد، هاشمیه">
-                        <p class="text-[10px] text-slate-400 mt-1">ربات فایل‌یاب دیوار، فایل‌های این محله‌ها را برای این مشاور شکار می‌کند.</p>
+                        <label class="block text-sm font-bold mb-1 text-primary-600 dark:text-primary-400">محله‌های هدف فعالیت (اختیاری)</label>
+                        <input id="u-target" class="w-full bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="مثال: سجاد، هاشمیه">
+                        <p class="text-[10px] text-slate-400 mt-1">ربات فایل‌یاب، فایل‌های این محله‌ها را برای این مشاور شکار می‌کند.</p>
                     </div>
                 </div>
             `,
-            background: isDark ? '#1e293b' : '#ffffff',
-            color: isDark ? '#f8fafc' : '#1e293b',
             showCancelButton: true,
             confirmButtonText: 'ثبت در سیستم',
             cancelButtonText: 'انصراف',
@@ -123,7 +119,7 @@
                 const user = document.getElementById('u-user').value;
                 const pass = document.getElementById('u-pass').value;
                 if (!name || !user || !pass) {
-                    Swal.showValidationMessage('نام، نام کاربری و رمز عبور الزامی است!');
+                    Swal.showValidationMessage('پر کردن فیلدهای الزامی ضروری است!');
                     return false;
                 }
                 return {
@@ -144,7 +140,7 @@
                     });
                     
                     if (res.ok) {
-                        Swal.fire({icon: 'success', title: 'انجام شد!', text: 'مشاور جدید ثبت شد.', timer: 1500}).then(() => {
+                        Swal.fire({icon: 'success', title: 'انجام شد!', text: 'مشاور جدید ثبت شد.', timer: 1500, showConfirmButton: false}).then(() => {
                             window.location.reload();
                         });
                     } else {
