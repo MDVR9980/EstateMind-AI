@@ -68,8 +68,17 @@
                     {% endif %}
                     
                     <div class="absolute top-2 right-2 flex gap-1">
-                        <span class="bg-primary-600/90 text-white backdrop-blur text-[10px] font-bold px-2 py-1 rounded-lg">{{ prop.property_type.value }}</span>
-                        <span class="bg-gray-900/80 text-white backdrop-blur text-[10px] font-bold px-2 py-1 rounded-lg">{% if prop.deal_type.value == 'SALE' %}فروش{% elif prop.deal_type.value == 'RENT' %}رهن/اجاره{% else %}مشارکت{% endif %}</span>
+                        <span class="bg-primary-600/90 text-white backdrop-blur text-[10px] font-bold px-2 py-1 rounded-lg">
+                            {% if 'APARTMENT' in prop.property_type %}آپارتمان
+                            {% elif 'VILLA' in prop.property_type %}ویلایی
+                            {% elif 'LAND' in prop.property_type %}زمین/کلنگی
+                            {% else %}تجاری{% endif %}
+                        </span>
+                        <span class="bg-gray-900/80 text-white backdrop-blur text-[10px] font-bold px-2 py-1 rounded-lg">
+                            {% if 'SALE' in prop.deal_type %}فروش
+                            {% elif 'RENT' in prop.deal_type %}رهن/اجاره
+                            {% else %}مشارکت{% endif %}
+                        </span>
                     </div>
 
                     {% if prop.is_exclusive %}

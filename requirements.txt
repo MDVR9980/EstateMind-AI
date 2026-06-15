@@ -33,3 +33,4 @@ reportlab
 arabic-reshaper 
 python-bidi
 Pillow
+playwright-stealth

@@ -63,6 +63,8 @@ class Property(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     agency_id: int = Field(foreign_key="agency.id", index=True)
     
+    divar_token: Optional[str] = Field(default=None, index=True)
+    
     title: str
     property_type: PropertyType
     deal_type: DealType
