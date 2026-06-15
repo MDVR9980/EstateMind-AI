@@ -83,3 +83,31 @@ def _mock_ai_response():
         "pros": "نورگیری عالی، متریال برند، دسترسی عالی به حاشیه",
         "cons": "بدون تراس"
     }
+
+def generate_smart_comparison(target_title, target_price, target_area, comparables) -> str:
+    """تولید یک پاراگراف تحلیلی برای مقایسه یک ملک با فایل‌های مشابه"""
+    if not nvidia_client:
+        return "⚠️ هوش مصنوعی متصل نیست. (حالت تستی: این فایل نسبت به بقیه ارزنده تر است)."
+        
+    comps_text = "\n".join([f"- {c['title']}: {c['price']} تومان ({c['area']} متر)" for c in comparables])
+    
+    prompt = f"""
+    شما یک مشاور املاک ارشد هستید. 
+    یک فایل هدف داریم: "{target_title}" با قیمت {target_price} تومان و متراژ {target_area} متر.
+    
+    فایل‌های مشابه در همین محله این موارد هستند:
+    {comps_text}
+    
+    لطفاً در یک پاراگراف کوتاه (حداکثر ۳-۴ خط)، به زبان فارسی روان و لحن حرفه‌ای، فایل هدف را با این فایل‌های مشابه مقایسه کن و بگو آیا فایل هدف "ارزنده"، "نرمال" یا "گران" است.
+    """
+
+    try:
+        response = nvidia_client.chat.completions.create(
+            model="mistralai/mistral-large-3-675b-instruct-2512",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3, max_tokens=300
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"⚠️ AI Comparison Error: {e}")
+        return "سیستم در حال حاضر قادر به تحلیل هوشمند نیست."

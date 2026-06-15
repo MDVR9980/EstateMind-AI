@@ -3,7 +3,7 @@ import jwt
 from app.core.security import SECRET_KEY, ALGORITHM
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
@@ -226,4 +226,9 @@ async def view_single_property(property_id: int, request: Request, session: Sess
     prop = session.get(Property, property_id)
     if not prop: 
         return HTMLResponse("<h1 style='text-align:center; margin-top:50px; font-family:tahoma;'>فایل یافت نشد یا حذف شده است.</h1>", status_code=404)
-    return templates.TemplateResponse("catalog_single.html", {"request": request, "prop": prop, "page_title": prop.title})
+    
+    return templates.TemplateResponse(
+        request=request, 
+        name="catalog_single.html", 
+        context={"request": request, "prop": prop, "page_title": prop.title}
+    )

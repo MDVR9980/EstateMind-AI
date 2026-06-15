@@ -2,6 +2,8 @@ import os
 import shutil
 import json
 import io
+import jwt
+from app.core.security import SECRET_KEY, ALGORITHM
 from PIL import Image, ImageDraw, ImageFont
 from typing import Optional, List
 from fastapi import (
@@ -15,7 +17,8 @@ from app.core.database import get_session
 from app.core.models import Property, PropertyType, DealType, DocumentType
 from app.services.vector_db import add_property_to_vector_db
 from app.services.notifier import send_telegram_alert
-from app.core.models import Client, AgentNotification, Property
+from app.core.models import User, Client, AgentNotification, Property
+from app.services.ai_engine import generate_smart_comparison
 
 router = APIRouter(prefix="/api/properties", tags=["Properties"])
 
@@ -53,6 +56,14 @@ class PropertyEditRequest(BaseModel):
     publisher: Optional[str] = None
     image_urls: Optional[List[str]] = None # 👈 این خط برای ذخیره تغییرات عکس/فیلم اضافه شد
 
+def get_current_user_local(request: Request, session: Session):
+    token = request.cookies.get("access_token")
+    if not token: return None
+    try:
+        payload = jwt.decode(token.replace("Bearer ", ""), SECRET_KEY, algorithms=[ALGORITHM])
+        return session.exec(select(User).where(User.username == payload.get("sub"))).first()
+    except: return None
+    
 @router.post("/voice-parse")
 async def parse_voice_to_form(audio: UploadFile = File(...)):
     try:
@@ -183,13 +194,14 @@ def make_property_public(property_id: int, request: Request, session: Session = 
         return {"status": "success"}
     raise HTTPException(status_code=400, detail="فایل یافت نشد یا قبلاً عمومی است")
 
+from app.services.ai_engine import generate_smart_comparison
+
 @router.get("/{property_id}/compare")
 def compare_property_ai(property_id: int, session: Session = Depends(get_session)):
-    """API مقایسه هوشمند فایل با فایل‌های مشابه محله"""
+    """API مقایسه هوشمند فایل با فایل‌های مشابه محله با هوش مصنوعی واقعی"""
     target = session.get(Property, property_id)
     if not target: raise HTTPException(status_code=404)
     
-    # پیدا کردن فایل‌های مشابه (همون محله و همون نوع)
     comparables = session.exec(
         select(Property)
         .where(Property.id != property_id)
@@ -201,11 +213,18 @@ def compare_property_ai(property_id: int, session: Session = Depends(get_session
     if not comparables:
         return {"comparables_count": 0}
         
+    comps_data_for_ai = [{"title": c.title, "price": c.price_total, "area": c.built_area} for c in comparables]
+    
+    # 🧠 فراخوانی هوش مصنوعی واقعی
+    ai_conclusion = generate_smart_comparison(target.title, target.price_total, target.built_area, comps_data_for_ai)
+    
     comps_data = []
     for c in comparables:
-        # در اینجا در نسخه اصلی، AI اختلاف قیمت و امکانات را تحلیل می‌کند
-        conclusion = f"این ملک نسبت به فایل هدف، متراژ {c.built_area} متری دارد و قیمت آن {c.price_total:,.0f} تومان است. ارزیابی AI: {'ارزنده' if c.price_total < target.price_total else 'گران‌تر'}."
-        comps_data.append({"title": c.title, "price": c.price_total, "ai_conclusion": conclusion})
+        comps_data.append({
+            "title": c.title, 
+            "price": c.price_total, 
+            "ai_conclusion": ai_conclusion # نتیجه تحلیل کلی برای همه نمایش داده می‌شود
+        })
         
     return {"comparables_count": len(comparables), "target_title": target.title, "comparables": comps_data}
 

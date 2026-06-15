@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from app.core.database import get_session
 from app.core.models import User, UserRole
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, SECRET_KEY, ALGORITHM, verify_password
+import jwt
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -52,3 +53,27 @@ def delete_user(user_id: int, session: Session = Depends(get_session)):
         session.commit()
         return {"status": "success"}
     raise HTTPException(status_code=404, detail="کاربر یافت نشد")
+
+def get_current_user_api(request: Request, session: Session):
+    token = request.cookies.get("access_token")
+    if not token: return None
+    try:
+        payload = jwt.decode(token.replace("Bearer ", ""), SECRET_KEY, algorithms=[ALGORITHM])
+        return session.exec(select(User).where(User.username == payload.get("sub"))).first()
+    except: return None
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+@router.put("/change-password")
+def change_password(data: ChangePasswordRequest, request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(401)
+    
+    if not verify_password(data.old_password, user.hashed_password):
+        raise HTTPException(400, "رمز عبور فعلی اشتباه است.")
+        
+    user.hashed_password = get_password_hash(data.new_password)
+    session.commit()
+    return {"status": "success"}

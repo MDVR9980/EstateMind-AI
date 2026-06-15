@@ -15,6 +15,12 @@ class AgencyCreateRequest(BaseModel):
     admin_username: str
     admin_password: str
 
+class AgencyEditRequest(BaseModel):
+    name: str
+    owner_name: str
+    phone: str
+    city: str
+
 @router.post("/agencies/add")
 def add_agency(data: AgencyCreateRequest, session: Session = Depends(get_session)):
     """ثبت یک آژانس املاک جدید به همراه مدیر آن"""
@@ -60,3 +66,21 @@ def toggle_agency_status(agency_id: int, session: Session = Depends(get_session)
     agency.subscription_active = not agency.subscription_active
     session.commit()
     return {"status": "success", "is_active": agency.subscription_active}
+
+@router.get("/agencies/{agency_id}")
+def get_agency(agency_id: int, session: Session = Depends(get_session)):
+    agency = session.get(Agency, agency_id)
+    if not agency: raise HTTPException(404)
+    return {"id": agency.id, "name": agency.name, "owner_name": agency.owner_name, "phone": agency.phone, "city": agency.city}
+
+@router.put("/agencies/{agency_id}/edit")
+def edit_agency(agency_id: int, data: AgencyEditRequest, session: Session = Depends(get_session)):
+    agency = session.get(Agency, agency_id)
+    if not agency: raise HTTPException(404)
+    
+    agency.name = data.name
+    agency.owner_name = data.owner_name
+    agency.phone = data.phone
+    agency.city = data.city
+    session.commit()
+    return {"status": "success"}

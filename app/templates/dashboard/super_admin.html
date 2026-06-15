@@ -105,8 +105,45 @@
         });
     }
 
-    function editAgency(id) {
-        Swal.fire('به زودی', 'قابلیت ویرایش اطلاعات آژانس به زودی اضافه می‌شود.', 'info');
+    async function editAgency(id) {
+        // دریافت لایو اطلاعات آژانس
+        Swal.fire({title:'درحال دریافت اطلاعات...', didOpen:()=>{Swal.showLoading()}});
+        let res = await fetch(`/api/super-admin/agencies/${id}`);
+        if(!res.ok) { Swal.fire('خطا', 'آژانس یافت نشد', 'error'); return; }
+        let ag = await res.json();
+        
+        Swal.fire({
+            title: 'ویرایش اطلاعات آژانس 🏢',
+            html: `
+                <div class="text-right space-y-4 mt-4">
+                    <div><label class="block text-sm font-bold mb-1">نام آژانس</label><input id="ea-name" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" value="${ag.name}"></div>
+                    <div><label class="block text-sm font-bold mb-1">نام مالک</label><input id="ea-owner" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" value="${ag.owner_name}"></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-bold mb-1">شماره تماس</label><input id="ea-phone" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" value="${ag.phone}"></div>
+                        <div><label class="block text-sm font-bold mb-1">شهر</label><input id="ea-city" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" value="${ag.city}"></div>
+                    </div>
+                </div>
+            `,
+            showCancelButton: true, confirmButtonText: 'ذخیره تغییرات', cancelButtonText: 'انصراف',
+            preConfirm: () => {
+                return {
+                    name: document.getElementById('ea-name').value,
+                    owner_name: document.getElementById('ea-owner').value,
+                    phone: document.getElementById('ea-phone').value,
+                    city: document.getElementById('ea-city').value
+                }
+            }
+        }).then(async (result) => {
+            if(result.isConfirmed) {
+                let editRes = await fetch(`/api/super-admin/agencies/${id}/edit`, {
+                    method: 'PUT', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(result.value)
+                });
+                if(editRes.ok) {
+                    Swal.fire({icon: 'success', title: 'آپدیت شد!', timer: 1500, showConfirmButton: false}).then(() => window.location.reload());
+                }
+            }
+        });
     }
 
     function deleteAgency(id) {
