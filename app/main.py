@@ -139,10 +139,6 @@ async def render_settings(request: Request, session: Session = Depends(get_sessi
     user = get_current_user(request, session)
     if not user: return RedirectResponse(url="/login")
     
-    # خواندن تیکت‌های یوزر فعلی
-    from app.core.models import Ticket
-    user_tickets = session.exec(select(Ticket).where(Ticket.user_id == user.id).order_by(Ticket.id.desc())).all()
-    
     # خواندن فرم‌های خام از زونکن
     agency_forms = session.exec(select(UploadedForm).order_by(UploadedForm.id.desc())).all()
     
@@ -153,7 +149,6 @@ async def render_settings(request: Request, session: Session = Depends(get_sessi
             "request": request, 
             "page_title": "تنظیمات و مدارک",
             "user": user,
-            "tickets": user_tickets,
             "forms": agency_forms
         }
     )

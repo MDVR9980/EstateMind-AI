@@ -1,0 +1,4 @@
+ngrok http 8000
+https://api.telegram.org/bot[YOUR_BOT_TOKEN]/setWebhook?url=[YOUR_NGROK_LINK]/api/webhooks/client-bot-webhook
+
+وقتی این لینک رو تو مرورگر باز کنی، باید پیامِ {"ok":true,"result":true,"description":"Webhook was set"} رو ببینی.

@@ -69,7 +69,7 @@
                     <h3 class="font-bold text-slate-800 dark:text-white text-lg line-clamp-2 search-target mb-3">{{ prop.title }}</h3>
                     
                     <p class="text-xs text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1 search-target">
-                        <i class="ph-fill ph-map-pin text-rose-500"></i> {{ prop.neighborhood }} | <i class="ph-fill ph-user ml-1"></i> {{ prop.publisher.value if prop.publisher.value else prop.publisher }}
+                        <i class="ph-fill ph-map-pin text-rose-500"></i> {{ prop.neighborhood }} | <i class="ph-fill ph-user ml-1"></i> {{ prop.publisher }}
                     </p>
                     <p class="text-xs text-slate-500 dark:text-slate-400 mb-4 flex items-center gap-1 search-target font-mono" dir="ltr">
                         <i class="ph-fill ph-phone text-blue-500"></i> {{ prop.contact_phone or 'ندارد' }}
