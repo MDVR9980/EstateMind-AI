@@ -9,46 +9,20 @@
             <h2 class="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                 <i class="ph-fill ph-headset text-primary-500"></i> مکاتبات و تیکت‌ها
             </h2>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">ارتباط مستقیم مشاوران با مدیریت شعبه</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">تاریخچه ارتباط مستقیم شما با مدیریت شعبه</p>
         </div>
     </div>
 
     <div class="grid grid-cols-1 gap-8">
-        
-        <!-- فرم ارسال تیکت جدید -->
-        <div class="bg-white dark:bg-darkcard p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-hidden">
-            <h3 class="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-6">
-                <i class="ph-fill ph-envelope-simple-open text-primary-500"></i> ارسال تیکت جدید
-            </h3>
-            
-            <form id="ticketForm" class="space-y-4 relative z-10" onsubmit="submitTicket(event)">
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">موضوع درخواست <span class="text-rose-500">*</span></label>
-                    <input type="text" id="t-subject" required placeholder="مثال: درخواست تغییر نام شعبه در کاتالوگ" class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none transition">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">توضیحات کامل <span class="text-rose-500">*</span></label>
-                    <textarea id="t-message" required rows="4" placeholder="متن درخواست خود را کامل بنویسید..." class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 p-3 outline-none transition"></textarea>
-                </div>
-                <div class="flex justify-end pt-2">
-                    <button id="btn-submit-ticket" type="submit" class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-primary-500/30 transition flex items-center gap-2">
-                        <i class="ph-bold ph-paper-plane-right"></i> ارسال پیام
-                    </button>
-                </div>
-            </form>
-        </div>
-
         <!-- تاریخچه تیکت‌ها -->
-        <h3 class="text-lg font-bold text-slate-800 dark:text-white mt-4 px-2">تاریخچه درخواست‌های شما</h3>
-        
         <div class="space-y-4">
             {% if tickets %}
                 {% for t in tickets %}
-                <div class="bg-white dark:bg-darkcard p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 transition hover:shadow-md">
+                <div class="bg-white dark:bg-darkcard p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 transition hover:shadow-md">
                     <div class="flex justify-between items-start mb-4 border-b border-gray-100 dark:border-slate-700 pb-4">
                         <div>
                             <h4 class="font-bold text-slate-800 dark:text-white mb-1">{{ t.subject }}</h4>
-                            <p class="text-[10px] text-slate-400 dir-ltr text-right">{{ t.created_at.strftime('%Y-%m-%d | %H:%M') }}</p>
+                            <p class="text-[10px] text-slate-400 dir-ltr text-right date-to-shamsi">{{ t.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
                         </div>
                         <div>
                             {% if t.status == 'در انتظار پاسخ' %}
@@ -56,7 +30,7 @@
                                     <i class="ph-bold ph-clock"></i> در انتظار پاسخ
                                 </span>
                             {% elif t.status == 'پاسخ داده شده' %}
-                                <span class="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                                <span class="bg-primary-50 text-primary-600 dark:bg-primary-900/30 border border-primary-200 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
                                     <i class="ph-bold ph-check-circle"></i> پاسخ داده شده
                                 </span>
                             {% else %}
@@ -71,7 +45,7 @@
                     </div>
 
                     {% if t.answer %}
-                    <div class="bg-primary-50/50 dark:bg-primary-900/10 border-r-4 border-primary-500 p-4 rounded-xl text-sm">
+                    <div class="bg-primary-50/50 dark:bg-primary-900/10 border-r-4 border-primary-500 p-4 rounded-2xl text-sm">
                         <p class="font-bold text-primary-700 dark:text-primary-400 mb-1 text-xs flex items-center gap-1"><i class="ph-fill ph-headset"></i> پاسخ پشتیبانی:</p>
                         <p class="text-slate-700 dark:text-slate-300 leading-relaxed">{{ t.answer }}</p>
                     </div>
@@ -79,52 +53,12 @@
                 </div>
                 {% endfor %}
             {% else %}
-                <div class="bg-white dark:bg-darkcard p-10 rounded-3xl border border-dashed border-gray-300 dark:border-slate-700 text-center">
+                <div class="bg-white dark:bg-darkcard p-12 rounded-3xl border border-dashed border-gray-300 dark:border-slate-700 text-center">
                     <i class="ph-fill ph-envelope-simple-open text-5xl text-slate-300 dark:text-slate-600 mb-3"></i>
                     <p class="text-slate-500 text-sm font-bold">شما تاکنون هیچ تیکتی ثبت نکرده‌اید.</p>
                 </div>
             {% endif %}
         </div>
-
     </div>
 </div>
-
-<script>
-    async function submitTicket(event) {
-        event.preventDefault(); 
-        
-        const btn = document.getElementById('btn-submit-ticket');
-        const subject = document.getElementById('t-subject').value;
-        const message = document.getElementById('t-message').value;
-
-        btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> در حال ارسال...';
-        btn.disabled = true;
-
-        try {
-            const response = await fetch("/api/tickets/add", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ subject: subject, message: message })
-            });
-
-            if (response.ok) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'ارسال شد!',
-                    text: 'تیکت شما با موفقیت ثبت شد و به زودی بررسی می‌شود.',
-                    confirmButtonText: 'متوجه شدم'
-                }).then(() => {
-                    window.location.reload();
-                });
-            } else {
-                Swal.fire('خطا', 'مشکلی در ارسال تیکت پیش آمد.', 'error');
-            }
-        } catch (error) {
-            Swal.fire('خطا', 'عدم ارتباط با سرور.', 'error');
-        } finally {
-            btn.innerHTML = '<i class="ph-bold ph-paper-plane-right"></i> ارسال پیام';
-            btn.disabled = false;
-        }
-    }
-</script>
 {% endblock %}

@@ -129,9 +129,9 @@
                 </button>
                 
                 <!-- نوتیفیکیشن -->
-                <button class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition relative">
+                <button onclick="showNotifications()" class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition relative">
                     <i class="ph ph-bell text-2xl"></i>
-                    <span class="absolute top-1 right-1 w-3 h-3 bg-rose-500 border-2 border-white dark:border-darkcard rounded-full"></span>
+                    <span id="bell-badge" class="hidden absolute top-1 right-1 w-3 h-3 bg-rose-500 border-2 border-white dark:border-darkcard rounded-full"></span>
                 </button>
 
                 <!-- پروفایل کاربر به صورت داینامیک -->
@@ -196,14 +196,19 @@
         }
 
         // ۲. هایلایت کردن منوی فعال در سایدبار
+        // تابع تبدیل تاریخ میلادی به شمسی (آپدیت شده برای ساپورت ساعت)
         document.addEventListener("DOMContentLoaded", () => {
-            const currentPath = window.location.pathname;
-            const navLinks = document.querySelectorAll("aside nav a");
-            
-            navLinks.forEach(link => {
-                if (link.getAttribute("href") === currentPath || (currentPath.includes(link.getAttribute("href")) && link.getAttribute("href") !== "/")) {
-                    link.classList.remove("text-slate-600", "hover:bg-gray-100", "dark:text-slate-300", "dark:hover:bg-slate-800");
-                    link.classList.add("bg-primary-50", "text-primary-600", "dark:bg-primary-900/30", "dark:text-primary-400", "font-bold");
+            document.querySelectorAll('.date-to-shamsi').forEach(el => {
+                let text = el.innerText.trim();
+                let date = new Date(text.replace(/-/g, '/')); // حل مشکل سافاری و فرمت‌های خاص
+                if(!isNaN(date)) {
+                    // اگر ساعت داشت، ساعت رو هم نشون بده
+                    let options = { year: 'numeric', month: 'long', day: 'numeric' };
+                    if(text.includes(':')) {
+                        options.hour = '2-digit';
+                        options.minute = '2-digit';
+                    }
+                    el.innerText = new Intl.DateTimeFormat('fa-IR', options).format(date);
                 }
             });
         });
@@ -236,151 +241,76 @@
         }
     </script>
 
-    <!-- ویجت چت‌بات شناور هوش مصنوعی (AI Chatbot) -->    
-    <!-- دکمه شناور باز کردن چت -->
-    <button onclick="toggleChatbot()" class="fixed bottom-6 left-6 z-50 w-16 h-16 bg-gradient-to-tr from-primary-500 to-primary-700 text-white rounded-full flex items-center justify-center text-3xl shadow-lg shadow-primary-500/40 hover:scale-110 transition-transform">
-        <i class="ph-fill ph-robot"></i>
-    </button>
+    <!-- دکمه‌های شناور پایین صفحه -->
+    <div class="fixed bottom-6 left-6 z-50 flex flex-col gap-4">
+        <!-- دکمه چت‌بات -->
+        <button onclick="toggleChatbot()" class="w-14 h-14 bg-gradient-to-tr from-primary-500 to-primary-700 text-white rounded-full flex items-center justify-center text-3xl shadow-lg shadow-primary-500/40 hover:scale-110 transition-transform">
+            <i class="ph-fill ph-robot"></i>
+        </button>
+    </div>
+    
+    <div class="fixed bottom-6 right-6 z-50 flex flex-col gap-4">
+        <!-- دکمه تیکت شناور -->
+        <button onclick="openTicketModal()" class="w-14 h-14 bg-white dark:bg-darkcard border border-gray-200 dark:border-slate-700 text-primary-600 rounded-full flex items-center justify-center text-3xl shadow-lg hover:scale-110 transition-transform">
+            <i class="ph-fill ph-headset"></i>
+        </button>
+    </div>
 
-    <!-- دکمه شناور تیکت -->
-    <button onclick="openTicketModal()" class="fixed bottom-6 right-6 z-50 w-16 h-16 bg-white dark:bg-darkcard border border-gray-200 dark:border-slate-700 text-primary-600 rounded-full flex items-center justify-center text-3xl shadow-lg hover:scale-110 transition-transform">
-        <i class="ph-fill ph-headset"></i>
-    </button>
-
-    <!-- پنل چت (مخفی به صورت پیش‌فرض) -->
+    <!-- پنل چت هوش مصنوعی -->
     <div id="ai-chatbot-panel" class="fixed bottom-24 left-6 z-50 w-80 md:w-96 bg-white dark:bg-darkcard rounded-3xl shadow-2xl border border-gray-200 dark:border-slate-700 flex flex-col overflow-hidden transition-all duration-300 translate-y-10 opacity-0 pointer-events-none" style="height: 500px;">
-        
-        <!-- هدر چت‌بات -->
-        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 p-4 flex justify-between items-center text-white">
+        <div class="bg-gradient-to-r from-primary-600 to-primary-800 p-4 flex justify-between items-center text-white">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-xl backdrop-blur-sm"><i class="ph-fill ph-sparkle"></i></div>
                 <div>
                     <h3 class="font-bold text-sm">دستیار هوشمند CRM</h3>
-                    <p class="text-[10px] text-purple-200">متصل به دیتابیس آژانس</p>
+                    <p class="text-[10px] text-primary-200">متصل به دیتابیس آژانس</p>
                 </div>
             </div>
             <button onclick="toggleChatbot()" class="text-white/70 hover:text-white transition"><i class="ph-bold ph-x text-xl"></i></button>
         </div>
-
-        <!-- محیط چت (پیام‌ها) -->
         <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-900/50">
-            <!-- پیام خوش‌آمدگویی پیش‌فرض -->
             <div class="flex gap-3">
-                <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex-shrink-0 flex items-center justify-center"><i class="ph-fill ph-robot"></i></div>
+                <div class="w-8 h-8 rounded-full bg-primary-100 text-primary-600 flex-shrink-0 flex items-center justify-center"><i class="ph-fill ph-robot"></i></div>
                 <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl rounded-tr-none border border-gray-100 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300 shadow-sm">
-                    سلام! 👋 من دستیار هوشمند شما هستم. می‌تونی مشخصات یه فایل خاص رو ازم بپرسی، یا بگی فلان مشتری رو برات سرچ کنم. چطور می‌تونم کمکت کنم؟
+                    سلام! 👋 من دستیار هوشمند شما هستم. چطور می‌تونم کمکت کنم؟
                 </div>
             </div>
         </div>
-
-        <!-- تایپینگ ایندیکیتور (مخفی) -->
-        <div id="chat-typing" class="px-14 pb-2 hidden">
-            <span class="text-xs text-slate-400 animate-pulse">هوش مصنوعی در حال پردازش...</span>
-        </div>
-
-        <!-- ورودی چت -->
+        <div id="chat-typing" class="px-14 pb-2 hidden"><span class="text-xs text-slate-400 animate-pulse">در حال پردازش...</span></div>
         <div class="p-3 bg-white dark:bg-darkcard border-t border-gray-100 dark:border-slate-700 flex gap-2">
-            <input type="text" id="chat-input" onkeypress="handleChatKey(event)" placeholder="سوالت رو بپرس..." class="flex-1 bg-gray-100 dark:bg-slate-800 border-none rounded-xl px-4 text-sm outline-none text-slate-800 dark:text-white focus:ring-2 focus:ring-purple-500 transition">
-            <button onclick="sendChatMessage()" class="w-12 h-12 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex items-center justify-center transition shadow-md">
+            <input type="text" id="chat-input" onkeypress="handleChatKey(event)" placeholder="سوالت رو بپرس..." class="flex-1 bg-gray-100 dark:bg-slate-800 border-none rounded-xl px-4 text-sm outline-none text-slate-800 dark:text-white focus:ring-2 focus:ring-primary-500 transition">
+            <button onclick="sendChatMessage()" class="w-12 h-12 bg-primary-600 hover:bg-primary-700 text-white rounded-xl flex items-center justify-center transition shadow-md">
                 <i class="ph-fill ph-paper-plane-right"></i>
             </button>
         </div>
     </div>
 
-    <!-- اسکریپت کنترل چت‌بات -->
     <script>
-        function toggleChatbot() {
-            const panel = document.getElementById('ai-chatbot-panel');
-            if (panel.classList.contains('opacity-0')) {
-                panel.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
-            } else {
-                panel.classList.add('translate-y-10', 'opacity-0', 'pointer-events-none');
-            }
-        }
-
-        function handleChatKey(e) {
-            if (e.key === 'Enter') sendChatMessage();
-        }
-
+        // توابع چت بات
+        function toggleChatbot() { document.getElementById('ai-chatbot-panel').classList.toggle('opacity-0'); document.getElementById('ai-chatbot-panel').classList.toggle('pointer-events-none'); document.getElementById('ai-chatbot-panel').classList.toggle('translate-y-10'); }
+        function handleChatKey(e) { if (e.key === 'Enter') sendChatMessage(); }
         async function sendChatMessage() {
-            const input = document.getElementById('chat-input');
-            const message = input.value.trim();
-            if (!message) return;
-
-            const chatBox = document.getElementById('chat-messages');
-            const typingInd = document.getElementById('chat-typing');
-
-            chatBox.innerHTML += `
-                <div class="flex gap-3 flex-row-reverse">
-                    <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex-shrink-0 flex items-center justify-center"><i class="ph-fill ph-user"></i></div>
-                    <div class="bg-blue-600 text-white p-3 rounded-2xl rounded-tl-none text-sm shadow-sm">
-                        ${message}
-                    </div>
-                </div>
-            `;
-            input.value = '';
-            chatBox.scrollTop = chatBox.scrollHeight;
-            typingInd.classList.remove('hidden');
+            const input = document.getElementById('chat-input'); const msg = input.value.trim(); if (!msg) return;
+            const chatBox = document.getElementById('chat-messages'); const typing = document.getElementById('chat-typing');
+            
+            chatBox.innerHTML += `<div class="flex gap-3 flex-row-reverse"><div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 flex-shrink-0 flex items-center justify-center"><i class="ph-fill ph-user"></i></div><div class="bg-primary-600 text-white p-3 rounded-2xl rounded-tl-none text-sm shadow-sm">${msg}</div></div>`;
+            input.value = ''; chatBox.scrollTop = chatBox.scrollHeight; typing.classList.remove('hidden');
 
             try {
-                const res = await fetch("/api/chat", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ message: message })
-                });
-
+                const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: msg }) });
                 if (res.ok) {
-                    const data = await res.json();
-                    
-                    typingInd.classList.add('hidden');
-                    chatBox.innerHTML += `
-                        <div class="flex gap-3">
-                            <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex-shrink-0 flex items-center justify-center"><i class="ph-fill ph-robot"></i></div>
-                            <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl rounded-tr-none border border-gray-100 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300 shadow-sm leading-relaxed whitespace-pre-wrap">
-                                ${data.reply}
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    throw new Error();
+                    const data = await res.json(); typing.classList.add('hidden');
+                    chatBox.innerHTML += `<div class="flex gap-3"><div class="w-8 h-8 rounded-full bg-primary-100 text-primary-600 flex-shrink-0 flex items-center justify-center"><i class="ph-fill ph-robot"></i></div><div class="bg-white dark:bg-slate-800 p-3 rounded-2xl rounded-tr-none border border-gray-100 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300 shadow-sm leading-relaxed">${data.reply}</div></div>`;
                 }
-            } catch (err) {
-                typingInd.classList.add('hidden');
-                chatBox.innerHTML += `
-                    <div class="flex gap-3">
-                        <div class="bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 p-3 rounded-2xl rounded-tr-none text-sm border border-rose-200">
-                            ❌ مشکلی در ارتباط با هوش مصنوعی پیش آمد.
-                        </div>
-                    </div>
-                `;
-            }
+            } catch (err) { typing.classList.add('hidden'); chatBox.innerHTML += `<div class="text-rose-500 text-xs">خطا در ارتباط</div>`; }
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        document.addEventListener("DOMContentLoaded", async () => {
-            try {
-                const res = await fetch('/api/properties/notifications/unread');
-                if(res.ok) {
-                    const notifs = await res.json();
-                    if(notifs.length > 0) {
-                        const bellBadge = document.querySelector('.ph-bell').nextElementSibling;
-                        bellBadge.classList.remove('hidden'); // روشن شدن چراغ قرمز زنگوله
-                        
-                        // ساخت لیست پیام‌ها برای نمایش با کلیک
-                        let htmlMsgs = notifs.map(n => `<div class="p-2 border-b text-xs text-right">${n.msg}</div>`).join('');
-                        document.querySelector('.ph-bell').parentElement.onclick = () => {
-                            Swal.fire({title: '🔔 هشدارهای سیستم', html: htmlMsgs, position: 'top-end', showConfirmButton: false});
-                        };
-                    }
-                }
-            } catch(e) {}
-        });
-
-                // اسکریپت تبدیل عدد به حروف فارسی
-        const numWords = ["صفر", "یک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "نه", "ده", "یازده", "دوازده", "سیزده", "چهارده", "پانزده", "شانزده", "هفده", "هجده", "نوزده"];
-        const tens = ["", "", "بیست", "سی", "چهل", "پنجاه", "شصت", "هفتاد", "هشتاد", "نود"];
-        const hundreds = ["", "صد", "دویست", "سیصد", "چهارصد", "پانصد", "ششصد", "هفتصد", "هشتصد", "نهصد"];
-        const scales = ["", "هزار", "میلیون", "میلیارد", "تریلیون"];
+        // توابع تبدیل مبالغ و حروف
+        const numWords = ["صفر","یک","دو","سه","چهار","پنج","شش","هفت","هشت","نه","ده","یازده","دوازده","سیزده","چهارده","پانزده","شانزده","هفده","هجده","نوزده"];
+        const tens = ["","","بیست","سی","چهل","پنجاه","شصت","هفتاد","هشتاد","نود"];
+        const hundreds = ["","صد","دویست","سیصد","چهارصد","پانصد","ششصد","هفتصد","هشتصد","نهصد"];
+        const scales = ["","هزار","میلیون","میلیارد","تریلیون"];
 
         function numberToPersianWords(num) {
             if (num === 0) return "صفر";
@@ -388,78 +318,64 @@
             while (str.length > 0) { chunks.push(str.slice(-3)); str = str.slice(0, -3); }
             let result = [];
             for (let i = 0; i < chunks.length; i++) {
-                let chunk = parseInt(chunks[i], 10);
-                if (chunk === 0) continue;
-                let chunkWords = [];
-                let h = Math.floor(chunk / 100); let rem = chunk % 100;
+                let chunk = parseInt(chunks[i], 10); if (chunk === 0) continue;
+                let chunkWords = []; let h = Math.floor(chunk / 100); let rem = chunk % 100;
                 if (h > 0) chunkWords.push(hundreds[h]);
                 if (rem > 0) {
                     if (rem < 20) chunkWords.push(numWords[rem]);
                     else { chunkWords.push(tens[Math.floor(rem / 10)]); if (rem % 10 > 0) chunkWords.push(numWords[rem % 10]); }
                 }
-                let chunkText = chunkWords.join(" و ");
-                if (i > 0) chunkText += " " + scales[i];
+                let chunkText = chunkWords.join(" و "); if (i > 0) chunkText += " " + scales[i];
                 result.push(chunkText);
             }
             return result.reverse().join(" و ") + " تومان";
         }
 
-        // این تابع رو به اینپوت‌های قیمت وصل می‌کنیم
         function formatPriceInput(inputElem) {
-            let rawValue = inputElem.value.replace(/,/g, '');
-            if (!rawValue || isNaN(rawValue)) {
-                inputElem.nextElementSibling.innerText = '';
-                inputElem.value = ''; return;
-            }
-            inputElem.value = parseInt(rawValue).toLocaleString('en-US');
-            
-            // اگر عنصر بعدی برای نمایش متن وجود داشت:
+            let val = inputElem.value.replace(/,/g, '').replace(/^0+/, ''); // حذف صفرهای اول و کاماها
+            if (!val || isNaN(val)) { inputElem.value = ''; if(inputElem.nextElementSibling) inputElem.nextElementSibling.innerText = ''; return; }
+            inputElem.value = parseInt(val).toLocaleString('en-US');
             if(inputElem.nextElementSibling && inputElem.nextElementSibling.classList.contains('price-word-output')) {
-                inputElem.nextElementSibling.innerText = numberToPersianWords(parseInt(rawValue));
+                inputElem.nextElementSibling.innerText = numberToPersianWords(parseInt(val));
             }
         }
 
-        // تابع تبدیل تاریخ میلادی به شمسی در کل سایت
-        document.addEventListener("DOMContentLoaded", () => {
-            document.querySelectorAll('.date-to-shamsi').forEach(el => {
-                let date = new Date(el.innerText);
-                if(!isNaN(date)) {
-                    el.innerText = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' }).format(date);
-                }
-            });
-        });
-
-        // تابع باز کردن فرم تیکت شناور
+        // تابع تیکت شناور
         function openTicketModal() {
             Swal.fire({
-                title: 'ارسال تیکت به مدیریت',
+                title: 'پشتیبانی و تیکت‌ها 🎧',
                 html: `
                     <div class="text-right space-y-4 mt-4">
-                        <div>
-                            <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">موضوع درخواست <span class="text-rose-500">*</span></label>
-                            <input id="swal-t-subj" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm" placeholder="مثال: مشکل در ثبت فایل">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">متن پیام <span class="text-rose-500">*</span></label>
-                            <textarea id="swal-t-msg" rows="4" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm" placeholder="توضیحات..."></textarea>
-                        </div>
+                        <div><label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">موضوع درخواست <span class="text-rose-500 text-[10px] font-normal mr-1">(الزامی)</span></label><input id="swal-t-subj" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="مثال: مشکل در ثبت فایل"></div>
+                        <div><label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">متن پیام <span class="text-rose-500 text-[10px] font-normal mr-1">(الزامی)</span></label><textarea id="swal-t-msg" rows="4" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="توضیحات کامل..."></textarea></div>
                     </div>
                 `,
-                confirmButtonText: 'ارسال پیام',
-                showCancelButton: true,
-                cancelButtonText: 'بستن',
+                confirmButtonText: 'ارسال پیام', showCancelButton: true, cancelButtonText: 'بستن',
                 preConfirm: () => {
-                    const subj = document.getElementById('swal-t-subj').value;
-                    const msg = document.getElementById('swal-t-msg').value;
+                    const subj = document.getElementById('swal-t-subj').value; const msg = document.getElementById('swal-t-msg').value;
                     if(!subj || !msg) { Swal.showValidationMessage('پر کردن هر دو فیلد الزامی است.'); return false; }
                     return { subject: subj, message: msg };
                 }
             }).then(async (res) => {
                 if(res.isConfirmed) {
                     await fetch("/api/tickets/add", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(res.value)});
-                    Swal.fire({icon: 'success', title: 'ارسال شد', timer: 1500, showConfirmButton: false});
+                    Swal.fire({icon: 'success', title: 'ارسال شد', timer: 1500, showConfirmButton: false}).then(()=> window.location.href='/tickets');
                 }
             });
+        }
+
+        // مدیریت زنگوله (نوتیفیکیشن)
+        let unreadNotifs = [];
+        document.addEventListener("DOMContentLoaded", async () => {
+            try {
+                const res = await fetch('/api/properties/notifications/unread');
+                if(res.ok) { unreadNotifs = await res.json(); if(unreadNotifs.length > 0) document.getElementById('bell-badge').classList.remove('hidden'); }
+            } catch(e) {}
+        });
+        function showNotifications() {
+            if(unreadNotifs.length === 0) { Swal.fire({title: 'اعلان‌ها', text: 'شما هیچ پیام جدیدی ندارید.', icon: 'info', confirmButtonText: 'بستن', position: 'top-end', toast: true}); return; }
+            let htmlMsgs = unreadNotifs.map(n => `<div class="p-3 border-b border-gray-100 dark:border-slate-700 text-xs text-right text-slate-700 dark:text-slate-300">${n.msg}</div>`).join('');
+            Swal.fire({title: '🔔 هشدارهای سیستم', html: `<div class="max-h-60 overflow-y-auto no-scrollbar">${htmlMsgs}</div>`, position: 'top-end', showConfirmButton: false, showCloseButton: true});
         }
     </script>
 </body>

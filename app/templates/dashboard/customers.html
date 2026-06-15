@@ -131,85 +131,76 @@
         });
     }
 
-    // باز کردن فرم پاپ‌آپ (Modal) برای ثبت مشتری جدید
-    function openAddClientModal() {
-        const isDark = document.documentElement.classList.contains('dark');
-        
+    function openDealModal() {
+        let clientsOptions = clientsList.map(c => `<option value="${c.id}">${c.name} (${c.phone})</option>`).join('');
+        let propsOptions = propertiesList.map(p => `<option value="${p.id}" data-price="${p.price}">${p.title}</option>`).join('');
+
         Swal.fire({
-            title: 'ثبت مشتری جدید',
+            title: 'ثبت قرارداد جدید 🤝',
             html: `
                 <div class="text-right space-y-4 mt-4">
                     <div>
-                        <label class="block text-sm font-bold mb-1">نام و نام خانوادگی *</label>
-                        <input id="swal-name" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="مثال: سارا محمدی">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold mb-1">شماره موبایل *</label>
-                        <input id="swal-phone" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="0912...">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold mb-1">نوع درخواست *</label>
-                        <select id="swal-deal" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white">
-                            <option value="sale">خرید ملک</option>
-                            <option value="rent">رهن و اجاره</option>
-                            <option value="partnership">مشارکت / سرمایه‌گذاری</option>
+                        <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">انتخاب مشتری</label>
+                        <select id="swal-client" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-sm text-slate-800 dark:text-white appearance-none">
+                            ${clientsOptions || '<option disabled selected>مشتری فعالی نیست</option>'}
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-bold mb-1">سقف بودجه (تومان)</label>
-                        <input id="swal-budget" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="مثال: 5000000000">
-                        <p class="text-[10px] text-primary-500 font-bold mt-1 price-word-output min-h-[15px]"></p>
+                        <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">انتخاب فایل ملک</label>
+                        <select id="swal-property" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-sm text-slate-800 dark:text-white appearance-none" onchange="autoCalculateCommission()">
+                            <option value="0" data-price="0">-- انتخاب کنید --</option>
+                            ${propsOptions || '<option disabled>فایلی موجود نیست</option>'}
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">نوع قرارداد</label>
+                            <select id="swal-type" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-sm text-slate-800 dark:text-white appearance-none">
+                                <option value="فروش">خرید و فروش</option><option value="رهن و اجاره">رهن و اجاره</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">مبلغ معامله</label>
+                            <input id="swal-price" type="text" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-sm font-mono text-slate-800 dark:text-white" onkeyup="formatPriceInput(this); autoCalculateCommission()">
+                        </div>
+                    </div>
+                    <div class="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 p-4 rounded-2xl mt-4">
+                        <label class="block text-sm font-bold text-primary-800 dark:text-primary-400 mb-1">کمیسیون دریافتی (تومان)</label>
+                        <input id="swal-commission" type="text" dir="ltr" class="w-full bg-white dark:bg-slate-900 border border-primary-200 dark:border-primary-800 rounded-xl p-3 outline-none text-sm font-mono text-primary-700 dark:text-primary-400" onkeyup="formatPriceInput(this)">
+                        <p class="text-[10px] text-primary-600 mt-2 font-bold price-word-output min-h-[15px]"></p>
                     </div>
                 </div>
             `,
-            background: isDark ? '#1e293b' : '#ffffff',
-            color: isDark ? '#f8fafc' : '#1e293b',
-            showCancelButton: true,
-            confirmButtonText: 'ذخیره در قیف فروش',
-            cancelButtonText: 'انصراف',
-            confirmButtonColor: '#3b82f6',
+            showCancelButton: true, confirmButtonText: 'ثبت نهایی معامله', cancelButtonText: 'انصراف',
             preConfirm: () => {
-                const name = document.getElementById('swal-name').value;
-                const phone = document.getElementById('swal-phone').value;
-                if (!name || !phone) {
-                    Swal.showValidationMessage('لطفاً نام و شماره موبایل را وارد کنید');
-                    return false;
-                }
-                return {
-                    name: name,
-                    phone: phone,
-                    deal_type_requested: document.getElementById('swal-deal').value,
-                    budget_limit: parseFloat(document.getElementById('swal-budget').value) || 0
-                }
+                const client_id = document.getElementById('swal-client').value;
+                const property_id = document.getElementById('swal-property').value;
+                const price = document.getElementById('swal-price').value.replace(/,/g, '');
+                const commission = document.getElementById('swal-commission').value.replace(/,/g, '');
+
+                if (!client_id || client_id == "0" || !price || !commission) { Swal.showValidationMessage('اطلاعات ضروری را پر کنید!'); return false; }
+                return { client_id: parseInt(client_id), property_id: property_id == "0" ? 0 : parseInt(property_id), deal_type: document.getElementById('swal-type').value, deal_price: parseFloat(price), commission_amount: parseFloat(commission) };
             }
         }).then(async (result) => {
             if (result.isConfirmed) {
-                // ارسال اطلاعات به بک‌اند با API
-                try {
-                    const res = await fetch("/api/clients/add", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(result.value)
-                    });
-                    
-                    if (res.ok) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'ثبت شد!',
-                            text: 'مشتری با موفقیت در دیتابیس و قیف فروش قرار گرفت.',
-                            timer: 2000,
-                            showConfirmButton: false
-                        }).then(() => {
-                            window.location.reload(); // رفرش صفحه برای دیدن مشتری جدید
-                        });
-                    } else {
-                        Swal.fire('خطا', 'مشکلی در ارتباط با سرور وجود دارد.', 'error');
-                    }
-                } catch (error) {
-                    Swal.fire('خطا', 'مشکل شبکه!', 'error');
-                }
+                await fetch("/api/deals/add", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(result.value) });
+                window.location.reload();
             }
         });
+    }
+
+    function autoCalculateCommission() {
+        let manualPrice = document.getElementById('swal-price').value.replace(/,/g, '');
+        let finalPrice = manualPrice ? parseFloat(manualPrice) : parseFloat(document.getElementById('swal-property').options[document.getElementById('swal-property').selectedIndex].getAttribute('data-price') || 0);
+        
+        if (!manualPrice && finalPrice > 0) {
+            document.getElementById('swal-price').value = finalPrice.toLocaleString('en-US');
+        }
+        if(finalPrice > 0) {
+            let commissionInput = document.getElementById('swal-commission');
+            commissionInput.value = (finalPrice * 0.005).toLocaleString('en-US');
+            formatPriceInput(commissionInput); // آپدیت حروف
+        }
     }
 </script>
 {% endblock %}
