@@ -17,7 +17,7 @@
             <button onclick="window.location.href='/properties/add'" class="bg-white dark:bg-darkcard border border-gray-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2.5 px-5 rounded-xl shadow-sm hover:bg-gray-50 dark:hover:bg-slate-800 transition">
                 ثبت زمین جدید
             </button>
-            <button onclick="window.location.href='/customers'" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-amber-500/30 transition flex items-center gap-2">
+            <button onclick="openAddBuilderModal()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-5 rounded-2xl shadow-lg shadow-amber-500/30 transition flex items-center gap-2">
                 <i class="ph-bold ph-hard-hat"></i> ثبت سازنده جدید
             </button>
         </div>
@@ -140,6 +140,34 @@
                 showCancelButton: true,
                 cancelButtonText: 'بستن'
             });
+        });
+    }
+
+    function openAddBuilderModal() {
+        Swal.fire({
+            title: 'ثبت سازنده / سرمایه‌گذار',
+            html: `
+                <div class="text-right space-y-4 mt-4">
+                    <div><label class="text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">نام و نام خانوادگی *</label><input id="b-name" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-sm text-slate-800 dark:text-white"></div>
+                    <div><label class="text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">شماره موبایل *</label><input id="b-phone" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-sm text-slate-800 dark:text-white"></div>
+                    <div>
+                        <label class="text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">توان مالی بلاعوض (تومان)</label>
+                        <input id="b-budget" dir="ltr" onkeyup="formatPriceInput(this)" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-sm text-slate-800 dark:text-white font-mono">
+                        <p class="text-[10px] text-primary-500 font-bold mt-1 price-word-output min-h-[15px]"></p>
+                    </div>
+                </div>
+            `,
+            confirmButtonText: 'ذخیره در سیستم',
+            showCancelButton: true,
+            cancelButtonText: 'انصراف',
+            preConfirm: () => {
+                return { name: document.getElementById('b-name').value, phone: document.getElementById('b-phone').value, budget_limit: parseFloat(document.getElementById('b-budget').value.replace(/,/g, ''))||0, deal_type_requested: "partnership" }
+            }
+        }).then(async (res) => {
+            if(res.isConfirmed) {
+                await fetch("/api/clients/add", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(res.value)});
+                window.location.reload();
+            }
         });
     }
 </script>

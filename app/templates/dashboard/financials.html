@@ -23,10 +23,11 @@
 <!-- ویجت‌های مالی (دیتای واقعی) -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
     <div class="bg-gradient-to-br from-primary-500 to-primary-700 p-6 rounded-3xl shadow-lg shadow-primary-500/30 text-white relative overflow-hidden">
-        <div class="absolute -right-6 -top-6 text-white/10 text-9xl"><i class="ph-fill ph-wallet"></i></div>
+        <div class="absolute -right-6 -top-6 text-white/10 text-9xl z-0"><i class="ph-fill ph-wallet"></i></div>
         <div class="relative z-10">
-            <p class="text-primary-100 font-medium mb-1">جمع کل درآمد شعبه (کمیسیون)</p>
-            <h3 class="text-3xl font-bold mb-4 font-mono dir-ltr text-right">{{ "{:,.0f}".format(total_revenue) }} <span class="text-sm font-sans">تومان</span></h3>
+            <p class="text-primary-100 font-medium mb-1 text-sm">جمع کل درآمد شعبه (کمیسیون)</p>
+            <h3 class="text-3xl font-bold mb-4 font-mono dir-ltr text-right price-display">{{ total_revenue }}</h3>
+            <p class="text-xs text-primary-200 mt-[-10px] price-words"></p> <!-- نمایش حروف -->
         </div>
     </div>
 

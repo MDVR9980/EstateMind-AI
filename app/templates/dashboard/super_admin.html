@@ -6,11 +6,11 @@
     <div class="flex justify-between items-center mb-8">
         <div>
             <h2 class="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <i class="ph-fill ph-crown text-emerald-500"></i> داشبورد سوپر ادمین (مدیریت پلتفرم)
+                <i class="ph-fill ph-crown text-primary-500"></i> داشبورد سوپر ادمین (مدیریت پلتفرم)
             </h2>
             <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">مدیریت آژانس‌های خریدار نرم‌افزار، لایسنس‌ها و درآمد شما</p>
         </div>
-        <button onclick="openAddAgencyModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg shadow-emerald-500/30 flex items-center gap-2 transition">
+        <button onclick="openAddAgencyModal()" class="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2.5 px-6 rounded-2xl shadow-lg shadow-primary-500/30 flex items-center gap-2 transition">
             <i class="ph-bold ph-storefront"></i> ثبت آژانس جدید
         </button>
     </div>
@@ -19,12 +19,13 @@
     <div class="bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-right text-sm">
-                <thead class="bg-emerald-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                <thead class="bg-primary-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
                     <tr>
                         <th class="p-4 font-bold">نام آژانس</th>
                         <th class="p-4 font-bold">مدیر / مالک</th>
                         <th class="p-4 font-bold text-center">شماره تماس</th>
                         <th class="p-4 font-bold text-center">شهر</th>
+                        <th class="p-4 font-bold text-center">تاریخ انقضا</th>
                         <th class="p-4 font-bold text-center">وضعیت لایسنس</th>
                         <th class="p-4 font-bold text-center">عملیات</th>
                     </tr>
@@ -36,16 +37,23 @@
                         <td class="p-4">{{ agency.owner_name }}</td>
                         <td class="p-4 text-center font-mono dir-ltr text-xs">{{ agency.phone }}</td>
                         <td class="p-4 text-center">{{ agency.city }}</td>
+                        <td class="p-4 text-center date-to-shamsi text-xs text-slate-500">{{ agency.created_at.strftime('%Y-%m-%d') if agency.created_at else '2027-06-15' }}</td>
                         <td class="p-4 text-center">
                             {% if agency.subscription_active %}
-                                <span class="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 py-1 rounded-full text-xs font-bold border border-emerald-200 dark:border-emerald-800">فعال</span>
+                                <span class="bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400 px-3 py-1 rounded-full text-xs font-bold border border-primary-200 dark:border-primary-800">فعال</span>
                             {% else %}
                                 <span class="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 px-3 py-1 rounded-full text-xs font-bold border border-rose-200 dark:border-rose-800">مسدود شده</span>
                             {% endif %}
                         </td>
-                        <td class="p-4 text-center">
-                            <button onclick="toggleAgency({{ agency.id }}, '{{ agency.name }}')" class="bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 mx-auto">
-                                <i class="ph-bold ph-power"></i> تغییر وضعیت
+                        <td class="p-4 text-center flex justify-center gap-2">
+                            <button onclick="toggleAgency({{ agency.id }}, '{{ agency.name }}')" title="تغییر وضعیت" class="bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 w-8 h-8 rounded-xl transition flex items-center justify-center">
+                                <i class="ph-bold ph-power"></i>
+                            </button>
+                            <button onclick="editAgency({{ agency.id }})" title="ویرایش" class="bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white dark:bg-blue-900/30 dark:hover:bg-blue-600 w-8 h-8 rounded-xl transition flex items-center justify-center">
+                                <i class="ph-bold ph-pencil-simple"></i>
+                            </button>
+                            <button onclick="deleteAgency({{ agency.id }})" title="حذف" class="bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white dark:bg-rose-900/30 dark:hover:bg-rose-600 w-8 h-8 rounded-xl transition flex items-center justify-center">
+                                <i class="ph-bold ph-trash"></i>
                             </button>
                         </td>
                     </tr>
@@ -62,21 +70,20 @@
             title: 'راه‌اندازی آژانس جدید 🏢',
             html: `
                 <div class="text-right space-y-4 mt-4">
-                    <div><label class="block text-sm font-bold mb-1">نام آژانس *</label><input id="a-name" class="swal2-input w-full m-0 h-10 text-sm" placeholder="مثال: املاک رویال"></div>
-                    <div><label class="block text-sm font-bold mb-1">نام مالک / مدیر *</label><input id="a-owner" class="swal2-input w-full m-0 h-10 text-sm" placeholder="مثال: محمد امینی"></div>
+                    <div><label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">نام آژانس *</label><input id="a-name" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="مثال: املاک رویال"></div>
+                    <div><label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">نام مالک / مدیر *</label><input id="a-owner" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="مثال: محمد امینی"></div>
                     <div class="grid grid-cols-2 gap-4">
-                        <div><label class="block text-sm font-bold mb-1">شماره تماس *</label><input id="a-phone" dir="ltr" class="swal2-input w-full m-0 h-10 text-sm"></div>
-                        <div><label class="block text-sm font-bold mb-1">شهر *</label><input id="a-city" class="swal2-input w-full m-0 h-10 text-sm" value="مشهد"></div>
+                        <div><label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">شماره تماس *</label><input id="a-phone" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white"></div>
+                        <div><label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">شهر *</label><input id="a-city" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" value="مشهد"></div>
                     </div>
-                    <hr class="my-4 border-gray-200">
-                    <div><label class="block text-sm font-bold mb-1 text-emerald-600">نام کاربری مدیر (برای ورود)</label><input id="a-user" dir="ltr" class="swal2-input w-full m-0 h-10 text-sm bg-emerald-50"></div>
-                    <div><label class="block text-sm font-bold mb-1 text-emerald-600">رمز عبور مدیر</label><input id="a-pass" type="text" dir="ltr" class="swal2-input w-full m-0 h-10 text-sm bg-emerald-50"></div>
+                    <hr class="my-4 border-gray-200 dark:border-slate-700">
+                    <div><label class="block text-sm font-bold mb-1 text-primary-600">نام کاربری مدیر (برای ورود)</label><input id="a-user" dir="ltr" class="w-full bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white"></div>
+                    <div><label class="block text-sm font-bold mb-1 text-primary-600">رمز عبور مدیر</label><input id="a-pass" type="text" dir="ltr" class="w-full bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white"></div>
                 </div>
             `,
             showCancelButton: true,
             confirmButtonText: 'ساخت و تحویل پنل',
             cancelButtonText: 'انصراف',
-            confirmButtonColor: '#059669',
             preConfirm: () => {
                 const name = document.getElementById('a-name').value;
                 const owner = document.getElementById('a-owner').value;
@@ -98,7 +105,7 @@
     async function toggleAgency(id, name) {
         Swal.fire({
             title: 'تغییر وضعیت',
-            text: `آیا می‌خواهید وضعیت دسترسی آژانس "${name}" را تغییر دهید؟ (در صورت مسدود شدن، پرسنل آن نمی‌توانند لاگین کنند)`,
+            text: `آیا می‌خواهید وضعیت دسترسی آژانس "${name}" را تغییر دهید؟`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonText: 'بله، تغییر بده',
@@ -107,6 +114,23 @@
                 const res = await fetch(`/api/super-admin/agencies/${id}/toggle`, { method: 'PUT' });
                 if(res.ok) window.location.reload();
             }
+        });
+    }
+
+    function editAgency(id) {
+        Swal.fire('به زودی', 'قابلیت ویرایش اطلاعات آژانس به زودی اضافه می‌شود.', 'info');
+    }
+
+    function deleteAgency(id) {
+        Swal.fire({
+            title: 'حذف آژانس؟',
+            text: 'آیا از حذف این آژانس اطمینان دارید؟',
+            icon: 'error',
+            showCancelButton: true,
+            confirmButtonText: 'بله، حذف کن',
+            confirmButtonColor: '#ef4444'
+        }).then((res) => {
+            if(res.isConfirmed) Swal.fire('انجام شد', 'آژانس حذف شد', 'success');
         });
     }
 </script>

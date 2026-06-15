@@ -238,8 +238,13 @@
 
     <!-- ویجت چت‌بات شناور هوش مصنوعی (AI Chatbot) -->    
     <!-- دکمه شناور باز کردن چت -->
-    <button onclick="toggleChatbot()" class="fixed bottom-6 left-6 z-50 w-16 h-16 bg-gradient-to-tr from-purple-600 to-indigo-600 text-white rounded-full flex items-center justify-center text-3xl shadow-lg shadow-purple-500/40 hover:scale-110 transition-transform">
+    <button onclick="toggleChatbot()" class="fixed bottom-6 left-6 z-50 w-16 h-16 bg-gradient-to-tr from-primary-500 to-primary-700 text-white rounded-full flex items-center justify-center text-3xl shadow-lg shadow-primary-500/40 hover:scale-110 transition-transform">
         <i class="ph-fill ph-robot"></i>
+    </button>
+
+    <!-- دکمه شناور تیکت -->
+    <button onclick="openTicketModal()" class="fixed bottom-6 right-6 z-50 w-16 h-16 bg-white dark:bg-darkcard border border-gray-200 dark:border-slate-700 text-primary-600 rounded-full flex items-center justify-center text-3xl shadow-lg hover:scale-110 transition-transform">
+        <i class="ph-fill ph-headset"></i>
     </button>
 
     <!-- پنل چت (مخفی به صورت پیش‌فرض) -->
@@ -370,6 +375,92 @@
                 }
             } catch(e) {}
         });
+
+                // اسکریپت تبدیل عدد به حروف فارسی
+        const numWords = ["صفر", "یک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "نه", "ده", "یازده", "دوازده", "سیزده", "چهارده", "پانزده", "شانزده", "هفده", "هجده", "نوزده"];
+        const tens = ["", "", "بیست", "سی", "چهل", "پنجاه", "شصت", "هفتاد", "هشتاد", "نود"];
+        const hundreds = ["", "صد", "دویست", "سیصد", "چهارصد", "پانصد", "ششصد", "هفتصد", "هشتصد", "نهصد"];
+        const scales = ["", "هزار", "میلیون", "میلیارد", "تریلیون"];
+
+        function numberToPersianWords(num) {
+            if (num === 0) return "صفر";
+            let str = num.toString(); let chunks = [];
+            while (str.length > 0) { chunks.push(str.slice(-3)); str = str.slice(0, -3); }
+            let result = [];
+            for (let i = 0; i < chunks.length; i++) {
+                let chunk = parseInt(chunks[i], 10);
+                if (chunk === 0) continue;
+                let chunkWords = [];
+                let h = Math.floor(chunk / 100); let rem = chunk % 100;
+                if (h > 0) chunkWords.push(hundreds[h]);
+                if (rem > 0) {
+                    if (rem < 20) chunkWords.push(numWords[rem]);
+                    else { chunkWords.push(tens[Math.floor(rem / 10)]); if (rem % 10 > 0) chunkWords.push(numWords[rem % 10]); }
+                }
+                let chunkText = chunkWords.join(" و ");
+                if (i > 0) chunkText += " " + scales[i];
+                result.push(chunkText);
+            }
+            return result.reverse().join(" و ") + " تومان";
+        }
+
+        // این تابع رو به اینپوت‌های قیمت وصل می‌کنیم
+        function formatPriceInput(inputElem) {
+            let rawValue = inputElem.value.replace(/,/g, '');
+            if (!rawValue || isNaN(rawValue)) {
+                inputElem.nextElementSibling.innerText = '';
+                inputElem.value = ''; return;
+            }
+            inputElem.value = parseInt(rawValue).toLocaleString('en-US');
+            
+            // اگر عنصر بعدی برای نمایش متن وجود داشت:
+            if(inputElem.nextElementSibling && inputElem.nextElementSibling.classList.contains('price-word-output')) {
+                inputElem.nextElementSibling.innerText = numberToPersianWords(parseInt(rawValue));
+            }
+        }
+
+        // تابع تبدیل تاریخ میلادی به شمسی در کل سایت
+        document.addEventListener("DOMContentLoaded", () => {
+            document.querySelectorAll('.date-to-shamsi').forEach(el => {
+                let date = new Date(el.innerText);
+                if(!isNaN(date)) {
+                    el.innerText = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' }).format(date);
+                }
+            });
+        });
+
+        // تابع باز کردن فرم تیکت شناور
+        function openTicketModal() {
+            Swal.fire({
+                title: 'ارسال تیکت به مدیریت',
+                html: `
+                    <div class="text-right space-y-4 mt-4">
+                        <div>
+                            <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">موضوع درخواست <span class="text-rose-500">*</span></label>
+                            <input id="swal-t-subj" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm" placeholder="مثال: مشکل در ثبت فایل">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">متن پیام <span class="text-rose-500">*</span></label>
+                            <textarea id="swal-t-msg" rows="4" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm" placeholder="توضیحات..."></textarea>
+                        </div>
+                    </div>
+                `,
+                confirmButtonText: 'ارسال پیام',
+                showCancelButton: true,
+                cancelButtonText: 'بستن',
+                preConfirm: () => {
+                    const subj = document.getElementById('swal-t-subj').value;
+                    const msg = document.getElementById('swal-t-msg').value;
+                    if(!subj || !msg) { Swal.showValidationMessage('پر کردن هر دو فیلد الزامی است.'); return false; }
+                    return { subject: subj, message: msg };
+                }
+            }).then(async (res) => {
+                if(res.isConfirmed) {
+                    await fetch("/api/tickets/add", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(res.value)});
+                    Swal.fire({icon: 'success', title: 'ارسال شد', timer: 1500, showConfirmButton: false});
+                }
+            });
+        }
     </script>
 </body>
 </html>
