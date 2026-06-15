@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Vazirmatn', sans-serif; background-color: #f8fafc; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="text-slate-800 pb-20">
+
+    <!-- Header -->
+    <header class="bg-slate-900 text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md">
+        <div class="flex items-center gap-2">
+            <span class="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-lg">کد فایل: {{ prop.id }}</span>
+        </div>
+        <h1 class="text-sm font-bold flex items-center gap-2"><i class="ph-fill ph-buildings"></i> اطلاعات تکمیلی ملک</h1>
+    </header>
+
+    <main class="max-w-3xl mx-auto mt-6 px-4">
+        
+        <!-- Image/Video Slider -->
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden mb-6 relative">
+            {% if media_list %}
+            <div id="slider" class="relative w-full h-[400px] flex items-center justify-center bg-black">
+                {% for media in media_list %}
+                    <div class="slide absolute inset-0 transition-opacity duration-500 {{ 'opacity-100 z-10' if loop.index0 == 0 else 'opacity-0 z-0' }}">
+                        {% if media.endswith('.mp4') %}
+                            <video src="{{ media }}" class="w-full h-full object-contain" controls></video>
+                        {% else %}
+                            <img src="{{ media }}" class="w-full h-full object-contain">
+                        {% endif %}
+                    </div>
+                {% endfor %}
+                
+                {% if media_list|length > 1 %}
+                <button onclick="changeSlide(-1)" class="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center z-20 hover:bg-black/80"><i class="ph-bold ph-caret-right"></i></button>
+                <button onclick="changeSlide(1)" class="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center z-20 hover:bg-black/80"><i class="ph-bold ph-caret-left"></i></button>
+                <div class="absolute bottom-4 right-4 bg-black/60 text-white text-xs px-2 py-1 rounded-lg z-20"><span id="slide-counter">1</span> از {{ media_list|length }} عکس/فیلم</div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="w-full h-[300px] bg-slate-100 flex flex-col items-center justify-center text-slate-400">
+                <i class="ph-fill ph-image text-5xl mb-2"></i><p>عکسی ثبت نشده</p>
+            </div>
+            {% endif %}
+
+            <!-- Details -->
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4">{{ prop.title }}</h2>
+                <div class="flex flex-wrap gap-2 mb-6">
+                    <span class="bg-gray-100 px-3 py-1 rounded-lg text-xs font-bold">{{ prop.property_type }}</span>
+                    <span class="bg-gray-100 px-3 py-1 rounded-lg text-xs font-bold">{{ prop.deal_type }}</span>
+                    <span class="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-sm font-bold">قیمت کل: {{ "{:,.0f}".format(prop.price_total) if prop.price_total > 0 else 'توافقی' }} تومان</span>
+                </div>
+
+                <div class="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+                    <div class="flex items-center gap-2 text-sm">
+                        <i class="ph-fill ph-user text-indigo-600 text-lg"></i>
+                        <span class="font-bold text-slate-600">ثبت‌کننده: {{ prop.publisher }}</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="text-sm font-bold text-rose-600 dir-ltr"><i class="ph-fill ph-phone"></i> {{ prop.contact_phone }}</span>
+                        <a href="https://t.me/{{ prop.contact_phone }}" class="text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1"><i class="ph-fill ph-chat-circle"></i> چت دیوار/تلگرام</a>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2 mb-8 justify-center">
+                    <span class="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full border border-indigo-100">طبقه: {{ prop.floor or 'همکف' }}</span>
+                    <span class="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full border border-indigo-100">تراس: {% if prop.has_store_room %}دارد{% else %}ندارد{% endif %}</span>
+                    <span class="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full border border-indigo-100">نورگیری: خوب</span>
+                </div>
+
+                <!-- AI Pros & Cons -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-rose-50/50 border border-rose-200 rounded-2xl p-5">
+                        <h4 class="font-bold text-rose-700 mb-2 flex items-center gap-1 text-sm"><i class="ph-fill ph-warning"></i> نقاط ضعف (تحلیل AI)</h4>
+                        <p class="text-rose-800/80 text-sm leading-loose text-justify">{{ prop.ai_cons or 'نکته منفی خاصی یافت نشد.' }}</p>
+                    </div>
+                    <div class="bg-emerald-50/50 border border-emerald-200 rounded-2xl p-5">
+                        <h4 class="font-bold text-emerald-700 mb-2 flex items-center gap-1 text-sm"><i class="ph-fill ph-sparkle"></i> نقاط قوت (تحلیل AI)</h4>
+                        <p class="text-emerald-800/80 text-sm leading-loose text-justify">{{ prop.ai_pros or 'نکته مثبت خاصی ثبت نشده است.' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        function changeSlide(direction) {
+            if(slides.length === 0) return;
+            slides[currentSlide].classList.replace('opacity-100', 'opacity-0');
+            slides[currentSlide].classList.replace('z-10', 'z-0');
+            
+            currentSlide += direction;
+            if (currentSlide >= slides.length) currentSlide = 0;
+            if (currentSlide < 0) currentSlide = slides.length - 1;
+            
+            slides[currentSlide].classList.replace('opacity-0', 'opacity-100');
+            slides[currentSlide].classList.replace('z-0', 'z-10');
+            document.getElementById('slide-counter').innerText = currentSlide + 1;
+        }
+    </script>
+</body>
+</html>

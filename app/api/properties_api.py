@@ -198,35 +198,48 @@ from app.services.ai_engine import generate_smart_comparison
 
 @router.get("/{property_id}/compare")
 def compare_property_ai(property_id: int, session: Session = Depends(get_session)):
-    """API مقایسه هوشمند فایل با فایل‌های مشابه محله با هوش مصنوعی واقعی"""
+    """API ارتقا یافته ارزیابی هوشمند (با تلورانس ۲۰٪ قیمت)"""
     target = session.get(Property, property_id)
     if not target: raise HTTPException(status_code=404)
+    
+    # محاسبه تلورانس ۲۰ درصد قیمت
+    min_price = target.price_total * 0.8
+    max_price = target.price_total * 1.2
     
     comparables = session.exec(
         select(Property)
         .where(Property.id != property_id)
-        .where(Property.neighborhood == target.neighborhood)
-        .where(Property.property_type == target.property_type)
-        .limit(3)
+        .where(Property.deal_type == target.deal_type)
+        .where(Property.price_total >= min_price)
+        .where(Property.price_total <= max_price)
+        .limit(10) # تا 10 فایل رو پیدا میکنه
     ).all()
     
-    if not comparables:
-        return {"comparables_count": 0}
+    if not comparables: return {"comparables_count": 0}
         
     comps_data_for_ai = [{"title": c.title, "price": c.price_total, "area": c.built_area} for c in comparables]
-    
-    # 🧠 فراخوانی هوش مصنوعی واقعی
     ai_conclusion = generate_smart_comparison(target.title, target.price_total, target.built_area, comps_data_for_ai)
     
+    target_data = {
+        "title": target.title, "price": target.price_total, 
+        "images": json.loads(target.image_urls) if target.image_urls else [],
+        "pros": target.ai_pros or "ثبت نشده", "cons": target.ai_cons or "ثبت نشده"
+    }
+
     comps_data = []
     for c in comparables:
         comps_data.append({
-            "title": c.title, 
-            "price": c.price_total, 
-            "ai_conclusion": ai_conclusion # نتیجه تحلیل کلی برای همه نمایش داده می‌شود
+            "title": c.title, "price": c.price_total, 
+            "images": json.loads(c.image_urls) if c.image_urls else [],
+            "pros": c.ai_pros or "ثبت نشده", "cons": c.ai_cons or "ثبت نشده"
         })
         
-    return {"comparables_count": len(comparables), "target_title": target.title, "comparables": comps_data}
+    return {
+        "comparables_count": len(comparables), 
+        "target": target_data, 
+        "comparables": comps_data, 
+        "conclusion": ai_conclusion
+    }
 
 @router.get("/notifications/unread")
 def get_unread_notifications(request: Request, session: Session = Depends(get_session)):
@@ -316,15 +329,13 @@ os.makedirs("uploads/properties", exist_ok=True)
 
 @router.post("/{property_id}/upload-media")
 async def upload_property_media(property_id: int, request: Request, file: UploadFile = File(...), session: Session = Depends(get_session)):
-    # 🌟 مشکل ارور آپلود اینجا بود که برطرف شد 🌟
-    from app.core.auth import get_user_from_request
-    user = get_user_from_request(request, session)
+    """API آپلود عکس و فیلم با رفع باگ احراز هویت"""
+    user = get_current_user_local(request, session) # <--- باگ اینجا بود، فیکس شد
     if not user: raise HTTPException(401)
     
     prop = session.get(Property, property_id)
     if not prop: raise HTTPException(404)
     
-    # ساخت اسم یکتا برای فایل
     file_ext = file.filename.split(".")[-1].lower()
     import random
     file_name = f"{prop.id}_{random.randint(1000,9999)}.{file_ext}"
@@ -334,17 +345,13 @@ async def upload_property_media(property_id: int, request: Request, file: Upload
         import shutil
         shutil.copyfileobj(file.file, buffer)
         
-    # 🔥 اعمال واترمارک فقط روی عکس‌ها (نه ویدیوها)
     if file_ext in ['jpg', 'jpeg', 'png']:
         add_watermark(file_path, f"املاک {user.full_name} | {prop.contact_phone}")
         
-    # اضافه کردن به دیتابیس
-    import json
     current_media = json.loads(prop.image_urls) if prop.image_urls else []
     current_media.append(f"/{file_path}")
     prop.image_urls = json.dumps(current_media)
     session.commit()
-    
     return {"status": "success", "url": f"/{file_path}"}
 
 # ==========================================
@@ -352,9 +359,8 @@ async def upload_property_media(property_id: int, request: Request, file: Upload
 # ==========================================
 @router.put("/{property_id}/edit")
 def edit_and_sync_property(property_id: int, req_data: PropertyEditRequest, request: Request, session: Session = Depends(get_session)):
-    # 🌟 مشکل ارور ویرایش اینجا بود که برطرف شد 🌟
-    from app.core.auth import get_user_from_request
-    user = get_user_from_request(request, session)
+    """API ویرایش با رفع باگ احراز هویت"""
+    user = get_current_user_local(request, session) # <--- باگ اینجا بود، فیکس شد
     if not user: raise HTTPException(401)
 
     prop = session.get(Property, property_id)
@@ -389,3 +395,25 @@ def match_buyers_for_property(property_id: int, request: Request, session: Sessi
             matches.append({"id": c.id, "name": c.name, "phone": c.phone, "budget": c.budget_limit})
             
     return {"status": "success", "matches": matches[:5]} # ارسال ۵ خریدار برتر
+
+@router.delete("/{property_id}")
+def delete_property(property_id: int, request: Request, session: Session = Depends(get_session)):
+    """API حذف فایل"""
+    user = get_current_user_local(request, session)
+    if not user or user.role not in ["MANAGER", "SUPER_ADMIN"]: 
+        raise HTTPException(status_code=403, detail="عدم دسترسی")
+    
+    prop = session.get(Property, property_id)
+    if not prop: raise HTTPException(status_code=404)
+    
+    session.delete(prop)
+    session.commit()
+    return {"status": "success"}
+
+@router.get("/{property_id}")
+def get_property_details(property_id: int, session: Session = Depends(get_session)):
+    """API دریافت جزئیات یک فایل برای نمایش در فرم ویرایش"""
+    prop = session.get(Property, property_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="فایل یافت نشد")
+    return prop

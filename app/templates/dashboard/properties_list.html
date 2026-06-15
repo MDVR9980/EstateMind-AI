@@ -1,9 +1,15 @@
 {% extends "base.html" %}
 
+{% block content %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-{% block content %}
+<style>
+    /* این استایل برای عریض شدن مدال ارزیابی هوشمند و ویرایش ضروریه */
+    .swal-super-wide { width: 95vw !important; max-width: 1200px !important; }
+    .swal-wide { width: 90vw !important; max-width: 800px !important; }
+</style>
+
 <div class="max-w-7xl mx-auto">
     
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -35,51 +41,62 @@
     </div>
 
     <!-- گالری کارت‌های املاک -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="propertiesGrid">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="propertiesGrid">
         <!-- 🗺️ ظرف نقشه هوشمند (پیش‌فرض مخفی است) -->
-    <div id="smart-map-container" class="hidden w-full h-[600px] rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden mb-6 z-0"></div>
+        <div id="smart-map-container" class="hidden col-span-full w-full h-[600px] rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden mb-6 z-0"></div>
+        
         {% if properties %}
             {% for prop in properties %}
             <div class="property-card bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col relative">
                 
-                <div class="p-5 flex-1 flex flex-col">
-                    <!-- تگ‌های وضعیت و نام عمومی کننده -->
-                    <div class="flex justify-between items-start mb-3">
-                        <div class="flex gap-2">
-                            <span class="bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-400 text-xs font-bold px-2 py-1 rounded-lg border border-primary-200 dark:border-primary-800">
-                                {% if prop.deal_type == 'SALE' %}فروش{% elif prop.deal_type == 'RENT' %}رهن/اجاره{% else %}مشارکت{% endif %}
-                            </span>
-                            <span class="bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300 text-xs font-bold px-2 py-1 rounded-lg border border-gray-200 dark:border-slate-600">
-                                {% if prop.property_type == 'APARTMENT' %}آپارتمان{% elif prop.property_type == 'VILLA' %}ویلایی{% elif prop.property_type == 'LAND' %}زمین/کلنگی{% else %}تجاری{% endif %}
-                            </span>
-                        </div>
-                        {% if prop.is_exclusive %}
-                            <span class="bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded-lg"><i class="ph-bold ph-lock-key"></i> شخصی</span>
+                <!-- 📸 نمایش عکس/ویدیو در هدر کارت -->
+                <div class="w-full h-40 bg-slate-100 dark:bg-slate-800 relative">
+                    {% set images = prop.image_urls|default('[]') %}
+                    {% if '"' in images %}
+                        <!-- استخراج ساده اولین لینک -->
+                        {% set first_img = images.split('"')[1] %}
+                        {% if first_img.endswith('.mp4') %}
+                            <video src="{{ first_img }}" class="w-full h-full object-cover" muted autoplay loop></video>
                         {% else %}
-                            <span class="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs font-bold px-2 py-1 rounded-lg border border-emerald-200"><i class="ph-bold ph-globe"></i> عمومی</span>
+                            <img src="{{ first_img }}" class="w-full h-full object-cover">
                         {% endif %}
+                    {% else %}
+                        <div class="w-full h-full flex items-center justify-center text-slate-400"><i class="ph-fill ph-house text-4xl"></i></div>
+                    {% endif %}
+                    
+                    <div class="absolute top-2 right-2 flex gap-1">
+                        <span class="bg-primary-600/90 text-white backdrop-blur text-[10px] font-bold px-2 py-1 rounded-lg">{{ prop.property_type }}</span>
+                        <span class="bg-gray-900/80 text-white backdrop-blur text-[10px] font-bold px-2 py-1 rounded-lg">{% if prop.deal_type == 'SALE' %}فروش{% elif prop.deal_type == 'RENT' %}رهن/اجاره{% else %}مشارکت{% endif %}</span>
                     </div>
 
+                    {% if prop.is_exclusive %}
+                        <span class="absolute top-2 left-2 bg-gray-800 text-white text-[10px] font-bold px-2 py-1 rounded-lg"><i class="ph-bold ph-lock-key"></i> شخصی</span>
+                    {% else %}
+                        <span class="absolute top-2 left-2 bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-1 rounded-lg"><i class="ph-bold ph-globe"></i> عمومی</span>
+                    {% endif %}
+                </div>
+
+                <div class="p-5 flex-1 flex flex-col">
                     {% if not prop.is_exclusive and prop.made_public_by_name %}
-                    <div class="bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400 text-[10px] px-2 py-1 rounded-lg font-bold border border-indigo-100 dark:border-indigo-800 mb-3 w-fit">
-                        <i class="ph-fill ph-megaphone"></i> عمومی شده توسط: {{ prop.made_public_by_name }}
+                    <div class="bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400 text-[10px] px-2 py-1 rounded-lg font-bold border border-indigo-100 dark:border-indigo-800 mb-2 w-fit">
+                        <i class="ph-fill ph-megaphone"></i> منتشرکننده: {{ prop.made_public_by_name }}
                     </div>
                     {% endif %}
 
-                    <h3 class="font-bold text-slate-800 dark:text-white text-lg line-clamp-2 search-target mb-3">{{ prop.title }}</h3>
+                    <h3 class="font-bold text-slate-800 dark:text-white text-sm line-clamp-2 search-target mb-3">{{ prop.title }}</h3>
                     
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1 search-target">
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1 search-target">
                         <i class="ph-fill ph-map-pin text-rose-500"></i> {{ prop.neighborhood }} | <i class="ph-fill ph-user ml-1"></i> {{ prop.publisher }}
                     </p>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mb-4 flex items-center gap-1 search-target font-mono" dir="ltr">
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-4 flex items-center gap-1 search-target font-mono" dir="ltr">
                         <i class="ph-fill ph-phone text-blue-500"></i> {{ prop.contact_phone or 'ندارد' }}
                     </p>
 
                     <div class="bg-gray-50 dark:bg-slate-800/50 rounded-2xl p-3 mb-4 border border-gray-100 dark:border-slate-700 flex justify-between items-center">
-                        <span class="text-xs text-slate-500">مبلغ کل:</span>
-                        <span class="font-bold text-primary-600 dark:text-primary-400 font-mono text-left dir-ltr">
+                        <span class="text-[10px] text-slate-500">مبلغ کل:</span>
+                        <span class="font-bold text-primary-600 dark:text-primary-400 font-mono text-left dir-ltr text-sm">
                             {% if prop.price_total > 0 %}
-                                {{ "{:,.0f}".format(prop.price_total) }} <span class="text-[10px] font-sans text-slate-500">تومان</span>
+                                {{ "{:,.0f}".format(prop.price_total) }} <span class="text-[9px] font-sans text-slate-500">ت</span>
                             {% else %}
                                 <span class="font-sans">توافقی</span>
                             {% endif %}
@@ -88,20 +105,19 @@
 
                     <!-- دکمه‌های عملیات -->
                     <div class="mt-auto grid grid-cols-2 gap-2">
-                        <a href="/catalog/property/{{ prop.id }}" target="_blank" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-xl text-xs shadow-md flex items-center justify-center transition">مشاهده کاتالوگ</a>
-                        <button onclick="compareAI({{ prop.id }})" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs shadow-md flex items-center justify-center transition">⚖️ ارزیابی هوشمند</button>
+                        <a href="/catalog/property/{{ prop.id }}" target="_blank" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-xl text-[10px] shadow-md flex items-center justify-center transition">مشاهده کاتالوگ</a>
+                        <button onclick="compareAI({{ prop.id }})" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-xl text-[10px] shadow-md flex items-center justify-center transition">⚖️ ارزیابی هوشمند</button>
                         
                         {% if prop.is_exclusive %}
-                        <button onclick="makePublic({{ prop.id }})" class="bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white font-bold py-2 rounded-xl text-xs transition">👁️ عمومی کردن</button>
+                        <button onclick="makePublic({{ prop.id }})" class="bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white font-bold py-2 rounded-xl text-[10px] transition">👁️ عمومی کردن</button>
                         {% else %}
-                        <button onclick="aiMatch({{ prop.id }})" class="bg-primary-100 text-primary-700 hover:bg-primary-200 dark:bg-primary-900/30 dark:text-primary-400 font-bold py-2 rounded-xl text-xs transition">🎯 مچینگ خریدار</button>
+                        <button onclick="aiMatch({{ prop.id }})" class="bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 font-bold py-2 rounded-xl text-[10px] transition">🎯 مچینگ خریدار</button>
                         {% endif %}
 
-                        <button onclick="editProperty({{ prop.id }})" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 rounded-xl text-xs shadow-md flex items-center justify-center transition">✏️ ویرایش</button>
+                        <button onclick="editProperty({{ prop.id }})" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 rounded-xl text-[10px] shadow-md flex items-center justify-center transition">✏️ ویرایش رسانه</button>
                         
-                        <!-- دکمه حذف فقط برای مدیر یا سوپر ادمین نمایش داده می‌شود -->
                         {% if user.role == 'MANAGER' or user.role == 'SUPER_ADMIN' %}
-                        <button onclick="deleteProperty({{ prop.id }})" class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 rounded-xl text-xs shadow-md flex items-center justify-center transition">🗑️ حذف</button>
+                        <button onclick="deleteProperty({{ prop.id }})" class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 rounded-xl text-[10px] shadow-md flex items-center justify-center transition">🗑️ حذف</button>
                         {% endif %}
                     </div>
                 </div>
@@ -117,6 +133,9 @@
 </div>
 
 <script>
+    // ----------------------------------------------------
+    // ۱. سیستم جستجو، حذف و تغییر وضعیت
+    // ----------------------------------------------------
     function filterCards() {
         const input = document.getElementById('searchInput').value.toLowerCase();
         const cards = document.querySelectorAll('.property-card');
@@ -129,7 +148,7 @@
     }
 
     async function makePublic(id) {
-        let conf = await Swal.fire({title: 'عمومی کردن فایل؟', text: 'این فایل برای تمام مشاوران قابل رویت می‌شود و نام شما به عنوان یابنده ثبت می‌گردد.', icon: 'question', showCancelButton: true, confirmButtonText: 'بله'});
+        let conf = await Swal.fire({title: 'عمومی کردن فایل؟', text: 'این فایل برای تمام مشاوران قابل رویت می‌شود.', icon: 'question', showCancelButton: true, confirmButtonText: 'بله'});
         if (conf.isConfirmed) {
             let res = await fetch(`/api/properties/${id}/make-public`, {method: 'PUT'});
             if(res.ok) window.location.reload();
@@ -137,112 +156,185 @@
     }
 
     async function deleteProperty(id) {
-        let conf = await Swal.fire({title: 'حذف فایل؟', text: "آیا از حذف این ملک اطمینان دارید؟", icon: 'error', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'بله، پاک کن'});
+        let conf = await Swal.fire({title: 'حذف فایل؟', text: "آیا از حذف این ملک اطمینان دارید؟", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'بله، پاک کن', cancelButtonText: 'انصراف'});
         if (conf.isConfirmed) {
+            Swal.fire({title:'در حال حذف...', didOpen:()=>{Swal.showLoading()}});
             let res = await fetch(`/api/properties/${id}`, {method: 'DELETE'});
             if (res.ok) window.location.reload();
+            else Swal.fire('خطا', 'مشکلی در حذف رخ داد.', 'error');
         }
     }
 
-    // متغیرهای گلوبال برای مدیریت مدیا در فرم ویرایش
+    // ----------------------------------------------------
+    // ۲. سیستم مچینگ هوشمند خریداران (پیدا کردن مشتری)
+    // ----------------------------------------------------
+    async function aiMatch(propertyId) {
+        Swal.fire({title: 'موتور مچینگ AI... 🧠', text: 'جستجوی خریداران بالقوه در قیف فروش', didOpen: () => { Swal.showLoading() }});
+        try {
+            const res = await fetch(`/api/properties/${propertyId}/match-buyers`);
+            const data = await res.json();
+            
+            if (data.matches && data.matches.length > 0) {
+                let html = data.matches.map(m => `
+                    <div class="bg-slate-50 border border-slate-200 p-3 rounded-xl mb-2 flex justify-between items-center">
+                        <div class="text-right"><p class="font-bold text-sm">${m.name}</p><p class="text-xs text-slate-500 dir-ltr">${m.phone}</p></div>
+                        <span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">بودجه: ${m.budget > 0 ? (m.budget/1000000000).toFixed(1)+'B' : 'نامحدود'}</span>
+                    </div>`).join('');
+                
+                Swal.fire({ title: '🎯 خریداران یافت شدند!', html: html, confirmButtonText: 'بستن' });
+            } else {
+                Swal.fire('نتیجه‌ای یافت نشد', 'مشتری با بودجه مناسب این فایل در سیستم ندارید.', 'info');
+            }
+        } catch(e) { Swal.fire('خطا', 'مشکل ارتباطی', 'error'); }
+    }
+
+    // ----------------------------------------------------
+    // ۳. سیستم ترازوی هوشمند (ارزیابی AI) - مقایسه کامل!
+    // ----------------------------------------------------
+    let compsData = [];
+    let targetData = {};
+    let globalConclusion = "";
+    let currentCompIndex = 0;
+
+    async function compareAI(id) {
+        Swal.fire({title: 'در حال تحلیل بازار... 🧠', text:'هوش مصنوعی در حال بررسی فایل‌های مشابه...', didOpen: () => { Swal.showLoading() }});
+        try {
+            let res = await fetch(`/api/properties/${id}/compare`);
+            let data = await res.json();
+            if(data.comparables_count === 0) { Swal.fire('اطلاعات ناکافی', 'فایل مشابهی جهت مقایسه یافت نشد.', 'info'); return; }
+            compsData = data.comparables; targetData = data.target; globalConclusion = data.conclusion; currentCompIndex = 0;
+            renderSmartEvalModal();
+        } catch(e) { Swal.fire('خطا', 'ارتباط با هوش مصنوعی قطع است.', 'error'); }
+    }
+
+    function renderSmartEvalModal() {
+        let comp = compsData[currentCompIndex];
+        let total = compsData.length;
+        
+        let tImg = targetData.images.length > 0 ? targetData.images[0] : '';
+        let tImgTag = tImg.endsWith('.mp4') ? `<video src="${tImg}" class="w-full h-40 object-cover rounded-2xl" controls></video>` : (tImg ? `<img src="${tImg}" class="w-full h-40 object-cover rounded-2xl">` : `<div class="w-full h-40 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400"><i class="ph-fill ph-image text-4xl"></i></div>`);
+
+        let cImg = comp.images.length > 0 ? comp.images[0] : '';
+        let cImgTag = cImg.endsWith('.mp4') ? `<video src="${cImg}" class="w-full h-40 object-cover rounded-2xl" controls></video>` : (cImg ? `<img src="${cImg}" class="w-full h-40 object-cover rounded-2xl">` : `<div class="w-full h-40 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400"><i class="ph-fill ph-image text-4xl"></i></div>`);
+
+        let modalHtml = `
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 text-right mt-4 max-h-[75vh] overflow-y-auto no-scrollbar pb-10">
+                <!-- فایل ما -->
+                <div class="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-3xl p-4 relative">
+                    <span class="absolute -top-3 right-4 bg-primary-600 text-white text-xs px-3 py-1 rounded-full font-bold shadow">فایل هدف ما</span>
+                    ${tImgTag}
+                    <h3 class="font-bold text-sm mt-3 line-clamp-1">${targetData.title}</h3>
+                    <p class="text-primary-600 font-bold text-lg mt-1 mb-4">${(targetData.price).toLocaleString()} <span class="text-xs">تومان</span></p>
+                    <div class="bg-emerald-50 text-emerald-800 p-3 rounded-xl mb-2 text-xs"><b class="block mb-1"><i class="ph-fill ph-sparkle"></i> نقاط قوت:</b>${targetData.pros}</div>
+                    <div class="bg-rose-50 text-rose-800 p-3 rounded-xl text-xs"><b class="block mb-1"><i class="ph-fill ph-warning"></i> نقاط ضعف:</b>${targetData.cons}</div>
+                </div>
+
+                <!-- فایل رقیب -->
+                <div class="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-3xl p-4 relative">
+                    <span class="absolute -top-3 right-4 bg-amber-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow">رقیب (${currentCompIndex+1} از ${total})</span>
+                    ${cImgTag}
+                    <h3 class="font-bold text-sm mt-3 line-clamp-1">${comp.title}</h3>
+                    <p class="text-amber-600 font-bold text-lg mt-1 mb-4">${(comp.price).toLocaleString()} <span class="text-xs">تومان</span></p>
+                    <div class="bg-emerald-50 text-emerald-800 p-3 rounded-xl mb-2 text-xs"><b class="block mb-1"><i class="ph-fill ph-sparkle"></i> نقاط قوت:</b>${comp.pros}</div>
+                    <div class="bg-rose-50 text-rose-800 p-3 rounded-xl text-xs"><b class="block mb-1"><i class="ph-fill ph-warning"></i> نقاط ضعف:</b>${comp.cons}</div>
+                </div>
+
+                <!-- هوش مصنوعی -->
+                <div class="bg-slate-900 text-white rounded-3xl p-6 flex flex-col justify-center shadow-lg">
+                    <div class="w-16 h-16 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto"><i class="ph-fill ph-brain"></i></div>
+                    <h3 class="font-bold text-lg text-center mb-4">جمع‌بندی هوش مصنوعی</h3>
+                    <p class="text-sm text-slate-300 leading-loose text-justify">${globalConclusion}</p>
+                </div>
+            </div>
+            
+            <div class="flex justify-between items-center mt-6 border-t border-gray-100 dark:border-slate-700 pt-4">
+                <button onclick="changeCompIndex(-1)" class="px-5 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition ${currentCompIndex === 0 ? 'invisible' : ''}"><i class="ph-bold ph-arrow-right"></i> رقیب قبلی</button>
+                <span class="text-xs font-bold text-slate-400">مقایسه فایل ${currentCompIndex+1} از ${total}</span>
+                <button onclick="changeCompIndex(1)" class="px-5 py-2.5 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition shadow-md ${currentCompIndex === total - 1 ? 'invisible' : ''}">رقیب بعدی <i class="ph-bold ph-arrow-left"></i></button>
+            </div>
+        `;
+        Swal.fire({ title: 'ترازوی هوشمند ⚖️', html: modalHtml, customClass: { popup: 'swal-super-wide' }, showConfirmButton: false, showCloseButton: true });
+    }
+    function changeCompIndex(direction) { currentCompIndex += direction; renderSmartEvalModal(); }
+
+    // ----------------------------------------------------
+    // ۴. سیستم ویرایش فایل و آپلود عکس و ویدیو
+    // ----------------------------------------------------
     let currentEditPropId = null;
     let currentMediaList = [];
 
-    // 🌟 مدال فوق‌پیشرفته ویرایش (با قابلیت عکس و فیلم) 🌟
     async function editProperty(id) {
         Swal.fire({ title: 'دریافت اطلاعات...', didOpen: () => { Swal.showLoading() } });
-        let res = await fetch(`/api/properties/${id}`);
-        let prop = await res.json();
-        Swal.close();
+        try {
+            let res = await fetch(`/api/properties/${id}`);
+            let prop = await res.json();
+            Swal.close();
 
-        currentEditPropId = id;
-        try { currentMediaList = JSON.parse(prop.image_urls || "[]"); } catch(e) { currentMediaList = []; }
+            currentEditPropId = id;
+            try { currentMediaList = JSON.parse(prop.image_urls || "[]"); } catch(e) { currentMediaList = []; }
 
-        const { value: formValues } = await Swal.fire({
-            title: '✏️ ویرایش پیشرفته فایل و رسانه',
-            customClass: { popup: 'swal-wide' },
-            html: `
-                <div class="text-right text-sm max-h-[70vh] overflow-y-auto px-4 pb-10 no-scrollbar">
-                    
-                    <h3 class="font-bold text-primary-600 border-b border-primary-100 pb-2 mb-4">۱. اطلاعات اصلی</h3>
-                    <div class="mb-4"><label class="block mb-1 font-bold text-slate-700 dark:text-slate-300">عنوان آگهی:</label><input id="ep-title" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-slate-800 dark:text-white" value="${prop.title}"></div>
-                    <div class="grid grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label class="block mb-1 font-bold text-slate-700 dark:text-slate-300">آگهی‌دهنده:</label>
-                            <select id="ep-pub" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-slate-800 dark:text-white">
-                                <option value="شخصی" ${prop.publisher=='شخصی'?'selected':''}>شخصی</option>
-                                <option value="املاک" ${prop.publisher=='املاک'?'selected':''}>املاک</option>
-                                <option value="نامشخص" ${prop.publisher=='نامشخص'?'selected':''}>نامشخص</option>
-                            </select>
+            const { value: formValues } = await Swal.fire({
+                title: '✏️ ویرایش پیشرفته رسانه و فایل',
+                customClass: { popup: 'swal-wide' },
+                html: `
+                    <div class="text-right text-sm max-h-[70vh] overflow-y-auto px-4 pb-10 no-scrollbar">
+                        <h3 class="font-bold text-primary-600 border-b border-primary-100 pb-2 mb-4">۱. اطلاعات اصلی</h3>
+                        <div class="mb-4"><label class="block mb-1 font-bold">عنوان آگهی:</label><input id="ep-title" class="w-full bg-gray-50 border rounded-2xl p-3 outline-none" value="${prop.title}"></div>
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div><label class="block mb-1 font-bold">قیمت کل:</label><input id="ep-price" type="number" dir="ltr" class="w-full bg-gray-50 border rounded-2xl p-3 outline-none" value="${prop.price_total || 0}"></div>
+                            <div><label class="block mb-1 font-bold">تلفن تماس:</label><input id="ep-phone" dir="ltr" class="w-full bg-gray-50 border rounded-2xl p-3 outline-none" value="${prop.contact_phone || ''}"></div>
                         </div>
-                        <div><label class="block mb-1 font-bold text-slate-700 dark:text-slate-300">قیمت کل (تومان):</label><input id="ep-price" type="number" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-slate-800 dark:text-white font-mono" value="${prop.price_total || 0}"></div>
+                        
+                        <h3 class="font-bold text-primary-600 border-b border-primary-100 pb-2 mb-4 mt-6">۲. مدیریت گالری عکس و فیلم (MP4)</h3>
+                        <div id="media-gallery" class="flex flex-wrap gap-3 mb-4"></div>
+                        <div class="relative mt-4">
+                            <input type="file" id="media-upload" class="hidden" accept="image/*,video/mp4" onchange="handleMediaUpload(this)">
+                            <label for="media-upload" class="w-full flex flex-col items-center justify-center gap-2 bg-gray-50 border-2 border-dashed border-gray-300 rounded-2xl p-6 cursor-pointer hover:border-primary-500 hover:text-primary-600 text-slate-500 transition">
+                                <i class="ph-bold ph-upload-simple text-3xl"></i><span>برای آپلود عکس یا ویدیو کلیک کنید</span>
+                            </label>
+                        </div>
                     </div>
-                    <div class="mb-6"><label class="block mb-1 font-bold text-slate-700 dark:text-slate-300">شماره تلفن:</label><input id="ep-phone" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-slate-800 dark:text-white font-mono" value="${prop.contact_phone || ''}"></div>
-
-                    <h3 class="font-bold text-primary-600 border-b border-primary-100 pb-2 mb-4 mt-6">۲. تحلیل هوش مصنوعی</h3>
-                    <div class="mb-4"><label class="block mb-1 font-bold text-green-700">نقاط قوت:</label><textarea id="ep-pros" rows="3" class="w-full bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-2xl p-3 outline-none text-green-800 dark:text-green-400">${prop.ai_pros || ''}</textarea></div>
-                    <div class="mb-6"><label class="block mb-1 font-bold text-red-700">نقاط ضعف:</label><textarea id="ep-cons" rows="3" class="w-full bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-2xl p-3 outline-none text-red-800 dark:text-red-400">${prop.ai_cons || ''}</textarea></div>
-
-                    <h3 class="font-bold text-primary-600 border-b border-primary-100 pb-2 mb-4 mt-6">۳. گالری تصاویر و ویدیوها</h3>
-                    
-                    <!-- گالری فعلی -->
-                    <div id="media-gallery" class="flex flex-wrap gap-3 mb-4"></div>
-
-                    <!-- دکمه آپلود مدیا -->
-                    <div class="relative mt-4">
-                        <input type="file" id="media-upload" class="hidden" accept="image/*,video/mp4" onchange="handleMediaUpload(this)">
-                        <label for="media-upload" class="w-full flex flex-col items-center justify-center gap-2 bg-gray-50 dark:bg-slate-800 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-2xl p-6 cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition text-slate-500">
-                            <i class="ph-bold ph-upload-simple text-2xl"></i>
-                            <span>برای آپلود عکس یا ویدیو (MP4) کلیک کنید</span>
-                        </label>
-                    </div>
-
-                </div>
-            `,
-            didOpen: () => { renderMediaGallery(); },
-            showCancelButton: true, confirmButtonText: 'ذخیره تغییرات', cancelButtonText: 'انصراف',
-            preConfirm: () => {
-                return {
-                    title: document.getElementById('ep-title').value,
-                    publisher: document.getElementById('ep-pub').value,
-                    price_total: parseFloat(document.getElementById('ep-price').value),
-                    contact_phone: document.getElementById('ep-phone').value,
-                    ai_pros: document.getElementById('ep-pros').value,
-                    ai_cons: document.getElementById('ep-cons').value,
-                    image_urls: currentMediaList
+                `,
+                didOpen: () => { renderMediaGallery(); },
+                showCancelButton: true, confirmButtonText: 'ذخیره تغییرات', cancelButtonText: 'انصراف',
+                preConfirm: () => {
+                    return {
+                        title: document.getElementById('ep-title').value,
+                        price_total: parseFloat(document.getElementById('ep-price').value),
+                        contact_phone: document.getElementById('ep-phone').value,
+                        image_urls: currentMediaList
+                    }
                 }
-            }
-        });
-
-        if (formValues) {
-            Swal.fire({ title: 'در حال ذخیره...', didOpen: () => { Swal.showLoading() } });
-            let editRes = await fetch(`/api/properties/${id}/edit`, { 
-                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formValues) 
             });
-            if (editRes.ok) Swal.fire('موفق!', 'فایل ویرایش شد.', 'success').then(() => window.location.reload());
-            else Swal.fire('خطا', 'مشکلی پیش آمد.', 'error');
+
+            if (formValues) {
+                Swal.fire({ title: 'در حال ذخیره...', didOpen: () => { Swal.showLoading() } });
+                let editRes = await fetch(`/api/properties/${id}/edit`, { 
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formValues) 
+                });
+                if (editRes.ok) Swal.fire('موفق!', 'فایل ویرایش شد.', 'success').then(() => window.location.reload());
+                else Swal.fire('خطا', 'مشکلی پیش آمد.', 'error');
+            }
+        } catch (err) {
+            Swal.fire('خطا', 'امکان خواندن اطلاعات سرور نیست', 'error');
         }
     }
 
-    // 🌟 توابع مدیریت گالری عکس و فیلم
     function renderMediaGallery() {
         let gallery = document.getElementById('media-gallery');
-        if (currentMediaList.length === 0) {
-            gallery.innerHTML = '<span class="text-xs text-slate-400">هیچ رسانه‌ای برای این ملک ثبت نشده است.</span>';
-            return;
-        }
-
+        if (currentMediaList.length === 0) { gallery.innerHTML = '<span class="text-xs text-slate-400">بدون رسانه</span>'; return; }
+        
         let html = '';
         currentMediaList.forEach((url, index) => {
             let isVideo = url.toLowerCase().endsWith('.mp4');
-            let mediaTag = isVideo 
-                ? `<video src="${url}" class="w-full h-24 object-cover rounded-xl" muted autoplay loop></video><div class="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">🎥 ویدیو</div>` 
+            let tag = isVideo 
+                ? `<video src="${url}" class="w-full h-24 object-cover rounded-xl" muted autoplay loop></video><div class="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] px-1.5 rounded">ویدیو</div>` 
                 : `<img src="${url}" class="w-full h-24 object-cover rounded-xl">`;
-
+            
             html += `
                 <div class="relative w-24 h-24 rounded-xl border border-gray-200 group">
-                    ${mediaTag}
-                    <button type="button" onclick="removeMedia(${index})" class="absolute -top-2 -right-2 bg-rose-500 text-white w-6 h-6 rounded-full flex items-center justify-center shadow hover:bg-rose-600 transition">
+                    ${tag}
+                    <button type="button" onclick="removeMedia(${index})" class="absolute -top-2 -right-2 bg-rose-500 text-white w-6 h-6 rounded-full flex items-center justify-center shadow hover:scale-110 transition">
                         <i class="ph-bold ph-x text-xs"></i>
                     </button>
                 </div>
@@ -251,17 +343,11 @@
         gallery.innerHTML = html;
     }
 
-    function removeMedia(index) {
-        currentMediaList.splice(index, 1);
-        renderMediaGallery();
-    }
+    function removeMedia(index) { currentMediaList.splice(index, 1); renderMediaGallery(); }
 
     async function handleMediaUpload(input) {
         if(input.files.length === 0) return;
-        let file = input.files[0];
-        
-        let formData = new FormData();
-        formData.append("file", file);
+        let formData = new FormData(); formData.append("file", input.files[0]);
         
         let uploadToast = Swal.mixin({toast: true, position: 'bottom-end', showConfirmButton: false});
         uploadToast.fire({title: 'در حال آپلود...', icon: 'info'});
@@ -272,18 +358,15 @@
                 let data = await res.json();
                 currentMediaList.push(data.url);
                 renderMediaGallery();
-                uploadToast.fire({title: 'آپلود شد!', icon: 'success', timer: 1500});
-            } else {
-                uploadToast.fire({title: 'خطا در آپلود', icon: 'error', timer: 2000});
-            }
+                uploadToast.fire({title: 'آپلود با موفقیت انجام شد!', icon: 'success', timer: 1500});
+            } else { uploadToast.fire({title: 'خطا در آپلود', icon: 'error', timer: 2000}); }
         } catch (e) { uploadToast.fire({title: 'خطای شبکه', icon: 'error', timer: 2000}); }
-        
-        input.value = ''; // ریست کردن اینپوت
+        input.value = '';
     }
-    
-    function compareAI(id) { Swal.fire('در حال پیاده‌سازی', 'بخش مقایسه به زودی فعال می‌شود.', 'info'); }
-    function aiMatch(id) { Swal.fire('در حال پیاده‌سازی', 'بخش مچینگ به زودی فعال می‌شود.', 'info'); }
 
+    // ----------------------------------------------------
+    // ۵. سیستم نقشه (Leaflet)
+    // ----------------------------------------------------
     let map = null;
     let mapIsVisible = false;
 
@@ -295,19 +378,15 @@
         mapIsVisible = !mapIsVisible;
 
         if (mapIsVisible) {
-            grid.classList.add('hidden');
+            // مخفی کردن کارتها و نمایش نقشه
+            document.querySelectorAll('.property-card').forEach(c => c.style.display = 'none');
             mapContainer.classList.remove('hidden');
             btn.innerHTML = '<i class="ph-bold ph-cards"></i> نمایش کارت‌ها';
             
-            // لود نقشه اگر برای بار اول است
             if (!map) {
-                // مختصات پیش‌فرض (تهران/مشهد). میتونی مختصات شهر خودت رو بذاری
                 map = L.map('smart-map-container').setView([36.29, 59.60], 12); 
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© EstateMind AI CRM'
-                }).addTo(map);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© EstateMind AI CRM' }).addTo(map);
 
-                // دریافت دیتای املاک از بک‌اند
                 Swal.fire({title:'بارگذاری نقشه...', didOpen:()=>{Swal.showLoading()}});
                 try {
                     let res = await fetch('/api/properties/map-data');
@@ -315,22 +394,18 @@
                     Swal.close();
                     
                     data.data.forEach(p => {
-                        // چون لوکیشن دقیق نداریم، پین‌ها رو با پخش تصادفی در سطح شهر سیمولیت میکنیم تا ایده رو ببینی
                         let lat = 36.29 + (Math.random() - 0.5) * 0.1;
                         let lng = 59.60 + (Math.random() - 0.5) * 0.1;
-                        
-                        // آیکون اختصاصی بر اساس رنگ
                         let markerColor = p.color === 'green' ? 'green' : (p.color === 'red' ? 'red' : 'blue');
                         
-                        L.circleMarker([lat, lng], {
-                            color: markerColor, radius: 8, fillOpacity: 0.7
-                        }).addTo(map)
+                        L.circleMarker([lat, lng], { color: markerColor, radius: 8, fillOpacity: 0.7 }).addTo(map)
                         .bindPopup(`<div dir="rtl" class="text-right font-sans"><b>${p.title}</b><br/>محله: ${p.neighborhood}<br/><span style="color:${markerColor}; font-weight:bold;">${p.price}</span><br/><a href="/catalog/property/${p.id}" target="_blank" style="color:blue; text-decoration:underline;">مشاهده فایل</a></div>`);
                     });
                 } catch(e) { Swal.close(); }
             }
         } else {
-            grid.classList.remove('hidden');
+            // بازگشت به حالت کارت‌ها
+            document.querySelectorAll('.property-card').forEach(c => c.style.display = '');
             mapContainer.classList.add('hidden');
             btn.innerHTML = '<i class="ph-bold ph-map-trifold"></i> نمایش نقشه';
         }

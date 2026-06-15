@@ -97,6 +97,8 @@ class Property(SQLModel, table=True):
     ai_pros: Optional[str] = None
     ai_cons: Optional[str] = None
     description: Optional[str] = None
+
+    image_urls: Optional[str] = Field(default="[]") 
     
     status: str = Field(default="active") # active, archived, deleted
     created_by_id: Optional[int] = Field(default=None, foreign_key="users.id")

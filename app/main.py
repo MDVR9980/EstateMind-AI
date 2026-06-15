@@ -227,8 +227,17 @@ async def view_single_property(property_id: int, request: Request, session: Sess
     if not prop: 
         return HTMLResponse("<h1 style='text-align:center; margin-top:50px; font-family:tahoma;'>فایل یافت نشد یا حذف شده است.</h1>", status_code=404)
     
+    import json
+    media_list = []
+    # چک کردن ایمن برای جلوگیری از کرش سرور
+    if hasattr(prop, 'image_urls') and prop.image_urls:
+        try:
+            media_list = json.loads(prop.image_urls)
+        except Exception:
+            pass
+            
     return templates.TemplateResponse(
         request=request, 
-        name="catalog_single.html", 
-        context={"request": request, "prop": prop, "page_title": prop.title}
+        name="showroom/catalog_single.html", 
+        context={"request": request, "prop": prop, "media_list": media_list, "page_title": prop.title}
     )
