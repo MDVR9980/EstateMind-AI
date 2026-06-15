@@ -142,20 +142,41 @@ class Reminder(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class TicketStatus(str, Enum):
+    OPEN = "باز"
+    IN_PROGRESS = "در حال بررسی"
     PENDING = "در انتظار پاسخ"
-    ANSWERED = "پاسخ داده شده"
-    CLOSED = "بسته شده"
+    RESOLVED = "حل شده"
+
+class TicketPriority(str, Enum):
+    LOW = "پایین"
+    NORMAL = "عادی"
+    HIGH = "بالا"
+    URGENT = "فوری"
 
 class Ticket(SQLModel, table=True):
-    """جدول تیکت‌های پشتیبانی داخلی"""
+    """جدول تیکت‌های پشتیبانی و مکاتبات سازمانی"""
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.id", index=True)
+    agency_id: int = Field(foreign_key="agency.id", index=True) # تیکت‌های هر آژانس جداست
+    sender_id: int = Field(foreign_key="users.id", index=True) # فرستنده
+    receiver_id: int = Field(foreign_key="users.id", index=True) # گیرنده (همکار یا مدیر)
+    
+    ticket_code: str = Field(unique=True, index=True) # مثلا T-2026-00004
     subject: str
-    message: str
-    answer: Optional[str] = None
-    status: TicketStatus = Field(default=TicketStatus.PENDING)
+    priority: TicketPriority = Field(default=TicketPriority.NORMAL)
+    status: TicketStatus = Field(default=TicketStatus.OPEN)
+    
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+class TicketReply(SQLModel, table=True):
+    """جدول تاریخچه چت‌ها و پاسخ‌های داخل یک تیکت"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ticket_id: int = Field(foreign_key="ticket.id", index=True)
+    user_id: int = Field(foreign_key="users.id") # کسی که این پیام رو داده
+    message: str
+    attachment_path: Optional[str] = None # برای پیوست فایل/عکس
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
 class AgentNotification(SQLModel, table=True):
     """جدول هشدارها و ردیابی هوشمند مشتریان برای هر مشاور"""
     id: Optional[int] = Field(default=None, primary_key=True)

@@ -235,7 +235,8 @@
     </div>
 
     <!-- پنل چت هوش مصنوعی -->
-    <div id="ai-chatbot-panel" class="fixed bottom-24 left-6 z-50 w-80 md:w-96 bg-white dark:bg-darkcard rounded-3xl shadow-2xl border border-gray-200 dark:border-slate-700 flex flex-col overflow-hidden transition-all duration-300 translate-y-10 opacity-0 pointer-events-none" style="height: 500px;">
+    <!-- 🌟 تغییر عرض به 450px و ارتفاع به 600px برای نمایش بهتر -->
+    <div id="ai-chatbot-panel" class="fixed bottom-24 left-6 z-50 w-[90vw] md:w-[450px] bg-white dark:bg-darkcard rounded-3xl shadow-2xl border border-gray-200 dark:border-slate-700 flex flex-col overflow-hidden transition-all duration-300 translate-y-10 opacity-0 pointer-events-none" style="height: 600px; max-height: 85vh;">
         <div class="bg-gradient-to-r from-primary-600 to-primary-800 p-4 flex justify-between items-center text-white">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-xl backdrop-blur-sm"><i class="ph-fill ph-sparkle"></i></div>
@@ -249,7 +250,8 @@
         <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-900/50">
             <div class="flex gap-3">
                 <div class="w-8 h-8 rounded-full bg-primary-100 text-primary-600 flex-shrink-0 flex items-center justify-center"><i class="ph-fill ph-robot"></i></div>
-                <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl rounded-tr-none border border-gray-100 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300 shadow-sm">
+                <!-- 🌟 اضافه شدن text-justify و leading-relaxed -->
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl rounded-tr-none border border-gray-100 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300 shadow-sm text-justify leading-loose" style="text-justify: inter-word;">
                     سلام! 👋 من دستیار هوشمند شما هستم. چطور می‌تونم کمکت کنم؟
                 </div>
             </div>
@@ -264,21 +266,41 @@
     </div>
 
     <script>
+        // 🌟 تابع جادویی برای تبدیل مارک‌داون هوش مصنوعی به HTML زیبا
+        function formatAIResponse(text) {
+            if (!text) return "";
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<b class="text-primary-600 dark:text-primary-400 font-bold">$1</b>') // پررنگ و رنگی کردن متن‌های **
+                .replace(/\*(.*?)\*/g, '<i>$1</i>') // کج کردن متن‌های *
+                .replace(/\n/g, '<br>'); // تبدیل اینتر به خط جدید
+        }
+
         // چت‌بات
         function toggleChatbot() { document.getElementById('ai-chatbot-panel').classList.toggle('opacity-0'); document.getElementById('ai-chatbot-panel').classList.toggle('pointer-events-none'); document.getElementById('ai-chatbot-panel').classList.toggle('translate-y-10'); }
         function handleChatKey(e) { if (e.key === 'Enter') sendChatMessage(); }
+        
         async function sendChatMessage() {
             const input = document.getElementById('chat-input'); const msg = input.value.trim(); if (!msg) return;
             const chatBox = document.getElementById('chat-messages'); const typing = document.getElementById('chat-typing');
+            
             chatBox.innerHTML += `<div class="flex gap-3 flex-row-reverse"><div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 flex-shrink-0 flex items-center justify-center"><i class="ph-fill ph-user"></i></div><div class="bg-primary-600 text-white p-3 rounded-2xl rounded-tl-none text-sm shadow-sm">${msg}</div></div>`;
             input.value = ''; chatBox.scrollTop = chatBox.scrollHeight; typing.classList.remove('hidden');
+            
             try {
                 const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: msg }) });
                 if (res.ok) {
-                    const data = await res.json(); typing.classList.add('hidden');
-                    chatBox.innerHTML += `<div class="flex gap-3"><div class="w-8 h-8 rounded-full bg-primary-100 text-primary-600 flex-shrink-0 flex items-center justify-center"><i class="ph-fill ph-robot"></i></div><div class="bg-white dark:bg-slate-800 p-3 rounded-2xl rounded-tr-none border border-gray-100 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300 shadow-sm leading-relaxed">${data.reply}</div></div>`;
+                    const data = await res.json(); 
+                    typing.classList.add('hidden');
+                    
+                    // 🌟 اعمال فرمت روی متن دریافت شده از هوش مصنوعی
+                    const formattedReply = formatAIResponse(data.reply);
+                    
+                    chatBox.innerHTML += `<div class="flex gap-3"><div class="w-8 h-8 rounded-full bg-primary-100 text-primary-600 flex-shrink-0 flex items-center justify-center"><i class="ph-fill ph-robot"></i></div><div class="bg-white dark:bg-slate-800 p-4 rounded-2xl rounded-tr-none border border-gray-100 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300 shadow-sm leading-loose text-justify" style="text-justify: inter-word;">${formattedReply}</div></div>`;
                 }
-            } catch (err) { typing.classList.add('hidden'); chatBox.innerHTML += `<div class="text-rose-500 text-xs">خطا در ارتباط</div>`; }
+            } catch (err) { 
+                typing.classList.add('hidden'); 
+                chatBox.innerHTML += `<div class="text-rose-500 text-xs text-center mt-2">خطا در ارتباط با سرور هوش مصنوعی</div>`; 
+            }
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
@@ -316,38 +338,73 @@
             }
         }
 
-        document.addEventListener("DOMContentLoaded", () => {
-            document.querySelectorAll('.date-to-shamsi').forEach(el => {
-                let text = el.innerText.trim();
-                let date = new Date(text.replace(/-/g, '/'));
-                if(!isNaN(date)) {
-                    let options = { year: 'numeric', month: 'long', day: 'numeric' };
-                    if(text.includes(':')) { options.hour = '2-digit'; options.minute = '2-digit'; }
-                    el.innerText = new Intl.DateTimeFormat('fa-IR', options).format(date);
-                }
-            });
+        let colleaguesList = [];
+
+        // دریافت لیست همکاران به محض لود شدن صفحه
+        document.addEventListener("DOMContentLoaded", async () => {
+            try {
+                let res = await fetch('/api/tickets/colleagues');
+                if (res.ok) colleaguesList = await res.json();
+            } catch (e) {}
         });
 
-        // تیکت پشتیبانی
+        // تابع پیشرفته تیکت شناور سازمانی
         function openTicketModal() {
+            let options = colleaguesList.map(c => `<option value="${c.id}">${c.name} (${c.role === 'MANAGER' ? 'مدیریت' : 'مشاور'})</option>`).join('');
+            
             Swal.fire({
-                title: 'پشتیبانی و تیکت‌ها 🎧',
+                title: 'مکاتبه سازمانی جدید ✉️',
                 html: `
                     <div class="text-right space-y-4 mt-4">
-                        <div><label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">موضوع درخواست <span class="text-rose-500 text-[10px] font-normal mr-1">(الزامی)</span></label><input id="swal-t-subj" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="مثال: مشکل در ثبت فایل"></div>
-                        <div><label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">متن پیام <span class="text-rose-500 text-[10px] font-normal mr-1">(الزامی)</span></label><textarea id="swal-t-msg" rows="4" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="توضیحات کامل..."></textarea></div>
+                        <div class="bg-blue-50 border border-blue-200 p-3 rounded-2xl mb-4 text-xs text-blue-800">
+                            پیام شما فقط توسط گیرنده‌ای که انتخاب می‌کنید قابل مشاهده است.
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">گیرنده پیام <span class="text-rose-500 text-[10px] font-normal mr-1">(الزامی)</span></label>
+                            <select id="swal-t-receiver" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white appearance-none">
+                                <option value="">-- انتخاب همکار --</option>
+                                ${options || '<option disabled>همکاری یافت نشد</option>'}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">اولویت</label>
+                            <select id="swal-t-prio" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white appearance-none">
+                                <option value="عادی">عادی</option>
+                                <option value="بالا">بالا</option>
+                                <option value="فوری">فوری 🚨</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">موضوع درخواست <span class="text-rose-500 text-[10px] font-normal mr-1">(الزامی)</span></label>
+                            <input id="swal-t-subj" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="مثال: هماهنگی بازدید فایل">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold mb-1 text-slate-700 dark:text-slate-300">اولین پیام <span class="text-rose-500 text-[10px] font-normal mr-1">(الزامی)</span></label>
+                            <textarea id="swal-t-msg" rows="4" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none focus:border-primary-500 text-sm text-slate-800 dark:text-white" placeholder="متن کامل درخواست خود را بنویسید..."></textarea>
+                        </div>
                     </div>
                 `,
-                confirmButtonText: 'ارسال پیام', showCancelButton: true, cancelButtonText: 'بستن',
+                confirmButtonText: 'ارسال تیکت', 
+                showCancelButton: true, 
+                cancelButtonText: 'انصراف',
                 preConfirm: () => {
-                    const subj = document.getElementById('swal-t-subj').value; const msg = document.getElementById('swal-t-msg').value;
-                    if(!subj || !msg) { Swal.showValidationMessage('پر کردن هر دو فیلد الزامی است.'); return false; }
-                    return { subject: subj, message: msg };
+                    const receiver = document.getElementById('swal-t-receiver').value;
+                    const prio = document.getElementById('swal-t-prio').value;
+                    const subj = document.getElementById('swal-t-subj').value; 
+                    const msg = document.getElementById('swal-t-msg').value;
+                    
+                    if(!receiver || !subj || !msg) { Swal.showValidationMessage('گیرنده، موضوع و متن پیام الزامی است.'); return false; }
+                    return { receiver_id: parseInt(receiver), priority: prio, subject: subj, message: msg };
                 }
             }).then(async (res) => {
                 if(res.isConfirmed) {
-                    await fetch("/api/tickets/add", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(res.value)});
-                    Swal.fire({icon: 'success', title: 'ارسال شد', timer: 1500, showConfirmButton: false}).then(()=> window.location.href='/tickets');
+                    Swal.fire({ title: 'در حال ارسال...', didOpen: () => { Swal.showLoading() } });
+                    let apiRes = await fetch("/api/tickets/add", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(res.value)});
+                    if(apiRes.ok) {
+                        Swal.fire({icon: 'success', title: 'ارسال شد', text: 'مکاتبه شما ثبت شد.', timer: 2000, showConfirmButton: false}).then(()=> window.location.href='/tickets');
+                    } else {
+                        Swal.fire('خطا', 'مشکلی در ارسال رخ داد.', 'error');
+                    }
                 }
             });
         }
