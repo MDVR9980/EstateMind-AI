@@ -1,7 +1,7 @@
 import os
 import json
 from typing import Optional
-from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
+from fastapi import APIRouter, File, UploadFile, HTTPException, Depends, Request
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from app.services.ai_engine import analyze_property_text

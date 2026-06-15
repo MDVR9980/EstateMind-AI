@@ -17,26 +17,35 @@ if os.getenv("NVIDIA_API_KEY"):
     except Exception as e:
         print(f"⚠️ NVIDIA Client Error: {e}")
 
-def analyze_property_text(ad_text: str) -> dict:
-    """تحلیل متن خام آگهی (یا ویس تبدیل شده) و استخراج پارامترها"""
-    
+def analyze_property_text(ad_text: str, target_hood: str = "نامشخص") -> dict:
+    """تحلیل عمیق متن آگهی + سیستم کشف تقلب و استخراج دقیق اعداد"""
     prompt = f"""
-    شما یک دستیار هوشمند املاک هستید. متن زیر که صحبت‌های یک مشاور یا متن یک آگهی است را با دقت بخوانید.
-    یک خروجی دقیقاً با فرمت JSON تولید کنید که شامل فیلدهای زیر باشد:
-    - title: یک عنوان کوتاه و جذاب برای فایل
-    - neighborhood: محله یا منطقه
-    - property_type: نوع ملک (apartment, villa, land, shop)
-    - deal_type: نوع معامله (sale, rent, partnership, barter)
-    - price_total: قیمت کل یا پیش‌پرداخت رهن (فقط عدد صحیح به تومان)
-    - area: متراژ به عدد
-    - rooms: تعداد اتاق خواب به عدد
-    - has_master: آیا خواب مستر دارد؟ (true/false)
-    - pros: سه نقطه قوت اصلی (به صورت یک رشته متنی پیوسته)
-    - cons: نقاط ضعف احتمالی (اگر ذکر نشده بنویس "مورد خاصی ذکر نشده")
+    شما یک کارشناس املاک هستید. متن آگهی زیر را بخوانید و فقط یک خروجی JSON بدهید.
+    1. قیمت کل (price_total) را عدد صحیح بنویس. اگر توافقی بود 0 بگذار.
+    2. اگر ملک رهن و اجاره بود، مقادیر price_mortgage و price_rent را پر کن.
+    3. متراژ را در built_area بنویس.
+    4. اگر محله واقعی ملک با "{target_hood}" متفاوت بود، is_fake_location را true بگذار.
+    5. نقاط قوت و ضعف را به فارسی روان و کامل بنویس. (بدون استفاده از دبل‌کوتیشن " در داخل متن‌ها).
     
-    دقت کن که خروجی فقط و فقط یک JSON معتبر باشد و هیچ متن اضافه‌ای قبل یا بعد آن ننویس.
-    متن خام:
-    {ad_text}
+    الگوی خروجی:
+    {{
+      "is_fake_location": false,
+      "neighborhood": "سجاد",
+      "publisher": "املاک",
+      "property_type": "apartment",
+      "deal_type": "sale",
+      "price_total": 10000000000,
+      "price_mortgage": 0,
+      "price_rent": 0,
+      "built_area": 120,
+      "rooms": 2,
+      "has_master_room": true,
+      "ai_pros": "نقاط قوت کامل...",
+      "ai_cons": "نقاط ضعف کامل..."
+    }}
+    
+    متن خام آگهی:
+    {ad_text[:3000]}
     """
 
     if not nvidia_client:
@@ -49,19 +58,13 @@ def analyze_property_text(ad_text: str) -> dict:
             temperature=0.1, max_tokens=1000
         )
         raw_output = response.choices[0].message.content.strip()
-        
         json_match = re.search(r'```(?:json)?(.*?)```', raw_output, re.DOTALL)
-        if json_match: 
-            raw_output = json_match.group(1).strip()
-            
+        if json_match: raw_output = json_match.group(1).strip()
         start = raw_output.find('{')
         end = raw_output.rfind('}') + 1
-        if start != -1 and end != 0:
-            raw_output = raw_output[start:end]
-            
+        if start != -1 and end != 0: raw_output = raw_output[start:end]
         raw_output = raw_output.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
         return json.loads(raw_output)
-        
     except Exception as e:
         print(f"⚠️ [AI Parsing Error]: {e}")
         return _mock_ai_response()

@@ -2,7 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from app.core.database import get_session
-from app.core.models import Property, PropertyType, DealType
+from app.core.models import (
+    Property, PropertyType, DealType,
+    Requirement, Client, AgentNotification
+) 
 import json
 from app.services.notifier import send_telegram_alert
 
@@ -21,39 +24,38 @@ class N8nPayload(BaseModel):
     contact_phone: str = ""
     chat_link: str = ""
 
+from app.core.models import Requirement, Client, AgentNotification
+
 @router.post("/n8n-receive")
 def receive_from_n8n(data: N8nPayload, session: Session = Depends(get_session)):
-    """این API دیتا را از n8n می‌گیرد و مستقیم در دیتابیس CRM می‌نشاند"""
+    """دریافت دیتا از n8n + مچینگ خودکار با تقاضای مشتریان"""
     try:
-        # ۱. جلوگیری از ثبت فایل تکراری (با چک کردن توکن دیوار)
         existing = session.exec(select(Property).where(Property.divar_token == data.token)).first()
-        if existing:
-            return {"status": "skipped", "message": "این فایل قبلا ثبت شده است."}
+        if existing: return {"status": "skipped"}
             
-        # ۲. تبدیل دیتا و ذخیره در دیتابیس
         new_prop = Property(
-            agency_id=data.agency_id,
-            divar_token=data.token,
-            title=data.title,
-            neighborhood=data.neighborhood,
-            property_type=PropertyType.APARTMENT, # پیش‌فرض
-            deal_type=DealType.SALE, # پیش‌فرض
-            price_total=data.price,
-            owner_name=data.publisher,
-            owner_phone=data.contact_phone,
-            description=data.raw_text,
-            is_exclusive=False
+            agency_id=data.agency_id, divar_token=data.token, title=data.title,
+            neighborhood=data.neighborhood, property_type=PropertyType.APARTMENT, 
+            deal_type=DealType.SALE, price_total=data.price, owner_name=data.publisher,
+            owner_phone=data.contact_phone, description=data.raw_text, is_exclusive=False
         )
         session.add(new_prop)
         session.commit()
+        session.refresh(new_prop)
 
+        # 🌟 سیستم ردیابی و پیگیری هوشمند مشتری 🌟
+        requirements = session.exec(select(Requirement).where(Requirement.agency_id == new_prop.agency_id)).all()
+        for req in requirements:
+            # اگر محله و قیمت مچ شد
+            if req.preferred_neighborhoods in new_prop.neighborhood and new_prop.price_total <= req.max_budget:
+                client = session.get(Client, req.client_id)
+                alert_msg = f"🔔 همخوانی هوشمند: فایل '{new_prop.title}' با بودجه مشتری شما '{client.name}' تطابق دارد."
+                new_notif = AgentNotification(user_id=req.created_by_user_id, message=alert_msg)
+                session.add(new_notif)
+        session.commit()
 
         send_telegram_alert(new_prop.title, new_prop.neighborhood, new_prop.price_total, new_prop.owner_phone, "اتوماسیون n8n")
-        
-        print(f"🎉 [n8n Webhook] فایل جدید از n8n با موفقیت ذخیره شد: {new_prop.title}")
-
-        return {"status": "success", "message": "فایل n8n با موفقیت در CRM ذخیره شد!"}
-        
+        return {"status": "success"}
     except Exception as e:
         print(f"❌ Error in n8n Webhook: {e}")
         raise HTTPException(status_code=500, detail="خطا در ثبت دیتای n8n")

@@ -171,3 +171,22 @@ class UploadedForm(SQLModel, table=True):
     title: str
     file_path: str
     uploaded_at: datetime = Field(default_factory=datetime.utcnow)
+
+class PublisherType(str, Enum): 
+    PERSONAL = "شخصی"
+    AGENCY = "املاک"
+    UNKNOWN = "نامشخص"
+
+class Requirement(SQLModel, table=True):
+    """جدول تقاضا و نیازهای مشتریان (برای مچینگ هوشمند با ربات دیوار)"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    agency_id: int = Field(foreign_key="agency.id", index=True) 
+    client_id: int = Field(foreign_key="client.id")
+    created_by_user_id: Optional[int] = Field(default=None, foreign_key="users.id", index=True)
+    deal_type: DealType
+    property_type: PropertyType
+    min_budget: float = Field(default=0)
+    max_budget: float
+    preferred_neighborhoods: str
+    has_barter: bool = Field(default=False)
+    barter_asset_desc: Optional[str] = None
