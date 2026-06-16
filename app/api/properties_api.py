@@ -46,6 +46,7 @@ class PropertyCreateRequest(BaseModel):
     owner_phone: Optional[str] = None
     is_exclusive: bool = False
     description: Optional[str] = None
+    image_urls: Optional[list] = []
 
 class PropertyEditRequest(BaseModel):
     title: Optional[str] = None
@@ -110,6 +111,19 @@ async def parse_voice_to_form(audio: UploadFile = File(...)):
         print(f"❌ Error in Voice API: {e}")
         raise HTTPException(status_code=500, detail="خطا در پردازش هوشمند فایل صوتی.")
 
+@router.post("/upload-temp")
+async def upload_temp_media(file: UploadFile = File(...)):
+    """آپلود موقت رسانه قبل از ساخته شدن کامل ملک"""
+    os.makedirs("uploads/properties", exist_ok=True)
+    import random
+    file_ext = file.filename.split(".")[-1].lower()
+    file_name = f"temp_{random.randint(100000,999999)}.{file_ext}"
+    file_path = f"uploads/properties/{file_name}"
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return {"status": "success", "url": f"/{file_path}"}
+
 @router.post("/save")
 def save_property_to_db(data: PropertyCreateRequest, session: Session = Depends(get_session)):
     try:
@@ -150,7 +164,8 @@ def save_property_to_db(data: PropertyCreateRequest, session: Session = Depends(
             owner_name=data.owner_name,
             owner_phone=data.owner_phone,
             is_exclusive=data.is_exclusive,
-            description=data.description
+            description=data.description, 
+            image_urls=json.dumps(data.image_urls)
         )
         
         session.add(new_property)
@@ -424,3 +439,22 @@ def get_property_details(property_id: int, session: Session = Depends(get_sessio
     if not prop:
         raise HTTPException(status_code=404, detail="فایل یافت نشد")
     return prop
+
+# --- اضافه کردن روت تولید هوشمند مزایا و معایب ---
+@router.post("/{property_id}/generate-ai-details")
+def generate_ai_details(property_id: int, session: Session = Depends(get_session)):
+    """تحلیل فایل ثبت شده دستی توسط هوش مصنوعی و تولید مزایا و معایب"""
+    prop = session.get(Property, property_id)
+    if not prop: raise HTTPException(404)
+    
+    # ساخت یک متن ترکیبی برای ارسال به هوش مصنوعی
+    raw_text = f"ملک {prop.title} در محله {prop.neighborhood} با متراژ {prop.built_area} و {prop.rooms} خواب. قیمت {prop.price_total}. {prop.description}"
+    
+    from app.services.ai_engine import analyze_property_text
+    ai_data = analyze_property_text(raw_text, prop.neighborhood)
+    
+    prop.ai_pros = ai_data.get("ai_pros", "موقعیت مکانی مناسب و نورگیری خوب.")
+    prop.ai_cons = ai_data.get("ai_cons", "نیاز به بررسی دقیق‌تر سن بنا.")
+    session.commit()
+    
+    return {"status": "success", "pros": prop.ai_pros, "cons": prop.ai_cons}

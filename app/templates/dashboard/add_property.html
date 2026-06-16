@@ -146,6 +146,15 @@
                     <span class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 peer-checked:bg-primary-500 peer-checked:text-white peer-checked:border-primary-500 transition">خواب مستر</span>
                 </label>
             </div>
+            <!-- بخش آپلود رسانه -->
+            <h3 class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 mt-6 border-t border-gray-100 dark:border-slate-700 pt-4">گالری عکس و فیلم (آپلود همزمان)</h3>
+            <div id="temp-media-gallery" class="flex flex-wrap gap-3 mb-4"></div>
+            <div class="relative">
+                <input type="file" id="temp-media-upload" class="hidden" accept="image/*,video/mp4" multiple onchange="handleTempUpload(this)">
+                <label for="temp-media-upload" class="w-full flex flex-col items-center justify-center gap-2 bg-gray-50 dark:bg-slate-800/50 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-2xl p-6 cursor-pointer hover:border-primary-500 hover:text-primary-600 text-slate-500 transition">
+                    <i class="ph-bold ph-upload-simple text-3xl"></i><span>برای آپلود عکس یا ویدیو کلیک کنید</span>
+                </label>
+            </div>
         </div>
 
         <!-- ================= مرحله 3: مالی و مالک ================= -->
@@ -340,7 +349,8 @@
             price_total: parseFloat(rawPrice) || 0,
             owner_name: document.getElementById('owner_name').value,
             owner_phone: document.getElementById('owner_phone').value,
-            is_exclusive: document.getElementById('is_exclusive').checked
+            is_exclusive: document.getElementById('is_exclusive').checked, 
+            image_urls: tempImageUrls
         };
 
         try {
@@ -363,6 +373,33 @@
             btnSubmit.innerHTML = '<i class="ph-bold ph-check-circle text-lg"></i> ثبت نهایی فایل';
             btnSubmit.disabled = false;
         }
+    }
+
+    let tempImageUrls = [];
+
+    async function handleTempUpload(input) {
+        if(input.files.length === 0) return;
+        let gallery = document.getElementById('temp-media-gallery');
+        let uploadToast = Swal.mixin({toast: true, position: 'bottom-end', showConfirmButton: false});
+        uploadToast.fire({title: 'در حال آپلود...', icon: 'info'});
+
+        for(let file of input.files) {
+            let formData = new FormData(); formData.append("file", file);
+            try {
+                let res = await fetch(`/api/properties/upload-temp`, { method: "POST", body: formData });
+                if (res.ok) {
+                    let data = await res.json();
+                    tempImageUrls.push(data.url);
+                    
+                    let isVideo = data.url.toLowerCase().endsWith('.mp4');
+                    let tag = isVideo ? `<video src="${data.url}" class="w-full h-24 object-cover rounded-xl" muted></video>` : `<img src="${data.url}" class="w-full h-24 object-cover rounded-xl">`;
+                    
+                    gallery.innerHTML += `<div class="relative w-24 h-24 rounded-xl border border-gray-200">${tag}</div>`;
+                }
+            } catch (e) { console.error("Upload error", e); }
+        }
+        uploadToast.fire({title: 'آپلود با موفقیت انجام شد!', icon: 'success', timer: 1500});
+        input.value = '';
     }
 </script>
 {% endblock %}

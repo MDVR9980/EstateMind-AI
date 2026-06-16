@@ -65,17 +65,24 @@
                         {% elif 'RENT' in prop.deal_type %}رهن/اجاره
                         {% else %}مشارکت{% endif %}
                     </span>
-                    <span class="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-sm font-bold">قیمت کل: {{ "{:,.0f}".format(prop.price_total) if prop.price_total > 0 else 'توافقی' }} تومان</span>
+                    <span class="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl text-lg font-bold">قیمت کل: {{ "{:,.0f}".format(prop.price_total) if prop.price_total > 0 else 'توافقی' }} <span class="text-sm">تومان</span>
+                    <p id="price-word" class="text-xs text-slate-500 font-bold mt-2"></p>
                 </div>
 
                 <div class="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
                     <div class="flex items-center gap-2 text-sm">
                         <i class="ph-fill ph-user text-indigo-600 text-lg"></i>
-                        <span class="font-bold text-slate-600">ثبت‌کننده: {{ prop.publisher }}</span>
+                        <span class="font-bold text-slate-600">ثبت‌کننده: {{ prop.publisher or 'مشاور آژانس' }}</span>
                     </div>
                     <div class="flex items-center gap-4">
                         <span class="text-sm font-bold text-rose-600 dir-ltr"><i class="ph-fill ph-phone"></i> {{ prop.contact_phone }}</span>
-                        <a href="https://t.me/{{ prop.contact_phone }}" class="text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1"><i class="ph-fill ph-chat-circle"></i> چت دیوار/تلگرام</a>
+                        
+                        <!-- 🌟 نمایش چت دیوار فقط اگر divar_token داشته باشد 🌟 -->
+                        {% if prop.divar_token %}
+                            <a href="https://divar.ir/v/{{ prop.divar_token }}" target="_blank" class="text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1">
+                                <img src="https://divar.ir/favicon.ico" class="w-4 h-4 rounded"> چت دیوار
+                            </a>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -101,6 +108,7 @@
     </main>
 
     <script>
+        // ۱. اسکریپت مربوط به اسلایدر عکس‌ها
         let currentSlide = 0;
         const slides = document.querySelectorAll('.slide');
         function changeSlide(direction) {
@@ -116,6 +124,42 @@
             slides[currentSlide].classList.replace('z-0', 'z-10');
             document.getElementById('slide-counter').innerText = currentSlide + 1;
         }
+
+        // ۲. توابع تبدیل عدد به حروف فارسی
+        const numWords = ["صفر","یک","دو","سه","چهار","پنج","شش","هفت","هشت","نه","ده","یازده","دوازده","سیزده","چهارده","پانزده","شانزده","هفده","هجده","نوزده"];
+        const tens = ["","","بیست","سی","چهل","پنجاه","شصت","هفتاد","هشتاد","نود"];
+        const hundreds = ["","صد","دویست","سیصد","چهارصد","پانصد","ششصد","هفتصد","هشتصد","نهصد"];
+        const scales = ["","هزار","میلیون","میلیارد","تریلیون"];
+
+        function numberToPersianWords(num) {
+            if (num === 0) return "صفر";
+            let str = num.toString(); let chunks = [];
+            while (str.length > 0) { chunks.push(str.slice(-3)); str = str.slice(0, -3); }
+            let result = [];
+            for (let i = 0; i < chunks.length; i++) {
+                let chunk = parseInt(chunks[i], 10); if (chunk === 0) continue;
+                let chunkWords = []; let h = Math.floor(chunk / 100); let rem = chunk % 100;
+                if (h > 0) chunkWords.push(hundreds[h]);
+                if (rem > 0) {
+                    if (rem < 20) chunkWords.push(numWords[rem]);
+                    else { chunkWords.push(tens[Math.floor(rem / 10)]); if (rem % 10 > 0) chunkWords.push(numWords[rem % 10]); }
+                }
+                let chunkText = chunkWords.join(" و "); if (i > 0) chunkText += " " + scales[i];
+                result.push(chunkText);
+            }
+            return result.reverse().join(" و ") + " تومان";
+        }
+
+        // ۳. اجرای تبدیل قیمت به محض لود شدن صفحه کاتالوگ
+        document.addEventListener("DOMContentLoaded", () => {
+            const priceVal = {{ prop.price_total }};
+            if(priceVal > 0) {
+                const priceWordEl = document.getElementById("price-word");
+                if(priceWordEl) {
+                    priceWordEl.innerText = "معادل: " + numberToPersianWords(priceVal);
+                }
+            }
+        });
     </script>
 </body>
 </html>
