@@ -51,7 +51,7 @@ class PropertyCreateRequest(BaseModel):
 class PropertyEditRequest(BaseModel):
     title: Optional[str] = None
     price_total: Optional[float] = None
-    contact_phone: Optional[str] = None
+    owner_phone: Optional[str] = None
     ai_pros: Optional[str] = None
     ai_cons: Optional[str] = None
     publisher: Optional[str] = None
@@ -390,7 +390,7 @@ def edit_and_sync_property(property_id: int, req_data: PropertyEditRequest, requ
     
     if req_data.title is not None: prop.title = req_data.title
     if req_data.price_total is not None: prop.price_total = req_data.price_total
-    if req_data.contact_phone is not None: prop.contact_phone = req_data.contact_phone
+    if req_data.owner_phone is not None: prop.owner_phone = req_data.owner_phone
     if req_data.ai_pros is not None: prop.ai_pros = req_data.ai_pros
     if req_data.ai_cons is not None: prop.ai_cons = req_data.ai_cons
     if req_data.publisher is not None: prop.publisher = req_data.publisher

@@ -55,7 +55,7 @@
                 <!-- 📸 نمایش عکس/ویدیو در هدر کارت -->
                 <div class="w-full h-40 bg-slate-100 dark:bg-slate-800 relative group overflow-hidden">
                     {% set images = prop.image_urls|default('[]') %}
-                    {% set parsed_images = images|replace('[', '')|replace(']', '')|replace('"', '')|split(',') %}
+                    {% set parsed_images = images.replace('[', '').replace(']', '').replace('"', '').split(',') %}
                     
                     {% if parsed_images|length > 0 and parsed_images[0] != "" %}
                         <div id="carousel-{{ prop.id }}" class="flex transition-transform duration-300 w-full h-full">
@@ -116,15 +116,23 @@
                         <i class="ph-fill ph-phone text-blue-500"></i> {{ prop.contact_phone or 'ندارد' }}
                     </p>
 
-                    <div class="bg-gray-50 dark:bg-slate-800/50 rounded-2xl p-3 mb-4 border border-gray-100 dark:border-slate-700 flex justify-between items-center">
-                        <span class="text-[10px] text-slate-500">مبلغ کل:</span>
-                        <span class="font-bold text-primary-600 dark:text-primary-400 font-mono text-left dir-ltr text-sm">
-                            {% if prop.price_total > 0 %}
-                                {{ "{:,.0f}".format(prop.price_total) }} <span class="text-[9px] font-sans text-slate-500">ت</span>
-                            {% else %}
-                                <span class="font-sans">توافقی</span>
-                            {% endif %}
-                        </span>
+                    <!-- جایگزین بخش باکس مبلغ در کارت‌ها -->
+                    <div class="bg-gray-50 dark:bg-slate-800/50 rounded-2xl p-3 mb-4 border border-gray-100 dark:border-slate-700 flex flex-col justify-center">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[10px] text-slate-500">مبلغ کل:</span>
+                            <span class="font-bold text-primary-600 dark:text-primary-400 font-mono text-left dir-ltr text-sm" data-price="{{ prop.price_total }}">
+                                {% if prop.price_total > 0 %}
+                                    {{ "{:,.0f}".format(prop.price_total) }} <span class="text-[9px] font-sans text-slate-500">تومان</span>
+                                {% else %}
+                                    <span class="font-sans">توافقی</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% if prop.price_total > 0 %}
+                        <div class="text-[9px] font-bold text-slate-400 text-left w-full price-in-words mt-1">
+                            <!-- اینجا توسط جاوااسکریپت به صورت اتوماتیک با حروف پر می‌شود -->
+                        </div>
+                        {% endif %}
                     </div>
 
                     <!-- دکمه‌های عملیات -->
@@ -306,21 +314,37 @@
                 customClass: { popup: 'swal-wide' },
                 html: `
                     <div class="text-right text-sm max-h-[70vh] overflow-y-auto px-4 pb-10 no-scrollbar">
-                        <!-- اضافه شدن بخش دکمه AI -->
+                        
+                        <h3 class="font-bold text-primary-600 border-b border-primary-100 pb-2 mb-4">۱. اطلاعات اصلی</h3>
+                        <div class="mb-4">
+                            <label class="block mb-1 font-bold">عنوان آگهی:</label>
+                            <input id="ep-title" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none" value="${prop.title}">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div><label class="block mb-1 font-bold">قیمت کل:</label><input id="ep-price" type="number" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none" value="${prop.price_total || 0}"></div>
+                            <div><label class="block mb-1 font-bold">تلفن تماس:</label><input id="ep-phone" dir="ltr" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none" value="${prop.contact_phone || ''}"></div>
+                        </div>
+                        
                         <div class="flex justify-between items-center border-b border-primary-100 pb-2 mb-4 mt-6">
                             <h3 class="font-bold text-primary-600">۲. مزایا و معایب هوشمند</h3>
-                            <button type="button" onclick="generateAIDetails(${id})" class="bg-purple-100 text-purple-700 hover:bg-purple-600 hover:text-white px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 text-xs">
+                            <button type="button" onclick="generateAIDetails(${id}, event)" class="bg-purple-100 text-purple-700 hover:bg-purple-600 hover:text-white px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 text-xs">
                                 <i class="ph-fill ph-sparkle"></i> کشف اتوماتیک AI
                             </button>
                         </div>
                         <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div><label class="block mb-1 font-bold text-emerald-600">نقاط قوت:</label><textarea id="ep-pros" class="w-full bg-gray-50 border rounded-2xl p-3 outline-none" rows="3">${prop.ai_pros || ''}</textarea></div>
-                            <div><label class="block mb-1 font-bold text-rose-600">نقاط ضعف:</label><textarea id="ep-cons" class="w-full bg-gray-50 border rounded-2xl p-3 outline-none" rows="3">${prop.ai_cons || ''}</textarea></div>
+                            <div><label class="block mb-1 font-bold text-emerald-600">نقاط قوت:</label><textarea id="ep-pros" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-xs leading-loose" rows="4">${prop.ai_pros || ''}</textarea></div>
+                            <div><label class="block mb-1 font-bold text-rose-600">نقاط ضعف:</label><textarea id="ep-cons" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-2xl p-3 outline-none text-xs leading-loose" rows="4">${prop.ai_cons || ''}</textarea></div>
                         </div>
 
-                        <!-- تغییر input فایل برای پذیرش multiple -->
-                        <input type="file" id="media-upload" class="hidden" accept="image/*,video/mp4" multiple onchange="handleMediaUpload(this)">
-                        // ...
+                        <h3 class="font-bold text-primary-600 border-b border-primary-100 pb-2 mb-4 mt-6">۳. مدیریت گالری عکس و فیلم (MP4)</h3>
+                        <div id="media-gallery" class="flex flex-wrap gap-3 mb-4"></div>
+                        <div class="relative mt-4">
+                            <input type="file" id="media-upload" class="hidden" accept="image/*,video/mp4" multiple onchange="handleMediaUpload(this)">
+                            <label for="media-upload" class="w-full flex flex-col items-center justify-center gap-2 bg-gray-50 dark:bg-slate-800 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-2xl p-6 cursor-pointer hover:border-primary-500 hover:text-primary-600 text-slate-500 transition">
+                                <i class="ph-bold ph-upload-simple text-3xl"></i><span>برای آپلود عکس یا ویدیو کلیک کنید</span>
+                            </label>
+                        </div>
+                    </div>
                 `,
                 didOpen: () => { renderMediaGallery(); },
                 showCancelButton: true, confirmButtonText: 'ذخیره تغییرات', cancelButtonText: 'انصراف',
@@ -328,7 +352,7 @@
                     return {
                         title: document.getElementById('ep-title').value,
                         price_total: parseFloat(document.getElementById('ep-price').value),
-                        contact_phone: document.getElementById('ep-phone').value,
+                        owner_phone: document.getElementById('ep-phone').value,
                         ai_pros: document.getElementById('ep-pros').value,
                         ai_cons: document.getElementById('ep-cons').value,
                         image_urls: currentMediaList
@@ -508,9 +532,11 @@
     }
 
     // تابع جدید برای ساخت مزایا با AI
-    async function generateAIDetails(propId) {
+    async function generateAIDetails(propId, event) {
         const btn = event.currentTarget;
+        const originalText = btn.innerHTML;
         btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> در حال تحلیل...';
+        btn.disabled = true;
         try {
             let res = await fetch(`/api/properties/${propId}/generate-ai-details`, {method: "POST"});
             if (res.ok) {
@@ -519,8 +545,25 @@
                 document.getElementById('ep-cons').value = data.cons;
                 Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'توسط AI تکمیل شد', showConfirmButton: false, timer: 1500});
             }
-        } catch (e) {}
-        btn.innerHTML = '<i class="ph-fill ph-sparkle"></i> کشف اتوماتیک AI';
+        } catch (e) {
+            console.error(e);
+        }
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const priceElements = document.querySelectorAll('[data-price]');
+        priceElements.forEach(el => {
+            const price = parseFloat(el.getAttribute('data-price'));
+            if (price > 0) {
+                // تابع numberToPersianWords در فایل base.html تعریف شده و اینجا کار میکند
+                const wordContainer = el.parentElement.parentElement.querySelector('.price-in-words');
+                if (wordContainer && typeof numberToPersianWords === 'function') {
+                    wordContainer.innerText = numberToPersianWords(price);
+                }
+            }
+        });
+    });
 </script>
 {% endblock %}
