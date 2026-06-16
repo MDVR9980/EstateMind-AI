@@ -1,5 +1,8 @@
 import os
 import jwt
+import sys
+import subprocess
+from apscheduler.schedulers.background import BackgroundScheduler
 from app.core.security import SECRET_KEY, ALGORITHM
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends
@@ -11,7 +14,7 @@ from app.core.models import (
     Property, Client, Deal, UploadedForm,
     Reminder, Ticket, User, Agency 
 )
-from app.core.database import create_db_and_tables, get_session  
+from app.core.database import create_db_and_tables, get_session, engine 
 from app.api.properties_api import router as properties_router
 from app.api.auth_api import router as auth_router
 from app.api.clients_api import router as clients_router
@@ -25,6 +28,45 @@ from app.api.webhooks_api import router as webhooks_router
 from app.api.superadmin_api import router as superadmin_router
 from app.api.match_api import router as match_router
 from app.api.forms_api import router as forms_router
+
+def run_crawler_job():
+    """کرون‌جاب بک‌گراند برای استارت اتوماتیک خزش (تزریق شده از پروژه دوم)"""
+    print("⏰ [CRON JOB]: Triggering scheduled crawler...")
+    try:
+        with Session(engine) as session:
+            # در سیستم ما فعلا آژانس تستی آیدی 1 دارد
+            users = session.exec(select(User).where(User.agency_id == 1)).all()
+            target_hoods = set()
+            for u in users:
+                if u.target_neighborhoods:
+                    hoods = [h.strip() for h in u.target_neighborhoods.split(",") if h.strip()]
+                    for h in hoods:
+                        target_hoods.add(h)
+            
+            if target_hoods:
+                hoods_param = ",".join(target_hoods)
+                print(f"⏰ Running crawler for Hoods: {hoods_param}")
+                # بیدار کردن ربات استلث به صورت پردازش موازی
+                subprocess.Popen([sys.executable, "scripts/ghost_crawler.py", "mashhad", hoods_param, "1"])
+    except Exception as e:
+        print(f"CRON Error: {e}")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("🚀 EstateMind AI is starting...")
+    create_db_and_tables()
+    print("✅ Database is ready!")
+    
+    # استارت سیستم زمان‌بندی (کرون‌جاب)
+    print("⏳ Starting Background Scheduler...")
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(run_crawler_job, 'interval', minutes=60) # هر ۶۰ دقیقه ربات کل محله‌ها رو می‌گرده
+    scheduler.start()
+    
+    yield
+    
+    print("🛑 EstateMind AI is shutting down...")
+    scheduler.shutdown()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
