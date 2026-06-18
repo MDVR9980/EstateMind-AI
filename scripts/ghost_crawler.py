@@ -113,12 +113,8 @@ def human_like_crawler(city="mashhad", neighborhoods="سجاد", agency_id=1):
                                 let h1 = document.querySelector('h1');
                                 if (h1) data.title = h1.innerText;
                                 
-                                // 🌟 چشم ربات باز شد: خواندن تمام جدول‌ها و ویژگی‌ها علاوه بر توضیحات
-                                let allText = "";
-                                document.querySelectorAll('.kt-unexpandable-row, .kt-group-row-item, .kt-description-row__text').forEach(el => {
-                                    allText += el.innerText.trim() + " \\n ";
-                                });
-                                data.desc = allText;
+                                // 🌟 چشم ربات کاملاً باز شد: گرفتن تمام متن صفحه تا هیچ امکاناتی جا نیفتد
+                                data.desc = document.body.innerText;
                                 
                                 document.querySelectorAll('img').forEach(img => {
                                     let src = img.src || img.getAttribute('data-src') || img.srcset;
