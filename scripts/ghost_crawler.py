@@ -113,29 +113,32 @@ def human_like_crawler(city="mashhad", neighborhoods="سجاد", agency_id=1):
                                 let h1 = document.querySelector('h1');
                                 if (h1) data.title = h1.innerText;
                                 
-                                let descEl = document.querySelector('.kt-description-row__text');
-                                if (descEl) data.desc = descEl.innerText;
+                                // 🌟 چشم ربات باز شد: خواندن تمام جدول‌ها و ویژگی‌ها علاوه بر توضیحات
+                                let allText = "";
+                                document.querySelectorAll('.kt-unexpandable-row, .kt-group-row-item, .kt-description-row__text').forEach(el => {
+                                    allText += el.innerText.trim() + " \\n ";
+                                });
+                                data.desc = allText;
                                 
-                                // استخراج قدرتمند تمام عکس‌های آگهی
                                 document.querySelectorAll('img').forEach(img => {
                                     let src = img.src || img.getAttribute('data-src') || img.srcset;
                                     if(src && (src.includes('divarcdn') || src.includes('divar') || src.includes('http'))) {
-                                        let cleanSrc = src.split(' ')[0]; // حذف سایزهای اضافی در srcset
+                                        let cleanSrc = src.split(' ')[0]; 
                                         if(cleanSrc.length > 20 && !cleanSrc.includes('svg')) {
                                             data.images.push(cleanSrc);
                                         }
                                     }
                                 });
-                                data.images = [...new Set(data.images)]; // حذف عکس‌های تکراری
+                                data.images = [...new Set(data.images)];
                                 
-                                // استخراج تهاجمی قیمت (گشتن دنبال کلمه تومان)
-                                document.querySelectorAll('.kt-unexpandable-row').forEach(row => {
-                                    if (row.innerText.includes('تومان')) {
-                                        let numStr = row.innerText.replace(/[^0-9۰-۹]/g, '');
+                                let rows = document.querySelectorAll('.kt-unexpandable-row');
+                                rows.forEach(row => {
+                                    let titleEl = row.querySelector('.kt-unexpandable-row__title');
+                                    let valEl = row.querySelector('.kt-unexpandable-row__value');
+                                    if (titleEl && valEl && (titleEl.innerText.includes('قیمت کل') || (titleEl.innerText.includes('قیمت') && !titleEl.innerText.includes('متر')))) {
+                                        let numStr = valEl.innerText.replace(/[^0-9۰-۹]/g, '');
                                         let engNum = numStr.replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
-                                        if(engNum.length > 5) { // مطمئن شویم عدد قیمت است نه مثلا طبقه
-                                            data.price = parseInt(engNum);
-                                        }
+                                        if(engNum.length > 5) { data.price = parseInt(engNum); }
                                     }
                                 });
                                 return data;

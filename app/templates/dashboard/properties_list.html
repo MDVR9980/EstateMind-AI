@@ -87,10 +87,10 @@
                             {% else %}تجاری{% endif %}
                         </span>
                         <span class="bg-gray-900/80 text-white backdrop-blur text-[10px] font-bold px-2 py-1 rounded-lg">
-                            {% if 'SALE' in prop.deal_type %}فروش
-                            {% elif 'RENT' in prop.deal_type %}رهن/اجاره
-                            {% else %}مشارکت{% endif %}
-                        </span>
+                        {% if 'فروش' in prop.deal_type %}فروش
+                        {% elif 'اجاره' in prop.deal_type %}رهن/اجاره
+                        {% else %}مشارکت{% endif %}
+                    </span>
                     </div>
 
                     {% if prop.is_exclusive %}

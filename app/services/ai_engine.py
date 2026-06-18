@@ -18,35 +18,32 @@ except Exception as e:
     print(f"⚠️ NVIDIA Client Error: {e}")
 
 def analyze_property_text(ad_text: str, target_hood: str, max_retries=4) -> dict:
-    """تحلیل عمیق متن آگهی و استخراج دقیق اطلاعات"""
+    """تحلیل عمیق متن آگهی با دقت ۱۰۰٪"""
     
     prompt = f"""
-    شما یک کارشناس ارشد املاک هستید. متن آگهی زیر را با دقت بخوانید.
+    شما یک کارشناس ارشد، تحلیلگر حرفه‌ای و منتقد سخت‌گیر املاک هستید. متن زیر شامل "جدول امکانات" و "توضیحات" یک آگهی است.
     
-    قوانین بسیار مهم:
-    1. خروجی باید فقط و فقط یک JSON معتبر باشد.
-    2. یک عنوان جذاب برای کلید "title" بنویسید.
-    3. قیمت کل (price_total) را پیدا کنید و به صورت عدد بنویسید (مثلاً 17000000000). اگر نبود 0 بگذارید.
-    4. متراژ را برای built_area بنویسید.
-    5. برای ai_pros (نقاط قوت) حداقل ۳ ویژگی مثبت ملک را با جزئیات کامل و لحن مشاور املاک بنویسید.
-    6. برای ai_cons (نقاط ضعف) حداقل ۲ نقطه ضعف احتمالی (مثل قیمت، سال ساخت، موقعیت) را بنویسید.
-    7. به هیچ وجه از Enter (خط جدید) داخل متن‌ها استفاده نکنید.
+    قوانین استخراج:
+    1. خروجی فقط و فقط JSON معتبر باشد.
+    2. کلید ai_pros (نقاط قوت): تمام امکانات و ویژگی‌های مثبت ذکر شده (مثل متریال، نورگیری، روف گاردن، BMS، آسانسور و...) را به صورت بولت‌بندی (با ایموجی ✔️) و با لحن جذاب بنویسید.
+    3. کلید ai_cons (نقاط ضعف): متن را موشکافانه نقد کنید! مواردی مثل "عدم درج عکس واقعی / استفاده از عکس تزئینی"، "نداشتن آسانسور یا پارکینگ"، "قولنامه‌ای بودن سند"، یا "سال ساخت بالا" را پیدا کرده و با ایموجی ❌ بنویسید. اگر واقعاً هیچ نقصی نبود بنویسید "نقص مشهودی یافت نشد."
+    4. کلید built_area: متراژ را به عدد بنویسید.
     
-    الگوی خروجی JSON:
+    الگوی JSON:
     {{
       "title": "یک عنوان جذاب",
       "real_neighborhood": "{target_hood}",
       "property_type": "آپارتمان",
-      "price_total": 17000000000,
-      "built_area": 120,
+      "price_total": 0,
+      "built_area": 135,
       "rooms": 2,
       "has_master_room": true,
-      "ai_pros": "نورگیری بسیار عالی، نقشه بدون پرتی و لوکیشن بی‌نظیر...",
-      "ai_cons": "سال ساخت نسبتا بالا، نیاز به بازسازی جزئی..."
+      "ai_pros": "✔️ سیستم هوشمند BMS\\n✔️ دارای روف گاردن\\n✔️ نورگیر عالی",
+      "ai_cons": "❌ استفاده از عکس تزئینی و عدم درج عکس واقعی\\n❌ عدم ذکر وجود انباری"
     }}
     
-    متن خام آگهی:
-    {ad_text[:3500]}
+    متن کامل آگهی (جدول‌ها + توضیحات):
+    {ad_text[:4000]}
     """
 
     if not nvidia_client: return _get_fallback_data()
@@ -56,7 +53,8 @@ def analyze_property_text(ad_text: str, target_hood: str, max_retries=4) -> dict
             response = nvidia_client.chat.completions.create(
                 model="meta/llama-3.1-70b-instruct",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.1, max_tokens=1500
+                temperature=0.2, # دمای پایین برای دقت بالا و جلوگیری از هذیان
+                max_tokens=1500
             )
             raw_output = response.choices[0].message.content.strip()
             
@@ -67,9 +65,8 @@ def analyze_property_text(ad_text: str, target_hood: str, max_retries=4) -> dict
             end = raw_output.rfind('}') + 1
             if start != -1 and end != 0: raw_output = raw_output[start:end]
             
-            # شاه‌کلید شما برای جلوگیری از کرش JSON
             raw_output = raw_output.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
-            raw_output = raw_output.replace('"', '\\"').replace('\\"', '"') # فیکس کردن کوتیشن‌ها
+            raw_output = raw_output.replace('"', '\\"').replace('\\"', '"') 
             
             return json.loads(raw_output)
             
