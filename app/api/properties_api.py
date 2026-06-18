@@ -10,6 +10,7 @@ from fastapi import (
     APIRouter, File, UploadFile, 
     HTTPException, Depends, Request
 )
+from openai import OpenAI
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from app.services.ai_engine import analyze_property_text
@@ -19,6 +20,11 @@ from app.services.vector_db import add_property_to_vector_db
 from app.services.notifier import send_telegram_alert
 from app.core.models import User, Client, AgentNotification, Property
 from app.services.ai_engine import generate_smart_comparison
+
+nvidia_client = OpenAI(
+    base_url="https://integrate.api.nvidia.com/v1",
+    api_key=os.getenv("NVIDIA_API_KEY")
+)
 
 router = APIRouter(prefix="/api/properties", tags=["Properties"])
 
@@ -67,49 +73,45 @@ def get_current_user_local(request: Request, session: Session):
     
 @router.post("/voice-parse")
 async def parse_voice_to_form(audio: UploadFile = File(...)):
+    temp_audio_path = f"temp_voice_{audio.filename}"
+    
     try:
-        temp_audio_path = f"temp_voice_{audio.filename}"
+        # ۱. ابتدا فایل صوتیِ دریافتی از کاربر را موقتاً روی سرور ذخیره می‌کنیم
         with open(temp_audio_path, "wb") as f:
             f.write(await audio.read())
             
-        # 🎙️ ویس شبیه‌سازی شده کامل (برای تست قدرت هوش مصنوعی)
-        transcript = "یک آپارتمان ۱۲۰ متری نوساز تو محله سجاد برای فروش. ۳ خواب داره که یکیش مستره. آسانسور، پارکینگ و انباری داره. کابینت‌ها ام دی اف و کف سرامیکه. سندش هم تک برگه. قیمت ۱۰ میلیارد. مالک آقای رضایی ۰۹۱۲۳۴۵۶۷۸۹."
+        # ۲. فایل ذخیره شده را باز کرده و به Whisper انویدیا می‌فرستیم
+        with open(temp_audio_path, "rb") as audio_file:
+            transcription = nvidia_client.audio.transcriptions.create(
+                model="openai/whisper-large-v3",
+                file=audio_file,
+                language="fa" # اجبار هوش مصنوعی به تشخیص زبان فارسی
+            )
         
-        if os.path.exists(temp_audio_path):
-            os.remove(temp_audio_path)
-            
-        ai_extracted_data = analyze_property_text(transcript)
+        # ۳. متن استخراج شده از ویس را می‌گیریم
+        transcript = transcription.text
+        print(f"🎙️ متن استخراج شده از ویس مشاور: {transcript}")
+                
+        # ۴. متن را به موتور هوش مصنوعی خودمان (Qwen/Mistral) می‌دهیم تا فرم (JSON) را پر کند
+        # مقدار target_hood را فعلا خالی می‌دهیم چون در ویس محله مشخص می‌شود
+        ai_extracted_data = analyze_property_text(transcript, target_hood="")
         
-        # ما اینجا داده‌های استخراج شده را به صورت دستی کامل می‌کنیم تا فرم به زیبایی پر شود
-        # در پروداکشن، خود AI این JSON را دقیقاً به این شکل برمی‌گرداند.
-        ai_extracted_data = {
-            "title": "آپارتمان ۱۲۰ متری نوساز سجاد",
-            "property_type": "apartment",
-            "deal_type": "sale",
-            "neighborhood": "سجاد",
-            "built_area": 120,
-            "rooms": 3,
-            "age": 0,
-            "has_master_room": True,
-            "has_elevator": True,
-            "has_parking": True,
-            "has_store_room": True,
-            "cabinet_type": "MDF",
-            "floor_covering": "سرامیک",
-            "document_type": "SINGLE",
-            "price_total": 10000000000,
-            "owner_name": "آقای رضایی",
-            "owner_phone": "09123456789"
-        }
+        # (داده‌های هاردکد و تستی حذف شدند تا اطلاعات واقعی برگردد)
         
         return {
             "status": "success",
             "transcript": transcript,
             "data": ai_extracted_data
         }
+        
     except Exception as e:
         print(f"❌ Error in Voice API: {e}")
         raise HTTPException(status_code=500, detail="خطا در پردازش هوشمند فایل صوتی.")
+        
+    finally:
+        # ۵. در پایان (چه موفقیت‌آمیز، چه ارور)، فایل صوتی موقت را از سرور پاک می‌کنیم تا هارد پر نشود
+        if os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path)
 
 @router.post("/upload-temp")
 async def upload_temp_media(file: UploadFile = File(...)):

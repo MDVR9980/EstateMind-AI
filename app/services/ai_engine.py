@@ -62,7 +62,7 @@ def analyze_property_text(ad_text: str, target_hood: str, max_retries=4) -> dict
     for attempt in range(max_retries):
         try:
             response = nvidia_client.chat.completions.create(
-                model="mistralai/mistral-large-3-675b-instruct-2512",
+                model="qwen/qwen2.5-72b-instruct",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1, max_tokens=1500
             )
@@ -122,7 +122,7 @@ def compare_and_valuate(target_prop: dict, comparables: list) -> list:
     ]
     """
     try:
-        response = nvidia_client.chat.completions.create(model="mistralai/mistral-large-3-675b-instruct-2512", messages=[{"role": "user", "content": prompt}], temperature=0.1, max_tokens=1500)
+        response = nvidia_client.chat.completions.create(model="qwen/qwen2.5-72b-instruct", messages=[{"role": "user", "content": prompt}], temperature=0.1, max_tokens=1500)
         raw_output = response.choices[0].message.content.strip()
         
         json_match = re.search(r'```(?:json)?(.*?)```', raw_output, re.DOTALL)
@@ -159,7 +159,7 @@ def generate_smart_comparison(target_title, target_price, target_area, comparabl
 
     try:
         response = nvidia_client.chat.completions.create(
-            model="mistralai/mistral-large-3-675b-instruct-2512",
+            model="qwen/qwen2.5-72b-instruct",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3, max_tokens=300
         )
