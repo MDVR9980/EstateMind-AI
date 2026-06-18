@@ -26,40 +26,42 @@ def get_current_user_local(request: Request, session: Session):
 def chat_with_crm(data: ChatRequest, request: Request, session: Session = Depends(get_session)):
     try:
         user = get_current_user_local(request, session)
-        current_user_id = user.username if user else "guest_user"
+        if not user:
+            return {"status": "error", "reply": "لطفاً ابتدا وارد حساب کاربری خود شوید."}
 
-        properties = session.exec(select(Property).where(Property.status == "active")).all()
+        # 🌟 تغییر ۱: ربات الان فقط فایل‌های آژانسِ همین کاربر را می‌خواند (امنیت ۱۰۰٪)
+        properties = session.exec(
+            select(Property)
+            .where(Property.status == "active")
+            .where(Property.agency_id == user.agency_id)
+        ).all()
         
         db_context = "لیست فایل‌های موجود در آژانس:\n"
         for p in properties:
             price = f"{p.price_total:,.0f} تومان" if p.price_total > 0 else "توافقی"
-            db_context += f"- کد {p.id}: {p.title} در محله {p.neighborhood}، متراژ {p.built_area}، قیمت: {price}. مالک: {p.owner_name or 'نامشخص'}\n"
+            db_context += f"- کد {p.id}: {p.title} در محله {p.neighborhood}، متراژ {p.built_area}، قیمت: {price}\n"
 
-        prompt = f"""
-            اطلاعات دیتابیس فعلی:
-            {db_context}
+        N8N_WEBHOOK_URL = "http://127.0.0.1:5678/webhook/crm-chat"
 
-            سوال اصلی کاربر: {data.message}
-        """
-
-        N8N_WEBHOOK_URL = "http://127.0.0.1:5678/webhook-test/crm-chat"
+        # 🌟 تغییر ۲: ساخت یک کلید حافظه کاملاً یکتا و تضمینی (مثل: agency_1_user_5)
+        unique_session_id = f"agency_{user.agency_id}_user_{user.id}"
 
         payload = {
-            "user_id": current_user_id,
-            "chatInput": prompt
+            "user_id": unique_session_id, 
+            "chatInput": data.message,
+            "dbContext": db_context
         }
 
-        response = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=30)
+        response = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=90)
         
         if response.status_code == 200:
             n8n_data = response.json()
-            # پیدا کردن جواب در خروجی n8n
             ai_reply = n8n_data.get("output") or n8n_data.get("text") or n8n_data.get("response")
             if not ai_reply:
-                ai_reply = f"اطلاعات خام دریافتی از n8n: {n8n_data}"
+                ai_reply = f"خطا در فرمت خروجی: {n8n_data}"
             return {"status": "success", "reply": ai_reply}
         else:
-            return {"status": "error", "reply": "خطای n8n: لطفا دکمه Execute Workflow را در n8n بزنید."}
+            return {"status": "error", "reply": "خطا در ارتباط با سرور n8n."}
 
     except Exception as e:
         print(f"❌ Connection Error: {e}")

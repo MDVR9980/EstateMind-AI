@@ -1,0 +1,126 @@
+{
+  "name": "ChatBot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crm-chat",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "6cc5b431-bb2a-4305-858c-0cc802325c39",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        2640,
+        864
+      ],
+      "webhookId": "27501df9-f54e-4107-953d-d072b68ad165"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.chatInput }}",
+        "options": {
+          "systemMessage": "=شما دستیار هوشمند و داخلی سیستم CRM املاک (EstateMind) هستید.\nکاربرانی که با شما چت می‌کنند، \"مشاورین املاک\" و \"مدیران آژانس\" هستند (نه مشتریان خریدار یا مستأجر).\nوظیفه شما این است که مانند یک همکارِ حرفه‌ای و سریع، به مشاوران کمک کنید تا اطلاعات فایل‌ها را از دیتابیس پیدا کنند، فایل‌ها را با هم مقایسه کنند یا به سوالاتشان در مورد املاکِ موجود پاسخ دهید.\nلحن شما باید صمیمی، همکارانه و کاملاً به زبان فارسی باشد. اگر مشاور به دنبال فایل خاصی گشت، فقط از لیست زیر به او پیشنهاد بدهید.\n\nلیست فایل‌های آژانسِ این مشاور:\n{{ $json.body.dbContext }}"
+        }
+      },
+      "id": "ad75d0bb-11e3-44ca-b195-4bc7ac906d4c",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        2896,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "model": "meta/llama-3.1-70b-instruct",
+        "options": {
+          "baseURL": "https://integrate.api.nvidia.com/v1"
+        }
+      },
+      "id": "80965944-987d-4613-92b8-61904a7978a7",
+      "name": "NVIDIA Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        2752,
+        1072
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "GisDh3syaKNARlls",
+          "name": "Nvidia Ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "{{ $json.body.user_id }}",
+        "contextWindowLength": 8
+      },
+      "id": "eea48ca7-5a93-4d98-8297-534ad53374f1",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [
+        2992,
+        1072
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NVIDIA Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "272a7cb8-e0e2-4161-989a-a2df10584189",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "226fa82dc2ac827a4f932403f468a9c4c5398702f6c5af7de60446959e8097da"
+  },
+  "nodeGroups": [],
+  "id": "LQajhAnfnYZZj31q",
+  "tags": []
+}
