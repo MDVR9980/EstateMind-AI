@@ -18,39 +18,31 @@ except Exception as e:
     print(f"⚠️ NVIDIA Client Error: {e}")
 
 def analyze_property_text(ad_text: str, target_hood: str, max_retries=4) -> dict:
-    """تحلیل عمیق متن آگهی + سیستم کشف تقلب و استخراج دقیق اعداد"""
+    """تحلیل عمیق متن آگهی و استخراج دقیق اطلاعات"""
     
     prompt = f"""
-    شما یک سیستم هوشمند و کارشناس املاک هستید. متن آگهی زیر را با دقت بخوانید.
+    شما یک کارشناس ارشد املاک هستید. متن آگهی زیر را با دقت بخوانید.
     
-    مهم‌ترین قوانین:
-    1. خروجی باید فقط و فقط یک JSON معتبر باشد. هیچ متن اضافه‌ای قبل یا بعد از آن ننویس.
-    2. یک عنوان جذاب و کوتاه بر اساس متن برای کلید "title" بنویس.
-    3. قیمت کل (price_total) را از داخل متن پیدا کن و به صورت یک عدد صحیح (Integer) بنویس. مثلا اگر نوشته 17 میلیارد، بنویس 17000000000. اگر قیمت ذکر نشده بود یا توافقی بود 0 بگذار.
-    4. متراژ (land_area برای زمین/ویلا و built_area برای آپارتمان) را به صورت عدد بنویس.
-    5. اگر آگهی زمین، باغ یا ویلا است، property_type را متناسب با آن پر کن.
-    6. اگر محله واقعی ملک با محله هدف ("{target_hood}") متفاوت بود، is_fake_location را true بگذار.
-    7. به هیچ وجه از Enter (خط جدید) داخل متن‌ها استفاده نکن.
-    8. 🌟 قانون بسیار حیاتی: به هیچ وجه در داخل مقادیر متنی فارسی (مثل ai_pros یا ai_cons) از علامت نقل قول دبل‌کوتیشن (") استفاده نکنید. در صورت نیاز حتماً از تک کوتیشن (') استفاده کنید تا ساختار JSON خراب نشود.
+    قوانین بسیار مهم:
+    1. خروجی باید فقط و فقط یک JSON معتبر باشد.
+    2. یک عنوان جذاب برای کلید "title" بنویسید.
+    3. قیمت کل (price_total) را پیدا کنید و به صورت عدد بنویسید (مثلاً 17000000000). اگر نبود 0 بگذارید.
+    4. متراژ را برای built_area بنویسید.
+    5. برای ai_pros (نقاط قوت) حداقل ۳ ویژگی مثبت ملک را با جزئیات کامل و لحن مشاور املاک بنویسید.
+    6. برای ai_cons (نقاط ضعف) حداقل ۲ نقطه ضعف احتمالی (مثل قیمت، سال ساخت، موقعیت) را بنویسید.
+    7. به هیچ وجه از Enter (خط جدید) داخل متن‌ها استفاده نکنید.
     
-    الگوی خروجی JSON (فقط همین ساختار را برگردان):
+    الگوی خروجی JSON:
     {{
-      "title": "یک عنوان جذاب و کوتاه",
-      "is_fake_location": false,
+      "title": "یک عنوان جذاب",
       "real_neighborhood": "{target_hood}",
-      "publisher": "املاک",
       "property_type": "آپارتمان",
-      "deal_type": "فروش",
       "price_total": 17000000000,
-      "price_mortgage": 0,
-      "price_rent": 0,
-      "land_area": 0,
       "built_area": 120,
-      "ai_pros": "نقاط قوت کامل با زبان فارسی...",
-      "ai_cons": "نقاط ضعف کامل با زبان فارسی...",
-      "is_barter": false,
-      "barter_description": null,
-      "ai_special_features": {{"نما": "سنگ", "نورگیری": "عالی"}}
+      "rooms": 2,
+      "has_master_room": true,
+      "ai_pros": "نورگیری بسیار عالی، نقشه بدون پرتی و لوکیشن بی‌نظیر...",
+      "ai_cons": "سال ساخت نسبتا بالا، نیاز به بازسازی جزئی..."
     }}
     
     متن خام آگهی:
@@ -68,45 +60,31 @@ def analyze_property_text(ad_text: str, target_hood: str, max_retries=4) -> dict
             )
             raw_output = response.choices[0].message.content.strip()
             
-            # استخراج هوشمندانه بلاک JSON
             json_match = re.search(r'```(?:json)?(.*?)```', raw_output, re.DOTALL)
             if json_match: raw_output = json_match.group(1).strip()
             
             start = raw_output.find('{')
             end = raw_output.rfind('}') + 1
-            if start != -1 and end != 0:
-                raw_output = raw_output[start:end]
+            if start != -1 and end != 0: raw_output = raw_output[start:end]
             
-            # 🌟 پاک کردن کاراکترهای مخرب و کاماهای اضافی که باعث ارور JSON می‌شوند
+            # شاه‌کلید شما برای جلوگیری از کرش JSON
             raw_output = raw_output.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
-            raw_output = re.sub(r',\s*}', '}', raw_output)
-            raw_output = re.sub(r',\s*]', ']', raw_output)
+            raw_output = raw_output.replace('"', '\\"').replace('\\"', '"') # فیکس کردن کوتیشن‌ها
             
             return json.loads(raw_output)
             
         except Exception as e:
-            err_str = str(e)
-            if "429" in err_str or "Too Many Requests" in err_str:
-                print(f"⏳ [Backend AI] Rate Limit hit! Cooling down for 10s... (Attempt {attempt+1}/{max_retries})")
-                time.sleep(10)
-            else:
-                print(f"⚠️ [Backend AI] Parse Error (Attempt {attempt+1}): {err_str}")
-                # چاپ بخشی از خروجی خام برای دیباگ کردن در کنسول
-                if 'raw_output' in locals():
-                    print(f"   [متن خام هوش مصنوعی که خراب بود]: {raw_output[:150]}...") 
-                time.sleep(4)
+            print(f"⚠️ [Backend AI] Error (Attempt {attempt+1}): {e}")
+            time.sleep(3)
             
     return _get_fallback_data()
     
 def _get_fallback_data():
     return {
-        "title": "فایل شکار شده سیستم",
-        "is_fake_location": False, "real_neighborhood": "نامشخص", "publisher": "نامشخص",
-        "property_type": "آپارتمان", "deal_type": "فروش", "price_total": 0, "price_mortgage": 0, "price_rent": 0,
-        "land_area": 0, "built_area": 0,
-        "ai_pros": "سیستم به دلیل ارور در پردازش AI نتوانست مزایا را کامل استخراج کند.", 
-        "ai_cons": "سیستم به دلیل ارور در پردازش AI نتوانست معایب را بررسی کند.",
-        "is_barter": False, "barter_description": None, "ai_special_features": "{}"
+        "title": "فایل استخراج شده", "real_neighborhood": "نامشخص", "property_type": "آپارتمان",
+        "price_total": 0, "built_area": 0, "rooms": 0, "has_master_room": False,
+        "ai_pros": "اطلاعات کافی در متن آگهی یافت نشد.", 
+        "ai_cons": "نیاز به بررسی حضوری ملک."
     }
 
 def compare_and_valuate(target_prop: dict, comparables: list) -> list:

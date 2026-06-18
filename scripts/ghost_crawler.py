@@ -106,29 +106,35 @@ def human_like_crawler(city="mashhad", neighborhoods="سجاد", agency_id=1):
                                     continue
                             except: pass
 
-                            # استخراج فوق‌دقیق قیمت، عنوان و عکس‌ها
+                            # 🌟 ۱. استخراج تهاجمی عکس‌ها، قیمت و عنوان
                             scraped_data = page.evaluate("""() => {
                                 let data = { title: "", price: 0, images: [], desc: "" };
+                                
                                 let h1 = document.querySelector('h1');
                                 if (h1) data.title = h1.innerText;
+                                
                                 let descEl = document.querySelector('.kt-description-row__text');
                                 if (descEl) data.desc = descEl.innerText;
                                 
-                                let imgs = document.querySelectorAll('picture source, img');
-                                imgs.forEach(i => {
-                                    let src = i.srcset || i.src;
-                                    if(src && src.includes('cdn.divar.ir')) data.images.push(src.split(' ')[0]);
+                                // استخراج قدرتمند تمام عکس‌های آگهی
+                                document.querySelectorAll('img').forEach(img => {
+                                    let src = img.src || img.getAttribute('data-src') || img.srcset;
+                                    if(src && (src.includes('divarcdn') || src.includes('divar') || src.includes('http'))) {
+                                        let cleanSrc = src.split(' ')[0]; // حذف سایزهای اضافی در srcset
+                                        if(cleanSrc.length > 20 && !cleanSrc.includes('svg')) {
+                                            data.images.push(cleanSrc);
+                                        }
+                                    }
                                 });
-                                data.images = [...new Set(data.images)];
+                                data.images = [...new Set(data.images)]; // حذف عکس‌های تکراری
                                 
-                                let rows = document.querySelectorAll('.kt-unexpandable-row');
-                                rows.forEach(row => {
-                                    if (row.innerText.includes('قیمت کل')) {
-                                        let val = row.querySelector('.kt-unexpandable-row__value');
-                                        if (val) {
-                                            let numStr = val.innerText.replace(/[^0-9۰-۹]/g, '');
-                                            let engNum = numStr.replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
-                                            data.price = parseInt(engNum) || 0;
+                                // استخراج تهاجمی قیمت (گشتن دنبال کلمه تومان)
+                                document.querySelectorAll('.kt-unexpandable-row').forEach(row => {
+                                    if (row.innerText.includes('تومان')) {
+                                        let numStr = row.innerText.replace(/[^0-9۰-۹]/g, '');
+                                        let engNum = numStr.replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+                                        if(engNum.length > 5) { // مطمئن شویم عدد قیمت است نه مثلا طبقه
+                                            data.price = parseInt(engNum);
                                         }
                                     }
                                 });
