@@ -3,7 +3,34 @@
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- اضافه شدن کتابخانه کاغذ رنگی -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
+<style>
+    /* استایل‌های جذاب برای زمان درگ کردن کارت‌ها */
+    .sortable-ghost {
+        opacity: 0.3 !important;
+        background-color: #f8fafc !important;
+        border: 2px dashed #94a3b8 !important;
+        transform: scale(0.98);
+    }
+    .dark .sortable-ghost {
+        background-color: #0f172a !important;
+        border-color: #475569 !important;
+    }
+    .sortable-drag {
+        cursor: grabbing !important;
+        transform: scale(1.05) rotate(3deg) !important;
+        box-shadow: 0 25px 50px -12px rgba(16, 185, 129, 0.25) !important;
+        opacity: 1 !important;
+        z-index: 50;
+    }
+    .client-card { transition: transform 0.2s, box-shadow 0.2s; }
+    .client-card:hover { transform: translateY(-3px); }
+</style>
 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
     <div class="flex items-center gap-2">
         <input type="text" placeholder="جستجوی مشتری..." class="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-darkcard dark:text-white w-72 outline-none focus:border-primary-500 transition text-sm">
@@ -73,15 +100,34 @@
         columns.forEach(col => {
             new Sortable(col, {
                 group: 'shared',
-                animation: 150,
-                ghostClass: 'opacity-30',
+                animation: 250, // انیمیشن نرم‌تر
+                ghostClass: 'sortable-ghost',
+                dragClass: 'sortable-drag',
+                easing: "cubic-bezier(0.25, 1, 0.5, 1)",
                 
-                // ارسال درخواست به سرور در لحظه رها کردن کارت
                 onEnd: async function (evt) {
                     const itemEl = evt.item;
                     const clientId = itemEl.getAttribute('data-client-id');
                     const newStage = evt.to.getAttribute('data-stage-id');
+                    const oldStage = evt.from.getAttribute('data-stage-id');
                     
+                    if (newStage === oldStage) return; // اگر تو همون ستون رها شد، کاری نکن
+                    
+                    // 🎉 افکت جشن پیروزی برای قرارداد موفق! 🎉
+                    if (newStage === "قرارداد موفق") {
+                        confetti({
+                            particleCount: 150,
+                            spread: 80,
+                            origin: { y: 0.6 },
+                            colors: ['#10b981', '#34d399', '#fbbf24']
+                        });
+                        
+                        try {
+                            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3');
+                            audio.play();
+                        } catch(e) {}
+                    }
+
                     try {
                         const response = await fetch("/api/clients/update-stage", {
                             method: "PUT",
@@ -92,9 +138,7 @@
                             })
                         });
                         
-                        if (!response.ok) {
-                            Swal.fire('خطا', 'مشکلی در آپدیت مرحله مشتری پیش آمد!', 'error');
-                        }
+                        if (!response.ok) Swal.fire('خطا', 'مشکلی در آپدیت مرحله مشتری پیش آمد!', 'error');
                     } catch (error) {
                         console.error(error);
                     }
@@ -116,11 +160,10 @@
             const data = await res.json();
             
             if (res.ok && data.matches.length > 0) {
-                // تولید لیست فایل‌های پیدا شده برای نمایش
                 let filesHtml = data.matches.map(m => 
-                    `<div class="bg-slate-50 border border-slate-200 p-2 rounded-lg mb-2 text-right text-sm">
-                        <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs font-bold float-left">%${m.score}</span>
-                        <b>${m.title}</b><br>
+                    `<div class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-lg mb-2 text-right text-sm">
+                        <span class="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded text-xs font-bold float-left">%${m.score}</span>
+                        <b class="dark:text-white">${m.title}</b><br>
                         <span class="text-xs text-slate-500">${m.price.toLocaleString()} تومان</span>
                     </div>`
                 ).join('');
@@ -133,7 +176,7 @@
                     html: `
                         <div class="mb-4">${filesHtml}</div>
                         <p class="text-xs mb-2 text-slate-500">لینک کاتالوگ هوشمند این مشتری:</p>
-                        <a href="${catalogUrl}" target="_blank" class="text-primary-600 font-bold bg-primary-50 px-4 py-2 rounded-lg border border-primary-100 block break-all text-xs text-left dir-ltr shadow-inner">${catalogUrl}</a>
+                        <a href="${catalogUrl}" target="_blank" class="text-primary-600 font-bold bg-primary-50 dark:bg-primary-900/30 px-4 py-2 rounded-lg border border-primary-100 dark:border-primary-800 block break-all text-xs text-left dir-ltr shadow-inner">${catalogUrl}</a>
                     `,
                     confirmButtonText: 'کپی کردن لینک',
                     showCancelButton: true,
