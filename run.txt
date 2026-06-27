@@ -1,3 +1,5 @@
+uvicorn app.main:app --reload
+
 npx localtunnel --port 8000  
 
 
