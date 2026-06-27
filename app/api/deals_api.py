@@ -1,5 +1,6 @@
 import io
 import os
+from datetime import datetime
 from fastapi.responses import StreamingResponse
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
@@ -7,13 +8,23 @@ from reportlab.pdfbase.ttfonts import TTFont
 import arabic_reshaper
 from bidi.algorithm import get_display
 import jdatetime
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from app.core.database import get_session
-from app.core.models import Deal, Client, Property, FunnelStage
+from app.core.models import Deal, Client, Property, FunnelStage, User, AgentMonthlyCommission
+import jwt
+from app.core.security import SECRET_KEY, ALGORITHM
 
 router = APIRouter(prefix="/api/deals", tags=["Deals"])
+
+def get_current_user_api(request: Request, session: Session):
+    token = request.cookies.get("access_token")
+    if not token: return None
+    try:
+        payload = jwt.decode(token.replace("Bearer ", ""), SECRET_KEY, algorithms=[ALGORITHM])
+        return session.exec(select(User).where(User.username == payload.get("sub"))).first()
+    except: return None
 
 class DealCreateRequest(BaseModel):
     client_id: int
@@ -23,13 +34,13 @@ class DealCreateRequest(BaseModel):
     commission_amount: float
 
 @router.post("/add")
-def add_deal(data: DealCreateRequest, session: Session = Depends(get_session)):
-    """API ثبت قرارداد جدید و محاسبه کمیسیون در سیستم"""
+def add_deal(data: DealCreateRequest, request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401, detail="باید لاگین باشید")
     try:
-        # ۱. ساخت رکورد قرارداد
         new_deal = Deal(
-            agency_id=1, # فعلاً آژانس تستی
-            user_id=1,   # فعلاً مشاور تستی
+            agency_id=user.agency_id,
+            user_id=user.id,
             client_id=data.client_id,
             property_id=data.property_id,
             deal_type=data.deal_type,
@@ -38,109 +49,119 @@ def add_deal(data: DealCreateRequest, session: Session = Depends(get_session)):
         )
         session.add(new_deal)
 
-        # ۲. آپدیت هوشمندانه وضعیت مشتری در قیف فروش (انتقال به 'قرارداد موفق')
         client = session.get(Client, data.client_id)
         if client:
             client.funnel_stage = FunnelStage.WON
             session.add(client)
 
-        # ۳. تغییر وضعیت فایل ملک به 'فروخته/اجاره شده' (آرشیو)
         property_obj = session.get(Property, data.property_id)
         if property_obj:
             property_obj.status = "archived"
             session.add(property_obj)
 
         session.commit()
-        return {"status": "success", "message": "قرارداد ثبت شد و کمیسیون به داشبورد مالی اضافه گردید."}
-        
+        return {"status": "success", "message": "قرارداد ثبت شد."}
     except Exception as e:
-        print(f"❌ Error in Deal API: {e}")
-        raise HTTPException(status_code=500, detail="خطا در ذخیره اطلاعات قرارداد")
-    
+        raise HTTPException(status_code=500, detail="خطا در ذخیره قرارداد")
+
 FONT_PATH = "app/static/Vazirmatn-Regular.ttf"
 
 def persian_text(text):
-    """تابع تبدیل متن فارسی برای چاپ در PDF (رفع مشکل برعکس نوشته شدن)"""
     reshaped_text = arabic_reshaper.reshape(str(text))
-    bidi_text = get_display(reshaped_text)
-    return bidi_text
+    return get_display(reshaped_text)
 
 @router.get("/{deal_id}/contract-pdf")
 def generate_deal_contract_pdf(deal_id: int, session: Session = Depends(get_session)):
     deal = session.get(Deal, deal_id)
-    if not deal: raise HTTPException(status_code=404, detail="معامله یافت نشد")
+    if not deal: raise HTTPException(status_code=404)
     
     client = session.get(Client, deal.client_id)
     property_obj = session.get(Property, deal.property_id) if deal.property_id else None
     
-    # تنظیمات ساخت PDF در مموری
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer)
-    width, height = 595, 842 # ابعاد A4
-
-    # اگر فونت وزیرمتن را دانلود و در مسیر گذاشتی، این بخش کار میکند. در غیر اینصورت خطا را رد میکند.
+    width, height = 595, 842
+    
     try:
         pdfmetrics.registerFont(TTFont('Vazir', FONT_PATH))
         c.setFont("Vazir", 14)
-    except: pass # فونت پیدا نشد، از پیش فرض استفاده کن
+    except: pass
 
-    # --- طراحی هدر قرارداد ---
-    c.setStrokeColorRGB(0.1, 0.7, 0.5) # سبز
+    c.setStrokeColorRGB(0.1, 0.7, 0.5)
     c.setLineWidth(2)
-    c.rect(30, 30, width-60, height-60) # کادر دور
-    
+    c.rect(30, 30, width-60, height-60)
+
     c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica-Bold", 24)
     c.drawCentredString(width/2, height - 80, persian_text("رسید ثبت اولیه قرارداد معامله"))
     
     c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica", 14)
-    c.drawRightString(width - 50, height - 140, persian_text(f"کد رهگیری سیستم: #{deal.id}"))
-    shamsi_date = jdatetime.datetime.fromgregorian(datetime=deal.deal_date).strftime("%Y/%m/%d - %H:%M")
-    c.drawString(50, height - 140, persian_text(f"تاریخ ثبت: {shamsi_date}"))
-    
-    c.line(50, height - 150, width - 50, height - 150) # خط جداکننده
+    c.drawRightString(width - 50, height - 140, persian_text(f"کد رهگیری: #{deal.id}"))
+    shamsi_date = jdatetime.datetime.fromgregorian(datetime=deal.deal_date).strftime("%Y/%m/%d")
+    c.drawString(50, height - 140, persian_text(f"تاریخ: {shamsi_date}"))
+    c.line(50, height - 150, width - 50, height - 150)
 
-    # --- مشخصات طرفین و ملک ---
     c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica-Bold", 16)
-    c.drawRightString(width - 50, height - 200, persian_text("مشخصات طرف اول (مشتری):"))
-    
+    c.drawRightString(width - 50, height - 200, persian_text("مشخصات مشتری:"))
     c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica", 14)
-    c.drawRightString(width - 70, height - 230, persian_text(f"نام و نام خانوادگی: {client.name if client else 'نامشخص'}"))
-    c.drawRightString(width - 70, height - 260, persian_text(f"شماره تماس: {client.phone if client else 'نامشخص'}"))
+    c.drawRightString(width - 70, height - 230, persian_text(f"نام: {client.name if client else ''}"))
+    c.drawRightString(width - 70, height - 260, persian_text(f"تلفن: {client.phone if client else ''}"))
+
+    c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica-Bold", 16)
+    c.drawRightString(width - 50, height - 310, persian_text("مشخصات ملک:"))
+    c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica", 14)
+    c.drawRightString(width - 70, height - 340, persian_text(f"عنوان: {property_obj.title if property_obj else 'دستی'}"))
     
     c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica-Bold", 16)
-    c.drawRightString(width - 50, height - 310, persian_text("مشخصات ملک مورد معامله:"))
-    
+    c.drawRightString(width - 50, height - 420, persian_text("اطلاعات مالی:"))
     c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica", 14)
-    prop_title = property_obj.title if property_obj else "بدون فایل سیستم (ثبت دستی)"
-    prop_hood = property_obj.neighborhood if property_obj else "نامشخص"
-    c.drawRightString(width - 70, height - 340, persian_text(f"عنوان ملک: {prop_title}"))
-    c.drawRightString(width - 70, height - 370, persian_text(f"محله: {prop_hood}"))
+    c.drawRightString(width - 70, height - 450, persian_text(f"نوع: {deal.deal_type}"))
+    c.drawRightString(width - 70, height - 480, persian_text(f"مبلغ کل: {int(deal.deal_price):,} تومان"))
     
-    # --- مشخصات مالی ---
-    c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica-Bold", 16)
-    c.drawRightString(width - 50, height - 420, persian_text("اطلاعات مالی معامله:"))
-    
-    c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica", 14)
-    c.drawRightString(width - 70, height - 450, persian_text(f"نوع قرارداد: {deal.deal_type}"))
-    c.drawRightString(width - 70, height - 480, persian_text(f"ارزش کل معامله: {int(deal.deal_price):,} تومان"))
-    if deal.rent_price > 0:
-        c.drawRightString(width - 70, height - 510, persian_text(f"مبلغ اجاره ماهیانه: {int(deal.rent_price):,} تومان"))
-    
-    c.line(50, 150, width - 50, 150) # خط جداکننده پایین
-    
-    # --- امضاها ---
+    c.line(50, 150, width - 50, 150)
     c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica-Bold", 14)
-    c.drawRightString(width - 80, 100, persian_text("امضا و اثر انگشت مشتری"))
-    c.drawString(100, 100, persian_text("امضا و مهر مدیریت آژانس"))
+    c.drawRightString(width - 80, 100, persian_text("امضا مشتری"))
+    c.drawString(100, 100, persian_text("مهر آژانس"))
 
     c.save()
     buffer.seek(0)
+    return StreamingResponse(buffer, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=Contract_{deal.id}.pdf"})
+
+class MonthlyCommissionRequest(BaseModel):
+    year_month: str
+
+@router.post("/calculate-monthly")
+def calculate_monthly_commissions(data: MonthlyCommissionRequest, request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user or user.role not in ["MANAGER", "SUPER_ADMIN"]: raise HTTPException(403)
     
-    # نام فایل دانلودی
-    file_name = f"Contract_{deal.id}_{shamsi_date.replace('/', '-')}.pdf"
+    deals = session.exec(select(Deal).where(Deal.agency_id == user.agency_id)).all()
+    month_deals = [d for d in deals if d.deal_date.strftime("%Y-%m") == data.year_month]
     
-    return StreamingResponse(
-        buffer, 
-        media_type="application/pdf", 
-        headers={"Content-Disposition": f"attachment; filename={file_name}"}
-    )
+    agent_commissions = {}
+    for deal in month_deals:
+        agent_id = deal.user_id
+        if agent_id not in agent_commissions:
+            agent = session.get(User, agent_id)
+            rate = agent.commission_rate if agent else 0.5
+            agent_commissions[agent_id] = {"total_deals": 0, "total_value": 0, "total_commission": 0, "rate": rate}
+        agent_commissions[agent_id]["total_deals"] += 1
+        agent_commissions[agent_id]["total_value"] += deal.deal_price
+        agent_commissions[agent_id]["total_commission"] += deal.commission_amount
+
+    for agent_id, c_data in agent_commissions.items():
+        existing = session.exec(select(AgentMonthlyCommission).where(AgentMonthlyCommission.user_id == agent_id, AgentMonthlyCommission.year_month == data.year_month)).first()
+        a_share = c_data["total_commission"] * c_data["rate"]
+        o_share = c_data["total_commission"] * (1 - c_data["rate"])
+
+        if existing:
+            existing.total_deals = c_data["total_deals"]
+            existing.total_deal_value = c_data["total_value"]
+            existing.total_commission = c_data["total_commission"]
+            existing.agent_share = a_share
+            existing.office_share = o_share
+        else:
+            new_record = AgentMonthlyCommission(user_id=agent_id, agency_id=user.agency_id, year_month=data.year_month, total_deals=c_data["total_deals"], total_deal_value=c_data["total_value"], total_commission=c_data["total_commission"], agent_share=a_share, office_share=o_share)
+            session.add(new_record)
+
+    session.commit()
+    return {"status": "success", "message": "محاسبات کمیسیون آپدیت شد."}

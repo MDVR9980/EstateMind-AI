@@ -1,0 +1,77 @@
+با افتخار و کمال میل کمکت می‌کنم. این پروژه EstateMind AI یک CRM املاک بسیار جامع و حرفه‌ایه که شما توسعه دادید. من همه فایل‌ها رو با دقت خوندم و الان مسلط هستم به ساختار کامل پروژه‌تون.
+📋 خلاصه معماری پروژه شما:
+Table
+لایه	تکنولوژی	وضعیت
+Backend	FastAPI + SQLModel + PostgreSQL/SQLite	✅ پیشرفته
+Frontend	Jinja2 Templates + Tailwind CSS + Phosphor Icons	✅ مدرن
+AI Engine	NVIDIA NIM (Llama 3.1 70B, Qwen 2.5) + Whisper	✅ قدرتمند
+Vector DB	ChromaDB + Sentence Transformers	✅ برای مچینگ معنایی
+Crawler	Playwright (Stealth Mode) برای دیوار	✅ نامرئی و هوشمند
+Automation	n8n Webhook + Telegram Bot	✅ یکپارچه
+Notifications	Telegram Alerts + SMS OTP	✅ فعال
+Security	JWT + Bcrypt + HttpOnly Cookies	✅ استاندارد
+🎯 ویژگی‌های کلیدی که پیاده‌سازی شده:
+🔐 احراز هویت دوگانه - لاگین با پسورد + OTP پیامکی
+🎙️ ثبت صوتی ملک - ویس به فرم (Whisper → AI → Auto-fill)
+🕷️ ربات خزنده نامرئی - اسکن خودکار دیوار با ضدتکرار و فیلتر زمانی
+⚖️ ترازوی هوشمند - مقایسه ملک هدف با رقبا (±20% قیمت) + تحلیل AI
+🎯 مچینگ معنایی - ChromaDB برای تطابق نیاز مشتری با فایل‌ها
+📊 قیف فروش Kanban - درگ-اند-دراپ با SortableJS
+📄 تولید PDF قرارداد - با فونت فارسی و تاریخ شمسی
+🗺️ نقشه هوشمند - Leaflet با رنگ‌بندی قیمتی
+🤖 چت‌بات داخلی - n8n + NVIDIA LLM با حافظه Session
+🏢 مدیریت SaaS - سوپر ادمین برای چند آژانس
+⚠️ مواردی که نیاز به بهبود/رفع باگ دارن (بر اساس بررسی کد):
+Table
+اولویت	مشکل	راه‌حل
+🔴 بحرانی	lifespan دو بار تعریف شده در main.py	حذف نسخه دوم (بدون scheduler)
+🔴 بحرانی	get_current_user در properties_api.py وجود نداره ولی استفاده شده	اضافه کردن import از app.main
+🟡 مهم	clients_api.py - agency_id و user_id هاردکد (1)	گرفتن از get_current_user
+🟡 مهم	reminders_api.py - user_id هاردکد (1)	گرفتن از کاربر لاگین‌شده
+🟡 مهم	deals_api.py - agency_id و user_id هاردکد	گرفتن از context کاربر
+🟢 متوسط	Property.publisher و contact_phone در مدل وجود نداره ولی در HTML استفاده شدن	اضافه کردن به models.py
+🟢 متوسط	Ticket.message مستقیم استفاده شده ولی مدل TicketReply داره	اصلاح template یا مدل
+🚀 قدم بعدی چیه؟
+لطفاً بگو الان دقیقاً روی کدوم بخش می‌خوای کار کنیم:
+رفع باگ‌های بحرانی (lifespan دوگانه + هاردکدها)
+اضافه کردن فیچرهای جدید از لیستی که توی چت (6/24) گفتی:
+بخش کمیسیون و محاسبه ماهانه
+دسته‌بندی مشتریان (ویژه/عادی)
+سیستم قیمت‌گذاری هوشمند
+بارکد NFC
+پرزنت Reels-style
+بهبود UI/UX صفحات خاص
+تست و دیباگ یک بخش مشخص
+مستندسازی و README کامل
+من آماده‌ام! 🎯 فقط بگو از کجا شروع کنیم.
+به ترتیب پیش بریم و همه شون رو انجام بدیم...
+Edit
+Copy
+Share
+عالیه! بیاید قدم به قدم و منظم پیش بریم. من یک نقشه راه دقیق می‌کشم و هر مرحله رو با جزئیات کامل انجام می‌دم.
+🗺️ نقشه راه کلی (Roadmap)
+Table
+فاز	عنوان	وضعیت
+1	رفع باگ‌های بحرانی و امنیتی	⏳
+2	اضافه کردن فیچرهای جدید	⏳
+3	بهبود UI/UX و بهینه‌سازی	⏳
+4	تست نهایی و مستندسازی	⏳
+🔴 فاز ۱: رفع باگ‌های بحرانی و امنیتی
+۱.۱ - رفع lifespan دوگانه در main.py
+اولین باگ بحرانی: دو تا lifespan تعریف شده که دومی اولی رو override می‌کنه و scheduler اجرا نمی‌شه.
+Execute Python code
+Execute Python code
+Execute Python code
+Memory updated
+Execute Python code
+Execute Python code
+Search
+FastAPI get_current_user dependency injection pattern 2026
+9 results
+Execute Python code
+Execute Python code
+Search
+FastAPI get current user from cookie jwt dependency injection
+8 results
+Execute Python code
+<|tool_calls_section_begin|> <|tool_call_begin|> memory_space_edits:11 <|tool_call_argument_begin|> {"content": "User (Abbas) wants systematic improvement of EstateMind AI CRM. Phase 1: Fix critical bugs (duplicate lifespan, hardcoded IDs). Phase 2: Add new features (commission tracking, client categories, smart pricing, NFC, Reels-style presentation). Phase 3: UI/UX improvements. Phase 4: Testing and documentation. Currently working on Phase 1 - fixing critical security bugs in API files.", "id": "2", "operate": "replace"} <|tool_call_end|> <|tool_calls_section_end|>

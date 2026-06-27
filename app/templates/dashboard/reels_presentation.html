@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Swiper.js برای اسکرول عمودی (Reels) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+<style>
+    /* تنظیمات اختصاصی ظاهر اینستاگرام / تیک‌تاک */
+    .reels-container {
+        width: 100%;
+        max-width: 450px; /* سایز موبایل */
+        height: calc(100vh - 140px); /* تنظیم با هدر پروژه */
+        margin: 0 auto;
+        border-radius: 2rem;
+        overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        background-color: #0f172a;
+        position: relative;
+    }
+    .swiper { width: 100%; height: 100%; }
+    .swiper-slide {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        background-color: #0f172a;
+    }
+    .media-layer {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .overlay-gradient {
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+        height: 60%;
+        background: linear-gradient(to top, rgba(15,23,42,1) 0%, rgba(15,23,42,0.8) 40%, transparent 100%);
+        pointer-events: none;
+    }
+    /* پنل مقایسه */
+    #comparison-panel {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(10px);
+        z-index: 100;
+        display: none;
+        flex-direction: column;
+        padding: 2rem;
+        color: white;
+    }
+</style>
+
+<div class="flex flex-col lg:flex-row gap-8 h-full justify-center">
+    
+    <!-- راهنمای صفحه -->
+    <div class="hidden lg:flex flex-col justify-center max-w-sm text-right">
+        <div class="w-16 h-16 bg-gradient-to-tr from-rose-500 to-pink-500 text-white rounded-full flex items-center justify-center text-3xl mb-6 shadow-lg shadow-rose-500/30">
+            <i class="ph-fill ph-presentation-chart"></i>
+        </div>
+        <h2 class="text-3xl font-bold text-slate-800 dark:text-white mb-4">پرزنت تعاملی هوشمند</h2>
+        <p class="text-slate-500 dark:text-slate-400 leading-loose mb-6">این صفحه را به جای PDFهای خسته‌کننده به مشتری نشان دهید. مثل اینستاگرام اسکرول کنید و روی علامت (+) در هر فایل کلیک کنید تا دو فایل را با قدرت هوش مصنوعی در یک صفحه مقایسه کنید.</p>
+        
+        <div class="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 p-4 rounded-2xl">
+            <p class="text-primary-700 dark:text-primary-400 font-bold text-sm flex items-center gap-2">
+                <i class="ph-bold ph-info"></i> راهنمای استفاده:
+            </p>
+            <ul class="text-xs text-primary-600 dark:text-primary-500 mt-2 space-y-2">
+                <li>۱. در باکس روبرو به بالا و پایین بکشید (Swipe)</li>
+                <li>۲. برای مقایسه، دکمه + را در ۲ فایل بزنید</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- کانتینر اصلی Reels -->
+    <div class="reels-container">
+        <div class="swiper mySwiper">
+            <div class="swiper-wrapper">
+                {% for prop in properties %}
+                <div class="swiper-slide">
+                    
+                    <!-- مدیا (عکس یا ویدیو) -->
+                    {% set images = prop.image_urls|default('[]') %}
+                    {% set parsed_images = images.replace('[', '').replace(']', '').replace('"', '').split(',') %}
+                    
+                    {% if parsed_images|length > 0 and parsed_images[0] != "" %}
+                        {% if parsed_images[0].strip().endswith('.mp4') %}
+                            <video src="{{ parsed_images[0].strip() }}" class="media-layer" autoplay loop muted playsinline></video>
+                        {% else %}
+                            <img src="{{ parsed_images[0].strip() }}" class="media-layer" alt="{{ prop.title }}">
+                        {% endif %}
+                    {% else %}
+                        <div class="w-full h-full flex items-center justify-center bg-slate-800"><i class="ph-fill ph-house text-6xl text-slate-600"></i></div>
+                    {% endif %}
+
+                    <div class="overlay-gradient"></div>
+
+                    <!-- اطلاعات روی ویدیو -->
+                    <div class="absolute bottom-0 left-0 right-0 p-6 text-white z-10 flex flex-col justify-end">
+                        
+                        <div class="flex justify-between items-end mb-4">
+                            <div>
+                                <span class="bg-primary-500/80 backdrop-blur text-white text-[10px] font-bold px-2 py-1 rounded-lg mb-2 inline-block">
+                                    {% if 'APARTMENT' in prop.property_type %}آپارتمان
+                                    {% elif 'VILLA' in prop.property_type %}ویلایی
+                                    {% elif 'LAND' in prop.property_type %}زمین/کلنگی
+                                    {% else %}تجاری و اداری{% endif %}
+                                </span>
+                                <h3 class="text-xl font-bold line-clamp-2 leading-tight">{{ prop.title }}</h3>
+                                <p class="text-emerald-400 font-mono text-lg font-bold mt-1 dir-ltr text-right">
+                                    {% if prop.price_total > 0 %}{{ "{:,.0f}".format(prop.price_total) }} T{% else %}توافقی{% endif %}
+                                </p>
+                            </div>
+                            
+                            <!-- دکمه‌های اکشن عمودی (شبیه اینستاگرام) -->
+                            <div class="flex flex-col gap-4 items-center mb-2">
+                                <button onclick="window.open('/catalog/property/{{ prop.id }}', '_blank')" class="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-xl hover:bg-white/20 transition">
+                                    <i class="ph-fill ph-info"></i>
+                                </button>
+                                <!-- دکمه انتخاب برای مقایسه -->
+                                <button onclick="toggleCompare({{ prop.id }}, this)" data-prop='{"id": {{prop.id}}, "title": "{{prop.title}}", "price": {{prop.price_total}}, "area": {{prop.built_area}}, "pros": "{{prop.ai_pros|default('')}}", "img": "{{parsed_images[0].strip() if parsed_images|length > 0 else ''}}" }' class="w-12 h-12 rounded-full bg-indigo-500/80 backdrop-blur-md flex items-center justify-center text-xl hover:scale-110 transition shadow-lg shadow-indigo-500/50">
+                                    <i class="ph-bold ph-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- آیکون‌های امکانات -->
+                        <div class="flex flex-wrap gap-2 text-xs font-bold text-slate-200 border-t border-white/20 pt-4">
+                            <span class="flex items-center gap-1"><i class="ph-fill ph-ruler"></i> {{ prop.built_area }} متر</span>
+                            <span class="flex items-center gap-1"><i class="ph-fill ph-bed"></i> {{ prop.rooms }} خواب</span>
+                            <span class="flex items-center gap-1"><i class="ph-fill ph-map-pin"></i> {{ prop.neighborhood }}</span>
+                        </div>
+                        
+                        {% if prop.ai_pros %}
+                        <div class="mt-3 text-[11px] text-emerald-300 leading-relaxed line-clamp-2">
+                            <i class="ph-fill ph-sparkle"></i> {{ prop.ai_pros }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- پنل فول‌اسکرین مقایسه (Comparison Panel) -->
+<div id="comparison-panel">
+    <div class="flex justify-between items-center mb-8 max-w-5xl mx-auto w-full">
+        <h3 class="font-bold text-2xl flex items-center gap-2"><i class="ph-fill ph-scales text-indigo-400"></i> مقایسه دو فایل</h3>
+        <button onclick="closeComparison()" class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 transition flex items-center justify-center text-xl">
+            <i class="ph-bold ph-x"></i>
+        </button>
+    </div>
+    <div class="grid grid-cols-2 gap-6 max-w-5xl mx-auto w-full flex-1" id="comparison-content">
+        <!-- داینامیک با جاوااسکریپت پر می‌شود -->
+    </div>
+</div>
+
+<script>
+    // فعال‌سازی اسکرول عمودی Swiper
+    var swiper = new Swiper(".mySwiper", {
+        direction: "vertical",
+        mousewheel: true,
+        keyboard: true,
+        pagination: { el: ".swiper-pagination", clickable: true },
+    });
+
+    // سیستم مقایسه
+    let selectedForCompare = [];
+
+    function toggleCompare(id, btnElement) {
+        let propData = JSON.parse(btnElement.getAttribute('data-prop'));
+        
+        // اگر قبلاً انتخاب شده بود، درش بیار
+        let existingIndex = selectedForCompare.findIndex(p => p.id === id);
+        if (existingIndex > -1) {
+            selectedForCompare.splice(existingIndex, 1);
+            btnElement.innerHTML = '<i class="ph-bold ph-plus"></i>';
+            btnElement.classList.replace('bg-rose-500/80', 'bg-indigo-500/80');
+            return;
+        }
+
+        // اگر کمتر از ۲ تا انتخاب شده، اضافه کن
+        if (selectedForCompare.length < 2) {
+            selectedForCompare.push(propData);
+            btnElement.innerHTML = '<i class="ph-bold ph-check"></i>';
+            btnElement.classList.replace('bg-indigo-500/80', 'bg-rose-500/80');
+        }
+
+        // اگر ۲ تا شد، مودال مقایسه رو باز کن
+        if (selectedForCompare.length === 2) {
+            openComparison();
+        }
+    }
+
+    function openComparison() {
+        const panel = document.getElementById('comparison-panel');
+        const content = document.getElementById('comparison-content');
+        
+        let html = '';
+        selectedForCompare.forEach((p, index) => {
+            let imgTag = p.img ? (p.img.endsWith('.mp4') ? `<video src="${p.img}" class="w-full h-64 object-cover rounded-3xl mb-4" autoplay loop muted></video>` : `<img src="${p.img}" class="w-full h-64 object-cover rounded-3xl mb-4">`) : `<div class="w-full h-64 bg-slate-800 rounded-3xl mb-4 flex justify-center items-center"><i class="ph-fill ph-image text-5xl text-slate-600"></i></div>`;
+            
+            html += `
+                <div class="bg-slate-800/50 border border-slate-700 p-6 rounded-3xl flex flex-col relative overflow-hidden">
+                    ${index === 0 ? '<div class="absolute top-0 right-0 bg-indigo-500 text-white text-xs px-4 py-1 rounded-bl-xl z-10 font-bold">گزینه الف</div>' : '<div class="absolute top-0 right-0 bg-emerald-500 text-white text-xs px-4 py-1 rounded-bl-xl z-10 font-bold">گزینه ب</div>'}
+                    ${imgTag}
+                    <h4 class="text-xl font-bold mb-2 line-clamp-1">${p.title}</h4>
+                    <p class="text-3xl font-mono font-bold text-emerald-400 mb-6 dir-ltr text-right">${p.price > 0 ? p.price.toLocaleString() + ' <span class="text-sm">T</span>' : 'توافقی'}</p>
+                    
+                    <div class="space-y-3 flex-1">
+                        <div class="flex justify-between border-b border-slate-700 pb-2 text-sm">
+                            <span class="text-slate-400">متراژ:</span>
+                            <span class="font-bold">${p.area} متر</span>
+                        </div>
+                        <div class="border-b border-slate-700 pb-2 text-sm">
+                            <span class="text-slate-400 block mb-1"><i class="ph-fill ph-sparkle text-emerald-400"></i> مزایا (هوش مصنوعی):</span>
+                            <span class="font-bold text-slate-200 text-xs leading-relaxed">${p.pros || 'ثبت نشده'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        content.innerHTML = html;
+        panel.style.display = 'flex';
+    }
+
+    function closeComparison() {
+        document.getElementById('comparison-panel').style.display = 'none';
+        selectedForCompare = [];
+        // ریست کردن دکمه‌ها
+        document.querySelectorAll('button[data-prop]').forEach(btn => {
+            btn.innerHTML = '<i class="ph-bold ph-plus"></i>';
+            btn.classList.replace('bg-rose-500/80', 'bg-indigo-500/80');
+        });
+    }
+</script>
+{% endblock %}

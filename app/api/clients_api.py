@@ -1,10 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from sqlmodel import Session
+from sqlmodel import Session, select
+from typing import Optional
 from app.core.database import get_session
-from app.core.models import Client, DealType, FunnelStage
+from app.core.models import Client, DealType, FunnelStage, User
+import jwt
+from app.core.security import SECRET_KEY, ALGORITHM
 
 router = APIRouter(prefix="/api/clients", tags=["Clients"])
+
+def get_current_user_api(request: Request, session: Session):
+    token = request.cookies.get("access_token")
+    if not token: return None
+    try:
+        payload = jwt.decode(token.replace("Bearer ", ""), SECRET_KEY, algorithms=[ALGORITHM])
+        return session.exec(select(User).where(User.username == payload.get("sub"))).first()
+    except: return None
 
 class ClientCreateRequest(BaseModel):
     name: str
@@ -13,35 +24,29 @@ class ClientCreateRequest(BaseModel):
     budget_limit: float
 
 @router.post("/add")
-def add_client(data: ClientCreateRequest, session: Session = Depends(get_session)):
-    """API برای ثبت مشتری جدید در دفترچه و قیف فروش"""
+def add_client(data: ClientCreateRequest, request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401, detail="باید لاگین باشید")
     try:
-        # تبدیل نوع معامله به ثابت‌های سیستم
         d_type = DealType.SALE
         if data.deal_type_requested == "rent": d_type = DealType.RENT
         elif data.deal_type_requested == "partnership": d_type = DealType.PARTNERSHIP
 
-        # ساخت رکورد جدید مشتری
         new_client = Client(
-            agency_id=1, # فعلاً آژانس ۱ برای تست
-            user_id=1,   # فعلاً مشاور ۱ برای تست
+            agency_id=user.agency_id,
+            user_id=user.id,
             name=data.name,
             phone=data.phone,
             deal_type_requested=d_type,
             budget_limit=data.budget_limit,
-            funnel_stage=FunnelStage.LEAD # مشتری جدید همیشه وارد مرحله لید می‌شود
+            funnel_stage=FunnelStage.LEAD,
+            client_category="normal"
         )
-        
         session.add(new_client)
         session.commit()
-        
-        return {"status": "success", "message": "مشتری جدید با موفقیت به قیف فروش اضافه شد!"}
-    
+        return {"status": "success", "message": "مشتری جدید با موفقیت اضافه شد!"}
     except Exception as e:
-        print(f"❌ Error adding client: {e}")
-        raise HTTPException(status_code=500, detail="خطا در ذخیره اطلاعات مشتری در دیتابیس")
-
-# این کدها را به انتهای فایل app/api/clients_api.py اضافه کنید:
+        raise HTTPException(status_code=500, detail="خطا در ذخیره اطلاعات")
 
 class StageUpdateRequest(BaseModel):
     client_id: int
@@ -49,18 +54,36 @@ class StageUpdateRequest(BaseModel):
 
 @router.put("/update-stage")
 def update_client_stage(data: StageUpdateRequest, session: Session = Depends(get_session)):
-    """API برای ذخیره موقعیت جدید کارت مشتری در قیف فروش با کشیدن و رها کردن"""
     try:
-        # پیدا کردن مشتری در دیتابیس
         client = session.get(Client, data.client_id)
-        if not client:
-            raise HTTPException(status_code=404, detail="مشتری یافت نشد!")
-            
-        # آپدیت مرحله
+        if not client: raise HTTPException(status_code=404, detail="مشتری یافت نشد!")
         client.funnel_stage = data.new_stage
         session.commit()
-        
-        return {"status": "success", "message": "وضعیت مشتری در دیتابیس آپدیت شد"}
+        return {"status": "success", "message": "وضعیت مشتری آپدیت شد"}
     except Exception as e:
-        print(f"❌ Error updating funnel stage: {e}")
         raise HTTPException(status_code=500, detail="خطا در تغییر وضعیت مشتری")
+
+class CategoryUpdateRequest(BaseModel):
+    client_id: int
+    category: str
+
+class ClientFilterRequest(BaseModel):
+    category: Optional[str] = None
+    deal_type: Optional[str] = None
+    min_budget: Optional[float] = None
+    max_budget: Optional[float] = None
+
+@router.put("/update-category")
+def update_client_category(data: CategoryUpdateRequest, request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+    
+    client = session.get(Client, data.client_id)
+    if not client: raise HTTPException(status_code=404)
+    
+    valid_categories = ["normal", "vip", "hot_lead", "cold"]
+    if data.category not in valid_categories: raise HTTPException(status_code=400)
+        
+    client.client_category = data.category
+    session.commit()
+    return {"status": "success"}
