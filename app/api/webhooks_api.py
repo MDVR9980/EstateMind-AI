@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
 from pydantic import BaseModel
@@ -9,6 +10,7 @@ from app.core.models import (
     Requirement, Client, AgentNotification
 ) 
 from app.services.notifier import send_telegram_alert
+from app.core.socket_manager import notify_user_sync
 
 router = APIRouter(prefix="/api/webhooks", tags=["Webhooks"])
 
@@ -67,6 +69,8 @@ router = APIRouter(prefix="/api/webhooks", tags=["Webhooks"])
 # ==========================================
 # متغیر گلوبال برای ذخیره موقت وضعیت چت مشتریان در حافظه
 CLIENT_BOT_STATES = {}
+LAST_NOTIFIED = {}
+NOTIFICATION_COOLDOWN = 10
 
 TELEGRAM_CLIENT_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") 
 
@@ -79,15 +83,29 @@ def send_telegram_msg(chat_id, text, reply_markup=None):
 
 @router.post("/client-bot-webhook")
 async def telegram_client_bot(request: Request, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
-    """وب‌هوک اصلی ربات تلگرام مشتریان (ارتباط مستقیم با خریداران)"""
     try:
         data = await request.json()
-        
-        # بررسی اینکه آیا 토کن بات در env وجود دارد یا خیر
         if not TELEGRAM_CLIENT_BOT_TOKEN:
             return {"status": "ignored", "reason": "No bot token configured"}
 
-        # اگر کاربر دکمه‌ای را فشار داده باشد (Callback Query)
+        # 🌟 سیستم نوتیفیکیشن هوشمند (ضد اسپم + شناسایی نام مشتری) 🌟
+        if "message" in data or "callback_query" in data:
+            # استخراج اطلاعات کاربر (نام و آیدی)
+            from_data = data["message"]["from"] if "message" in data else data["callback_query"]["from"]
+            chat_id = from_data.get("id")
+            first_name = from_data.get("first_name", "یک مشتری")
+            
+            current_time = time.time()
+            # چک می‌کنیم آیا از آخرین نوتیفیکیشن این کاربر ۵ دقیقه گذشته یا نه
+            if current_time - LAST_NOTIFIED.get(chat_id, 0) > NOTIFICATION_COOLDOWN:
+                LAST_NOTIFIED[chat_id] = current_time
+                notify_user_sync(user_id=1, message={
+                    "type": "info",
+                    "title": "مشتری جدید در ربات! 📱",
+                    "message": f"«{first_name}» هم‌اکنون وارد ربات تلگرام شد و در حال جستجوی ملک است."
+                })
+
+        # --- ادامه منطق پاسخگویی ربات ---
         if "callback_query" in data:
             chat_id = data["callback_query"]["message"]["chat"]["id"]
             action = data["callback_query"]["data"]
@@ -99,42 +117,30 @@ async def telegram_client_bot(request: Request, background_tasks: BackgroundTask
                 CLIENT_BOT_STATES[chat_id] = {"step": "ask_hood", "deal_type": "رهن و اجاره"}
                 send_telegram_msg(chat_id, "بسیار خب! 🏙️ <b>در کدام محله</b> به دنبال ملک هستید؟\n(مثال: سجاد، هاشمیه)")
             
-            # پاسخ به تلگرام برای بستن لودینگ دکمه شیشه‌ای
             requests.get(f"https://api.telegram.org/bot{TELEGRAM_CLIENT_BOT_TOKEN}/answerCallbackQuery?callback_query_id={data['callback_query']['id']}")
             return {"status": "ok"}
 
-        # اگر کاربر پیام متنی داده باشد
         if "message" in data and "text" in data["message"]:
             chat_id = data["message"]["chat"]["id"]
             text = data["message"]["text"].strip()
 
-            # 1. مرحله شروع (Start)
             if text == "/start":
                 CLIENT_BOT_STATES[chat_id] = {"step": "start"}
-                markup = {
-                    "inline_keyboard": [
-                        [{"text": "💰 خرید ملک", "callback_data": "buy"}, {"text": "🔑 رهن و اجاره", "callback_data": "rent"}]
-                    ]
-                }
-                msg = "سلام! 👋 به دستیار هوشمند جستجوی ملک خوش آمدید.\nمن اینجا هستم تا بهترین فایل‌های آژانس را بر اساس نیاز شما پیدا کنم.\n\nلطفاً نوع درخواست خود را مشخص کنید:"
-                send_telegram_msg(chat_id, msg, reply_markup=markup)
+                markup = {"inline_keyboard": [[{"text": "💰 خرید ملک", "callback_data": "buy"}, {"text": "🔑 رهن و اجاره", "callback_data": "rent"}]]}
+                send_telegram_msg(chat_id, "سلام! 👋 به دستیار هوشمند جستجوی ملک خوش آمدید.\nمن اینجا هستم تا بهترین فایل‌های آژانس را بر اساس نیاز شما پیدا کنم.\n\nلطفاً نوع درخواست خود را مشخص کنید:", reply_markup=markup)
                 return {"status": "ok"}
 
-            # گرفتن استیت فعلی کاربر
             user_state = CLIENT_BOT_STATES.get(chat_id)
             if not user_state:
                 send_telegram_msg(chat_id, "لطفاً برای شروع مجدد عبارت /start را ارسال کنید.")
                 return {"status": "ok"}
 
-            # 2. مرحله دریافت محله
             if user_state["step"] == "ask_hood":
                 user_state["hood"] = text
                 user_state["step"] = "ask_budget"
-                msg = f"محله '<b>{text}</b>' ثبت شد. 🎯\nحداکثر <b>بودجه</b> شما چقدر است؟\n(لطفاً فقط عدد را به تومان وارد کنید. مثال: 10000000000)"
-                send_telegram_msg(chat_id, msg)
+                send_telegram_msg(chat_id, f"محله '<b>{text}</b>' ثبت شد. 🎯\nحداکثر <b>بودجه</b> شما چقدر است؟\n(لطفاً فقط عدد را به تومان وارد کنید. مثال: 10000000000)")
                 return {"status": "ok"}
 
-            # 3. مرحله دریافت بودجه و جستجو در دیتابیس CRM
             if user_state["step"] == "ask_budget":
                 try:
                     budget = float(text.replace(",", "").replace("تومان", "").strip())
@@ -144,44 +150,21 @@ async def telegram_client_bot(request: Request, background_tasks: BackgroundTask
 
                 hood = user_state["hood"]
                 deal = user_state["deal_type"]
-                
                 send_telegram_msg(chat_id, "🧠 در حال اسکن دیتابیس آژانس و بررسی فایل‌ها با هوش مصنوعی... لطفاً چند لحظه صبر کنید ⏳")
                 
-                # 🔍 جستجوی هوشمند در دیتابیس املاک (Property)
-                properties = session.exec(
-                    select(Property)
-                    .where(Property.deal_type == deal)
-                    .where(Property.status == "active")
-                ).all()
+                properties = session.exec(select(Property).where(Property.deal_type == deal).where(Property.status == "active")).all()
+                matches = [p for p in properties if (hood.replace(" ", "") in p.neighborhood.replace(" ", "") or p.neighborhood.replace(" ", "") in hood.replace(" ", "")) and (p.price_total <= budget or p.price_total == 0)]
 
-                matches = []
-                for p in properties:
-                    p_hood = p.neighborhood.replace(" ", "")
-                    h_query = hood.replace(" ", "")
-                    # تطابق محله و قیمت
-                    if (h_query in p_hood or p_hood in h_query) and (p.price_total <= budget or p.price_total == 0):
-                        matches.append(p)
-
-                # ارسال نتایج به مشتری
                 if not matches:
                     send_telegram_msg(chat_id, f"😔 متأسفانه در حال حاضر فایلی در محله <b>{hood}</b> با بودجه شما در سیستم ما موجود نیست.\nدرخواست شما ثبت شد و به محض شکار فایل جدید، به شما اطلاع خواهیم داد!\n\nبرای جستجوی جدید /start را بزنید.")
                 else:
-                    send_telegram_msg(chat_id, f"🎉 تبریک! <b>{len(matches)} فایل اکازیون</b> متناسب با نیاز شما در دیتابیس پیدا شد:\n⬇️⬇️⬇️")
-                    
-                    for m in matches[:3]: # ارسال حداکثر ۳ تا از بهترین فایل‌ها
+                    send_telegram_msg(chat_id, f"🎉 تبریک! <b>{len(matches)} فایل اکازیون</b> متناسب با نیاز شما پیدا شد:\n⬇️⬇️⬇️")
+                    for m in matches[:3]:
                         price_str = f"{int(m.price_total):,} تومان" if m.price_total > 0 else "توافقی"
-                        link = f"http://127.0.0.1:8000/catalog/property/{m.id}" # لینک کاتالوگ شما
-                        
-                        prop_msg = f"🏢 <b>{m.title}</b>\n"
-                        prop_msg += f"📍 <b>محله:</b> {m.neighborhood}\n"
-                        prop_msg += f"📐 <b>متراژ:</b> {m.built_area} متر | 🛏 <b>خواب:</b> {m.rooms}\n"
-                        prop_msg += f"💰 <b>قیمت:</b> {price_str}\n\n"
-                        prop_msg += f"✨ <b>نقطه قوت:</b> {m.ai_pros or 'موقعیت عالی'}\n"
-                        
-                        markup = {"inline_keyboard": [[{"text": "🌐 مشاهده کاتالوگ کامل و عکس‌ها", "url": link}]]}
-                        send_telegram_msg(chat_id, prop_msg, reply_markup=markup)
+                        link = f"http://127.0.0.1:8000/catalog/property/{m.id}"
+                        prop_msg = f"🏢 <b>{m.title}</b>\n📍 <b>محله:</b> {m.neighborhood}\n📐 <b>متراژ:</b> {m.built_area} متر | 🛏 <b>خواب:</b> {m.rooms}\n💰 <b>قیمت:</b> {price_str}\n\n✨ <b>نقطه قوت:</b> {m.ai_pros or 'موقعیت عالی'}\n"
+                        send_telegram_msg(chat_id, prop_msg, reply_markup={"inline_keyboard": [[{"text": "🌐 مشاهده کاتالوگ", "url": link}]]})
 
-                # پایان پروسه و پاک کردن استیت
                 del CLIENT_BOT_STATES[chat_id]
                 return {"status": "ok"}
 

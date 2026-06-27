@@ -30,8 +30,9 @@ from app.api.webhooks_api import router as webhooks_router
 from app.api.superadmin_api import router as superadmin_router
 from app.api.match_api import router as match_router
 from app.api.forms_api import router as forms_router
-from app.api.pricing_api import router as pricing_router # اضافه شده در فاز 2
-from app.api.nfc_api import router as nfc_router         # اضافه شده در فاز 2
+from app.api.pricing_api import router as pricing_router
+from app.api.nfc_api import router as nfc_router
+from app.api.ws_api import router as ws_router
 
 def run_crawler_job():
     """کرون‌جاب بک‌گراند برای استارت اتوماتیک خزش"""
@@ -92,8 +93,9 @@ app.include_router(webhooks_router)
 app.include_router(superadmin_router) 
 app.include_router(match_router)
 app.include_router(forms_router)
-app.include_router(pricing_router) # جدید
-app.include_router(nfc_router)     # جدید
+app.include_router(pricing_router)
+app.include_router(nfc_router)
+app.include_router(ws_router)
 
 os.makedirs("app/static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
