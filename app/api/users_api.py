@@ -3,7 +3,11 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 from app.core.database import get_session
 from app.core.models import User, UserRole
-from app.core.security import get_password_hash, SECRET_KEY, ALGORITHM, verify_password
+from app.core.security import (
+    get_password_hash, SECRET_KEY, 
+    ALGORITHM, verify_password, 
+    get_current_user_api,
+)
 import jwt
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
@@ -53,14 +57,6 @@ def delete_user(user_id: int, session: Session = Depends(get_session)):
         session.commit()
         return {"status": "success"}
     raise HTTPException(status_code=404, detail="کاربر یافت نشد")
-
-def get_current_user_api(request: Request, session: Session):
-    token = request.cookies.get("access_token")
-    if not token: return None
-    try:
-        payload = jwt.decode(token.replace("Bearer ", ""), SECRET_KEY, algorithms=[ALGORITHM])
-        return session.exec(select(User).where(User.username == payload.get("sub"))).first()
-    except: return None
 
 class ChangePasswordRequest(BaseModel):
     old_password: str

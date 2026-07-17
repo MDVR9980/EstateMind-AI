@@ -9,20 +9,11 @@ from sqlmodel import Session, select
 from datetime import datetime
 from app.core.database import get_session
 from app.core.models import Ticket, TicketReply, TicketStatus, TicketPriority, User
-from app.core.security import SECRET_KEY, ALGORITHM
+from app.core.security import SECRET_KEY, ALGORITHM, get_current_user_api
 
 router = APIRouter(prefix="/api/tickets", tags=["Tickets"])
 
 os.makedirs("uploads/tickets", exist_ok=True)
-
-# تابع احراز هویت مخصوص API ها
-def get_current_user_api(request: Request, session: Session):
-    token = request.cookies.get("access_token")
-    if not token: return None
-    try:
-        payload = jwt.decode(token.replace("Bearer ", ""), SECRET_KEY, algorithms=[ALGORITHM])
-        return session.exec(select(User).where(User.username == payload.get("sub"))).first()
-    except: return None
 
 class TicketCreateRequest(BaseModel):
     receiver_id: int

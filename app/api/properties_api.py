@@ -130,6 +130,8 @@ async def upload_temp_media(file: UploadFile = File(...)):
 
 @router.post("/save")
 def save_property_to_db(data: PropertyCreateRequest, session: Session = Depends(get_session)):
+    
+    user = get_current_user_api(request, session)
     try:
         # مپ کردن داده‌های فرم با Enums دیتابیس
         p_type = PropertyType.APARTMENT
@@ -146,7 +148,8 @@ def save_property_to_db(data: PropertyCreateRequest, session: Session = Depends(
         elif data.document_type == "ENDOWMENT": doc_type = DocumentType.ENDOWMENT
 
         new_property = Property(
-            agency_id=1, 
+            agency_id=user.agency_id, 
+            created_by_id=user.id,
             title=data.title,
             property_type=p_type,
             deal_type=d_type,

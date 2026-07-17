@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Request, APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session
 from datetime import datetime
 from app.core.database import get_session
 from app.core.models import Reminder
+from app.core.security import get_current_user_api
 
 router = APIRouter(prefix="/api/reminders", tags=["Reminders"])
 
@@ -14,13 +15,16 @@ class ReminderCreateRequest(BaseModel):
     remind_date: str # فرمت: YYYY-MM-DDTHH:MM
 
 @router.post("/add")
-def add_reminder(data: ReminderCreateRequest, session: Session = Depends(get_session)):
+def add_reminder(request: Request, data: ReminderCreateRequest, session: Session = Depends(get_session)):
+    
+    user = get_current_user_api(request, session)
+
     try:
         # تبدیل رشته تاریخ به فرمت استاندارد دیتابیس
         dt_obj = datetime.strptime(data.remind_date, "%Y-%m-%dT%H:%M")
         
         new_reminder = Reminder(
-            user_id=1, # فعلا مشاور تستی ۱
+            user_id=user.id,
             client_id=data.client_id if data.client_id > 0 else None,
             title=data.title,
             description=data.description,

@@ -5,18 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import Session, select
 from app.core.database import get_session
 import jwt
-from app.core.security import SECRET_KEY, ALGORITHM
+from app.core.security import SECRET_KEY, ALGORITHM, get_current_user_api
 from app.core.models import User, Property
 
 router = APIRouter(prefix="/api/crawler", tags=["Crawler"])
-
-def get_current_user_api(request: Request, session: Session):
-    token = request.cookies.get("access_token")
-    if not token: return None
-    try:
-        payload = jwt.decode(token.replace("Bearer ", ""), SECRET_KEY, algorithms=[ALGORITHM])
-        return session.exec(select(User).where(User.username == payload.get("sub"))).first()
-    except: return None
 
 @router.post("/start")
 def start_crawler_bot(request: Request, session: Session = Depends(get_session)):
@@ -28,7 +20,7 @@ def start_crawler_bot(request: Request, session: Session = Depends(get_session))
     # ما در اینجا اگر مشاور چند محله داشت (با کاما جدا شده)، فعلاً اولی را برمی‌داریم
     target_hood = "سجاد"
     if user.target_neighborhoods:
-        target_hood = user.target_neighborhoods.split(",")[0].strip()
+        target_hoods = user.target_neighborhoods.strip()
     
     # 🚀 بیدار کردن ربات در سیستم‌عامل (اجرای ایزوله بدون قفل کردن سرور)
     try:
@@ -36,7 +28,7 @@ def start_crawler_bot(request: Request, session: Session = Depends(get_session))
         script_path = "scripts/ghost_crawler.py"
         
         if os.path.exists(script_path):
-            subprocess.Popen([sys.executable, script_path, "mashhad", target_hood, str(user.id)])
+            subprocess.Popen([sys.executable, script_path, "mashhad", target_hoods, str(user.id)])
         
         return {
             "status": "success", 

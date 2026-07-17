@@ -66,9 +66,7 @@ def analyze_property_text(ad_text: str, target_hood: str, max_retries=4) -> dict
             end = raw_output.rfind('}') + 1
             if start != -1 and end != 0: raw_output = raw_output[start:end]
             
-            raw_output = raw_output.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
-            raw_output = raw_output.replace('"', '\\"').replace('\\"', '"') 
-            
+            raw_output = raw_output.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')            
             return json.loads(raw_output)
             
         except Exception as e:

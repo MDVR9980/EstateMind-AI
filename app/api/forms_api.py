@@ -1,6 +1,9 @@
 import os
 import shutil
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
+from fastapi import (
+    Request, APIRouter, Depends,
+    HTTPException, File, UploadFile, Form,
+)
 from sqlmodel import Session, select
 from app.core.database import get_session
 from app.core.models import UploadedForm
@@ -11,8 +14,11 @@ router = APIRouter(prefix="/api/forms", tags=["Forms"])
 os.makedirs("uploads/forms", exist_ok=True)
 
 @router.post("/upload")
-async def upload_form(title: str = Form(...), file: UploadFile = File(...), session: Session = Depends(get_session)):
+async def upload_form(request: Request, title: str = Form(...), file: UploadFile = File(...), session: Session = Depends(get_session)):
     """API آپلود فایل و ذخیره آدرس آن در دیتابیس"""
+    
+    user = get_current_user_api(request, session)
+
     try:
         # ساخت مسیر ذخیره فایل
         file_path = f"uploads/forms/{file.filename}"
@@ -22,7 +28,7 @@ async def upload_form(title: str = Form(...), file: UploadFile = File(...), sess
             shutil.copyfileobj(file.file, buffer)
         
         # ذخیره اطلاعات در دیتابیس
-        new_form = UploadedForm(agency_id=1, title=title, file_path=file_path)
+        new_form = UploadedForm(agency_id=user.agency_id, title=title, file_path=file_path)
         session.add(new_form)
         session.commit()
         

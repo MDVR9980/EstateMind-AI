@@ -1,3 +1,4 @@
+import json
 import sys
 import os
 import time
@@ -19,14 +20,15 @@ def publish_to_divar(property_id: int):
             print("❌ Property not found!")
             return
         
-        # پاک‌سازی و آماده‌سازی داده‌ها برای تایپ
-        title = prop.title.replace("'", "\\'")
-        price = int(prop.price_total) if prop.price_total else 0
-        area = int(prop.built_area) if prop.built_area else 0
+        # پاک‌سازی کاملاً امن با json.dumps برای جلوگیری از شکسته شدن جاوااسکریپت
+        js_title = json.dumps(prop.title or "")
+        js_price = json.dumps(str(int(prop.price_total)) if prop.price_total else "")
+        js_area = json.dumps(str(int(prop.built_area)) if prop.built_area else "")
+        
         desc = prop.description or ""
-        if prop.ai_pros: desc += f"\\n\\n✨ نقاط قوت:\\n{prop.ai_pros}"
-        if prop.ai_cons: desc += f"\\n\\n⚠️ موارد قابل توجه:\\n{prop.ai_cons}"
-        desc = desc.replace("\n", "\\n").replace("'", "\\'")
+        if prop.ai_pros: desc += f"\n\n✨ نقاط قوت:\n{prop.ai_pros}"
+        if prop.ai_cons: desc += f"\n\n⚠️ موارد قابل توجه:\n{prop.ai_cons}"
+        js_desc = json.dumps(desc)
 
     # ۲. راه‌اندازی مرورگر و تزریق جادوی ربات
     with sync_playwright() as p:
@@ -64,23 +66,23 @@ def publish_to_divar(property_id: int):
 
             document.getElementById('autofill-btn').onclick = function() {{
                 try {{
-                    // پر کردن عنوان
+                    // پر کردن عنوان (دقت کنید متغیرها بدون کوتیشن تزریق می‌شوند چون json.dumps خودش کوتیشن دارد)
                     let titleInput = document.querySelector('input[placeholder*="عنوان"], input[name="title"]');
-                    if(titleInput) {{ titleInput.value = '{title}'; titleInput.dispatchEvent(new Event('input', {{bubbles: true}})); }}
+                    if(titleInput) {{ titleInput.value = {js_title}; titleInput.dispatchEvent(new Event('input', {{bubbles: true}})); }}
                     
                     // پر کردن قیمت
                     let priceInputs = document.querySelectorAll('input[type="text"]');
                     priceInputs.forEach(i => {{ 
-                        if(i.placeholder.includes("تومان")) {{ i.value = '{price}'; i.dispatchEvent(new Event('input', {{bubbles: true}})); }} 
+                        if(i.placeholder.includes("تومان")) {{ i.value = {js_price}; i.dispatchEvent(new Event('input', {{bubbles: true}})); }} 
                     }});
                     
                     // پر کردن متراژ
                     let areaInput = document.querySelector('input[placeholder*="متر"]');
-                    if(areaInput) {{ areaInput.value = '{area}'; areaInput.dispatchEvent(new Event('input', {{bubbles: true}})); }}
+                    if(areaInput) {{ areaInput.value = {js_area}; areaInput.dispatchEvent(new Event('input', {{bubbles: true}})); }}
                     
                     // پر کردن توضیحات
                     let descInput = document.querySelector('textarea');
-                    if(descInput) {{ descInput.value = '{desc}'; descInput.dispatchEvent(new Event('input', {{bubbles: true}})); }}
+                    if(descInput) {{ descInput.value = {js_desc}; descInput.dispatchEvent(new Event('input', {{bubbles: true}})); }}
                     
                     this.innerText = "✅ فرم با موفقیت پر شد!";
                     this.style.background = "#10b981";

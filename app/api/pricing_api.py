@@ -6,17 +6,9 @@ from app.core.database import get_session
 from app.core.models import Property, User
 from app.services.ai_engine import generate_smart_comparison
 import jwt
-from app.core.security import SECRET_KEY, ALGORITHM
+from app.core.security import SECRET_KEY, ALGORITHM, get_current_user_api
 
 router = APIRouter(prefix="/api/pricing", tags=["Smart Pricing"])
-
-def get_current_user_api(request: Request, session: Session):
-    token = request.cookies.get("access_token")
-    if not token: return None
-    try:
-        payload = jwt.decode(token.replace("Bearer ", ""), SECRET_KEY, algorithms=[ALGORITHM])
-        return session.exec(select(User).where(User.username == payload.get("sub"))).first()
-    except: return None
 
 @router.get("/analyze/{property_id}")
 def analyze_property_price(property_id: int, request: Request, session: Session = Depends(get_session)):

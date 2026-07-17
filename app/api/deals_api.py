@@ -14,17 +14,9 @@ from sqlmodel import Session, select
 from app.core.database import get_session
 from app.core.models import Deal, Client, Property, FunnelStage, User, AgentMonthlyCommission
 import jwt
-from app.core.security import SECRET_KEY, ALGORITHM
+from app.core.security import SECRET_KEY, ALGORITHM, get_current_user_api
 
 router = APIRouter(prefix="/api/deals", tags=["Deals"])
-
-def get_current_user_api(request: Request, session: Session):
-    token = request.cookies.get("access_token")
-    if not token: return None
-    try:
-        payload = jwt.decode(token.replace("Bearer ", ""), SECRET_KEY, algorithms=[ALGORITHM])
-        return session.exec(select(User).where(User.username == payload.get("sub"))).first()
-    except: return None
 
 class DealCreateRequest(BaseModel):
     client_id: int
