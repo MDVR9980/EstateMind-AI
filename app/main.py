@@ -13,7 +13,8 @@ from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select, or_
 from app.core.models import (
     Property, Client, Deal, UploadedForm,
-    Reminder, Ticket, User, Agency 
+    Reminder, Ticket, User, Agency,
+    AgentMonthlyCommission,
 )
 from app.core.database import create_db_and_tables, get_session, engine 
 
@@ -235,7 +236,13 @@ async def render_financials(request: Request, session: Session = Depends(get_ses
     agent_share = total_revenue * 0.5  
     active_clients = session.exec(select(Client).where(Client.funnel_stage != "قرارداد موفق")).all()
     available_properties = session.exec(select(Property).where(Property.status == "active")).all()
-    return templates.TemplateResponse(request=request, name="dashboard/financials.html", context={"request": request, "page_title": "گزارشات مالی و عملکرد", "deals": deals, "total_revenue": total_revenue, "office_share": office_share, "agent_share": agent_share, "clients": active_clients, "properties": available_properties, "user": user})
+    agent_commissions = session.exec(
+        select(AgentMonthlyCommission, User.full_name)
+        .join(User, User.id == AgentMonthlyCommission.user_id)
+        .where(AgentMonthlyCommission.agency_id == user.agency_id)
+        .order_by(AgentMonthlyCommission.id.desc())
+    ).all()
+    return templates.TemplateResponse(request=request, name="dashboard/financials.html", context={"request": request, "page_title": "گزارشات مالی و عملکرد", "deals": deals, "total_revenue": total_revenue, "office_share": office_share, "agent_share": agent_share, "clients": active_clients, "properties": available_properties, "user": user, "agent_commissions": agent_commissions})
 
 @app.get("/settings")
 async def render_settings(request: Request, session: Session = Depends(get_session)):

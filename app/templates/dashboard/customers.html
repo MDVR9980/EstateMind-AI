@@ -48,9 +48,17 @@
                             </td>
                             <td class="p-4 text-center font-mono text-xs dir-ltr client-phone">{{ client.phone }}</td>
                             <td class="p-4 text-center">
-                                <span class="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 px-3 py-1 rounded-full text-xs font-bold border border-emerald-200 dark:border-emerald-800/50">
-                                    {% if client.deal_type_requested == 'SALE' %}خرید{% elif client.deal_type_requested == 'RENT' %}رهن و اجاره{% else %}مشارکت{% endif %}
-                                </span>
+                                <!-- انتخاب دسته‌بندی (VIP/عادی/داغ/سرد) -->
+                                <select onchange="changeClientCategory({{ client.id }}, this.value)" class="text-[10px] font-bold outline-none rounded-lg px-2 py-1 cursor-pointer
+                                    {% if client.client_category == 'vip' %} bg-purple-100 text-purple-700
+                                    {% elif client.client_category == 'hot_lead' %} bg-rose-100 text-rose-700
+                                    {% elif client.client_category == 'cold' %} bg-gray-100 text-gray-600
+                                    {% else %} bg-emerald-50 text-emerald-700 {% endif %}">
+                                    <option value="normal" {% if client.client_category == 'normal' %}selected{% endif %}>مشتری عادی</option>
+                                    <option value="vip" {% if client.client_category == 'vip' %}selected{% endif %}>مشتری VIP 👑</option>
+                                    <option value="hot_lead" {% if client.client_category == 'hot_lead' %}selected{% endif %}>متقاضی داغ 🔥</option>
+                                    <option value="cold" {% if client.client_category == 'cold' %}selected{% endif %}>پیگیری در آینده ❄️</option>
+                                </select>
                             </td>
                             <td class="p-4 text-center font-mono text-xs text-primary-600 dark:text-primary-400 font-bold">
                                 {% if client.budget_limit > 0 %}
@@ -65,8 +73,11 @@
                                 </span>
                             </td>
                             <td class="p-4 text-center flex justify-center gap-2">
+                                <button onclick="openRequirementModal({{ client.id }}, '{{ client.name }}')" class="bg-amber-100 text-amber-700 hover:bg-amber-500 hover:text-white font-bold py-1.5 px-3 rounded-xl text-xs shadow-sm flex items-center gap-1 transition">
+                                    <i class="ph-bold ph-target"></i> ردیابی دقیق
+                                </button>
                                 <button onclick="aiClientMatch('{{ client.name }}')" class="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-bold py-1.5 px-3 rounded-xl text-xs shadow-sm flex items-center gap-1 transition">
-                                    <i class="ph-fill ph-magic-wand"></i> مچینگ AI
+                                    <i class="ph-fill ph-magic-wand"></i> مچینگ
                                 </button>
                             </td>
                         </tr>
@@ -151,6 +162,73 @@
                     const res = await fetch("/api/clients/add", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(result.value) });
                     if (res.ok) { window.location.reload(); }
                 } catch (e) { Swal.fire('خطا', 'مشکل شبکه!', 'error'); }
+            }
+        });
+    }
+
+    async function changeClientCategory(clientId, category) {
+        try {
+            const res = await fetch("/api/clients/update-category", {
+                method: "PUT",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({client_id: clientId, category: category})
+            });
+            if (res.ok) {
+                Swal.fire({toast: true, position: 'bottom-end', icon: 'success', title: 'وضعیت مشتری تغییر کرد', showConfirmButton: false, timer: 1500})
+                .then(() => window.location.reload());
+            }
+        } catch(e) { Swal.fire('خطا', 'مشکل شبکه', 'error'); }
+    }
+
+    function openRequirementModal(clientId, clientName) {
+        Swal.fire({
+            title: `ثبت نیاز دقیق ${clientName} 🎯`,
+            html: `
+                <div class="text-right space-y-4 mt-4">
+                    <p class="text-xs text-slate-500 mb-4">با ثبت این فرم، هرگاه فایلی با این مشخصات در سیستم ثبت شود، سریعاً روی مانیتور شما آلارم ظاهر می‌شود!</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold mb-1">نوع درخواست</label>
+                            <select id="r-deal" class="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-sm outline-none">
+                                <option value="sale">خرید</option>
+                                <option value="rent">رهن و اجاره</option>
+                                <option value="partnership">مشارکت</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold mb-1">نوع ملک</label>
+                            <select id="r-prop" class="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-sm outline-none">
+                                <option value="apartment">آپارتمان</option>
+                                <option value="villa">ویلایی</option>
+                                <option value="land">زمین / کلنگی</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">محله‌های درخواستی (با ویرگول جدا کنید)</label>
+                        <input id="r-hoods" class="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-sm outline-none" placeholder="مثال: سجاد، هاشمیه، هنرستان">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">حداکثر بودجه (تومان)</label>
+                        <input id="r-budget" dir="ltr" onkeyup="formatPriceInput(this)" class="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-sm outline-none font-mono" placeholder="مثال: 10,000,000,000">
+                    </div>
+                </div>
+            `,
+            showCancelButton: true, confirmButtonText: 'فعال‌سازی ردیاب', cancelButtonText: 'انصراف',
+            preConfirm: () => {
+                return {
+                    client_id: clientId,
+                    deal_type: document.getElementById('r-deal').value,
+                    property_type: document.getElementById('r-prop').value,
+                    preferred_neighborhoods: document.getElementById('r-hoods').value,
+                    max_budget: parseFloat(document.getElementById('r-budget').value.replace(/,/g, '')) || 0
+                }
+            }
+        }).then(async (res) => {
+            if(res.isConfirmed) {
+                Swal.fire({title: 'در حال ذخیره...', didOpen:()=>{Swal.showLoading()}});
+                let apiRes = await fetch("/api/clients/add-requirement", {method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(res.value)});
+                if(apiRes.ok) Swal.fire('فعال شد!', 'سیستم ردیاب هوشمند برای این مشتری فعال شد.', 'success');
             }
         });
     }

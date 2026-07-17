@@ -3,7 +3,10 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 from typing import Optional
 from app.core.database import get_session
-from app.core.models import Client, DealType, FunnelStage, User
+from app.core.models import (
+    Client, DealType, FunnelStage, 
+    User, Requirement, PropertyType,
+)
 import jwt
 from app.core.security import SECRET_KEY, ALGORITHM, get_current_user_api
 
@@ -79,3 +82,39 @@ def update_client_category(data: CategoryUpdateRequest, request: Request, sessio
     client.client_category = data.category
     session.commit()
     return {"status": "success"}
+
+class RequirementCreateRequest(BaseModel):
+    client_id: int
+    deal_type: str
+    property_type: str
+    max_budget: float
+    preferred_neighborhoods: str
+
+@router.post("/add-requirement")
+def add_requirement(data: RequirementCreateRequest, request: Request, session: Session = Depends(get_session)):
+    """API ثبت فرم نیاز دقیق مشتری برای ردیابی هوشمند"""
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+    
+    # مپ کردن نوع معامله و ملک
+    d_type = DealType.SALE
+    if data.deal_type == "rent": d_type = DealType.RENT
+    elif data.deal_type == "partnership": d_type = DealType.PARTNERSHIP
+        
+    p_type = PropertyType.APARTMENT
+    if data.property_type == "villa": p_type = PropertyType.VILLA
+    elif data.property_type == "land": p_type = PropertyType.LAND
+    elif data.property_type == "commercial": p_type = PropertyType.COMMERCIAL
+
+    new_req = Requirement(
+        agency_id=user.agency_id,
+        client_id=data.client_id,
+        created_by_user_id=user.id,
+        deal_type=d_type,
+        property_type=p_type,
+        max_budget=data.max_budget,
+        preferred_neighborhoods=data.preferred_neighborhoods
+    )
+    session.add(new_req)
+    session.commit()
+    return {"status": "success", "message": "نیاز مشتری با موفقیت ثبت شد و در رادار سیستم قرار گرفت!"}

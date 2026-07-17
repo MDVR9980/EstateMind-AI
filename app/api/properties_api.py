@@ -19,7 +19,11 @@ from app.core.database import get_session
 from app.core.models import Property, PropertyType, DealType, DocumentType
 from app.services.vector_db import add_property_to_vector_db
 from app.services.notifier import send_telegram_alert
-from app.core.models import User, Client, AgentNotification, Property, Reminder, FunnelStage
+from app.core.models import (
+    User, Client, AgentNotification, 
+    Property, Reminder, FunnelStage,
+    Requirement,
+)
 from app.core.socket_manager import notify_user_sync
 from app.services.ai_engine import generate_smart_comparison
 
@@ -182,40 +186,45 @@ def save_property_to_db(data: PropertyCreateRequest, session: Session = Depends(
         
         # ====== سیستم مچینگ هوشمند مشتریان (Live Alerts) ======
         try:
-            # پیدا کردن مشتریانی که معامله‌شان هنوز باز است و بودجه‌شان به این فایل می‌خورد
-            matching_clients = session.exec(
-                select(Client)
-                .where(Client.agency_id == new_property.agency_id)
-                .where(Client.funnel_stage != FunnelStage.WON)
-                .where(Client.funnel_stage != FunnelStage.LOST)
-                .where(or_(Client.budget_limit >= new_property.price_total, Client.budget_limit == 0))
+            # حالا به جای کلاینت خام، جدول Requirement (نیازهای دقیق) را می‌خوانیم
+            requirements = session.exec(
+                select(Requirement)
+                .where(Requirement.agency_id == new_property.agency_id)
+                .where(Requirement.deal_type == new_property.deal_type)
+                .where(Requirement.property_type == new_property.property_type)
             ).all()
 
-            for client in matching_clients:
-                # 1. ثبت یادآور برای مشاور صاحب مشتری
-                new_rem = Reminder(
-                    user_id=client.user_id,
-                    client_id=client.id,
-                    property_id=new_property.id,
-                    title=f"🎯 تطابق طلایی: {client.name}",
-                    description=f"فایل جدید '{new_property.title}' دقیقاً با بودجه مشتری شما همخوانی دارد. سریعاً با او تماس بگیرید!",
-                    remind_date=datetime.utcnow()
-                )
-                session.add(new_rem)
+            for req in requirements:
+                # چک کردن بودجه و محله
+                if (req.max_budget == 0 or new_property.price_total <= req.max_budget):
+                    # آیا محله فایل جدید، داخل محله‌های درخواستی مشتری هست؟
+                    if new_property.neighborhood in req.preferred_neighborhoods or req.preferred_neighborhoods in new_property.neighborhood:
+                        
+                        client = session.get(Client, req.client_id)
+                        if not client or client.funnel_stage in [FunnelStage.WON, FunnelStage.LOST]:
+                            continue # اگر معامله بسته شده بود، آلارم نده
+                            
+                        # 1. ثبت یادآور برای مشاور
+                        new_rem = Reminder(
+                            user_id=req.created_by_user_id,
+                            client_id=client.id,
+                            property_id=new_property.id,
+                            title=f"🎯 تطابق طلایی: {client.name}",
+                            description=f"فایل جدید '{new_property.title}' دقیقاً در محله درخواستی و بودجه این مشتری است!",
+                            remind_date=datetime.utcnow()
+                        )
+                        session.add(new_rem)
 
-                # 2. ثبت نوتیفیکیشن زنگوله
-                notif = AgentNotification(
-                    user_id=client.user_id,
-                    message=f"فایل مناسب برای مشتری شما ({client.name}) شکار شد!"
-                )
-                session.add(notif)
-                
-                # 3. ارسال پیام زنده روی مانیتور مشاور (WebSockets)
-                notify_user_sync(client.user_id, {
-                    "type": "success",
-                    "title": "شکار طلایی! 🎯",
-                    "message": f"فایلی مطابق با نیاز مشتری شما ({client.name}) هم‌اکنون در سیستم ثبت شد."
-                })
+                        # 2. ثبت نوتیفیکیشن
+                        notif = AgentNotification(user_id=req.created_by_user_id, message=f"فایل اکازیون برای {client.name} شکار شد!")
+                        session.add(notif)
+                        
+                        # 3. پوش نوتیفیکیشن زنده
+                        notify_user_sync(req.created_by_user_id, {
+                            "type": "success",
+                            "title": "شکار طلایی! 🎯",
+                            "message": f"فایلی در محله {new_property.neighborhood} مطابق با نیاز مشتری شما ({client.name}) ثبت شد."
+                        })
             
             session.commit()
         except Exception as match_err:
