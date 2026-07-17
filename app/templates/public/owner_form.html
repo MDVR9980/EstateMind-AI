@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>body { font-family: 'Vazirmatn', sans-serif; background-color: #f8fafc; }</style>
+</head>
+<body class="text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-lg bg-white rounded-3xl shadow-xl overflow-hidden">
+        <div class="bg-gradient-to-r from-primary-600 to-primary-800 p-6 text-white text-center">
+            <div class="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full mx-auto flex items-center justify-center text-3xl mb-3"><i class="ph-fill ph-house-line"></i></div>
+            <h2 class="text-xl font-bold mb-1">سپردن ملک به آژانس</h2>
+            <p class="text-xs text-primary-200">{{ agency.name }} (به مدیریت {{ agency.owner_name }})</p>
+        </div>
+
+        <form id="ownerForm" class="p-6 space-y-4 text-sm" onsubmit="submitOwnerForm(event)">
+            <input type="hidden" id="o-agency" value="{{ agency.id }}">
+            
+            <div><label class="block font-bold mb-1 text-slate-700">عنوان آگهی</label><input type="text" id="o-title" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:border-primary-500" placeholder="مثال: فروش آپارتمان ۱۰۰ متری"></div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div><label class="block font-bold mb-1 text-slate-700">نوع ملک</label><select id="o-ptype" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:border-primary-500"><option value="apartment">آپارتمان</option><option value="villa">ویلایی</option><option value="land">زمین / کلنگی</option></select></div>
+                <div><label class="block font-bold mb-1 text-slate-700">نوع واگذاری</label><select id="o-dtype" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:border-primary-500"><option value="sale">فروش</option><option value="rent">رهن و اجاره</option></select></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div><label class="block font-bold mb-1 text-slate-700">متراژ</label><input type="number" id="o-area" required dir="ltr" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:border-primary-500"></div>
+                <div><label class="block font-bold mb-1 text-slate-700">محله</label><input type="text" id="o-hood" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:border-primary-500"></div>
+            </div>
+
+            <div><label class="block font-bold mb-1 text-slate-700">مبلغ کل (تومان)</label><input type="text" id="o-price" required dir="ltr" onkeyup="this.value = this.value.replace(/,/g, '').replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',')" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:border-primary-500 font-mono" placeholder="مثال: 5,000,000,000"></div>
+
+            <hr class="border-gray-100 my-4">
+
+            <div class="grid grid-cols-2 gap-4">
+                <div><label class="block font-bold mb-1 text-slate-700">نام شما</label><input type="text" id="o-name" required class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:border-primary-500"></div>
+                <div><label class="block font-bold mb-1 text-slate-700">موبایل شما</label><input type="text" id="o-phone" required dir="ltr" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:border-primary-500"></div>
+            </div>
+
+            <div><label class="block font-bold mb-1 text-slate-700">توضیحات تکمیلی</label><textarea id="o-desc" rows="3" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:border-primary-500" placeholder="امکانات، شرایط پرداخت و..."></textarea></div>
+
+            <button type="submit" id="btn-submit" class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary-500/30 transition mt-4">ثبت نهایی و ارسال به آژانس</button>
+        </form>
+    </div>
+
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Vazirmatn'] }, colors: { primary: { 500: '#10b981', 600: '#059669', 800: '#065f46' } } } } };
+
+        async function submitOwnerForm(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit');
+            btn.innerText = "در حال ارسال اطلاعات..."; btn.disabled = true;
+
+            const payload = {
+                agency_id: parseInt(document.getElementById('o-agency').value),
+                title: document.getElementById('o-title').value,
+                property_type: document.getElementById('o-ptype').value,
+                deal_type: document.getElementById('o-dtype').value,
+                neighborhood: document.getElementById('o-hood').value,
+                built_area: parseFloat(document.getElementById('o-area').value),
+                price_total: parseFloat(document.getElementById('o-price').value.replace(/,/g, '')),
+                owner_name: document.getElementById('o-name').value,
+                owner_phone: document.getElementById('o-phone').value,
+                description: document.getElementById('o-desc').value
+            };
+
+            try {
+                const res = await fetch("/api/properties/public-save", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(payload) });
+                if(res.ok) {
+                    Swal.fire({icon: 'success', title: 'دریافت شد!', text: 'اطلاعات ملک شما با موفقیت ثبت شد. مشاوران ما به زودی با شما تماس می‌گیرند.', confirmButtonText: 'تایید'}).then(() => window.location.reload());
+                } else Swal.fire('خطا', 'مشکلی پیش آمد.', 'error');
+            } catch(err) { Swal.fire('خطا', 'مشکل ارتباط با سرور', 'error'); }
+            finally { btn.innerText = "ثبت نهایی و ارسال به آژانس"; btn.disabled = false; }
+        }
+    </script>
+</body>
+</html>

@@ -18,6 +18,9 @@
                 <button class="flex items-center gap-3 px-4 py-3 rounded-2xl bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400 font-bold transition">
                     <i class="ph-fill ph-folder-open"></i> زونکن مدارک
                 </button>
+                <button onclick="showMyCardQr()" class="flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
+                    <i class="ph-fill ph-identification-card"></i> کارت ویزیت دیجیتال من (NFC)
+                </button>
                 <button onclick="changePasswordModal()" class="flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800 font-medium transition">
                     <i class="ph-fill ph-lock-key"></i> تغییر رمز عبور
                 </button>
@@ -120,6 +123,28 @@
                 // اینجا در آینده میتونی به API تغییر رمز وصلش کنی
                 Swal.fire('موفق', 'رمز عبور با موفقیت تغییر کرد.', 'success');
             }
+        });
+    }
+
+    function showMyCardQr() {
+        const qrUrl = `/api/nfc/agent-qr`;
+        const myCardUrl = `${window.location.origin}/card/{{ user.username }}`;
+        
+        Swal.fire({
+            title: 'کارت ویزیت دیجیتال شما 🪪',
+            html: `
+                <div class="text-center">
+                    <p class="text-sm text-slate-600 dark:text-slate-300 mb-4">برای تنظیم تگ NFC، لینک زیر را روی کارت خود رایت کنید.</p>
+                    <div class="bg-white p-3 rounded-3xl shadow-sm border border-gray-100 inline-block mb-4">
+                        <img src="${qrUrl}" class="w-48 h-48 rounded-xl object-contain">
+                    </div>
+                    <div class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 p-3 rounded-2xl flex items-center justify-between gap-3">
+                        <span class="text-xs font-mono text-slate-500 dir-ltr truncate flex-1 text-left">${myCardUrl}</span>
+                        <a href="${myCardUrl}" target="_blank" class="bg-primary-100 text-primary-700 px-3 py-1.5 rounded-xl font-bold text-xs">مشاهده کارت</a>
+                    </div>
+                </div>
+            `,
+            showConfirmButton: false, showCloseButton: true
         });
     }
 </script>

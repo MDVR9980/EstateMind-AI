@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { font-family: 'Vazirmatn', sans-serif; background-color: #0f172a; }</style>
+</head>
+<body class="text-white flex flex-col items-center min-h-screen p-4 relative overflow-hidden">
+
+    <!-- افکت‌های پس‌زمینه شیک -->
+    <div class="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-emerald-600/30 to-transparent z-0"></div>
+    <div class="absolute top-20 right-0 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl z-0"></div>
+
+    <div class="w-full max-w-sm mt-12 z-10 relative">
+        <!-- عکس مشاور -->
+        <div class="relative w-32 h-32 mx-auto mb-6">
+            <img src="https://ui-avatars.com/api/?name={{ agent.full_name.replace(' ', '+') }}&background=10b981&color=fff&size=256" class="w-full h-full rounded-full border-4 border-slate-800 shadow-2xl object-cover">
+            <div class="absolute bottom-1 right-1 w-6 h-6 bg-emerald-500 border-2 border-slate-800 rounded-full animate-pulse"></div>
+        </div>
+
+        <!-- اطلاعات فردی -->
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-bold mb-1">{{ agent.full_name }}</h1>
+            <p class="text-emerald-400 font-bold text-sm mb-3">مشاور و کارشناس ارشد املاک</p>
+            <div class="inline-flex items-center gap-2 bg-slate-800/80 backdrop-blur-md px-4 py-2 rounded-full border border-slate-700 text-xs text-slate-300">
+                <i class="ph-fill ph-buildings text-emerald-500"></i> {{ agency.name }} (کد آژانس: {{ agency.id }})
+            </div>
+        </div>
+
+        <!-- دکمه‌های ارتباطی -->
+        <div class="space-y-4">
+            <a href="tel:{{ agent.username }}" class="w-full bg-white hover:bg-gray-100 text-slate-900 font-bold py-4 px-6 rounded-2xl flex items-center justify-between shadow-lg transition">
+                <span class="flex items-center gap-3"><i class="ph-fill ph-phone-call text-2xl text-emerald-600"></i> تماس مستقیم</span>
+                <span class="font-mono dir-ltr">{{ agent.username }}</span>
+            </a>
+            
+            <a href="https://wa.me/98{{ agent.username[1:] }}" target="_blank" class="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-between shadow-lg transition">
+                <span class="flex items-center gap-3"><i class="ph-fill ph-whatsapp-logo text-2xl"></i> ارتباط در واتساپ</span>
+                <i class="ph-bold ph-caret-left"></i>
+            </a>
+
+            <!-- دکمه سپردن ملک که به فرم آنلاین وصل است -->
+            <a href="/submit-property/{{ agency.id }}" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-between shadow-lg transition">
+                <span class="flex items-center gap-3"><i class="ph-fill ph-house-line text-2xl text-blue-400"></i> سپردن ملک به من (آنلاین)</span>
+                <i class="ph-bold ph-caret-left"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- فوتر کوچک -->
+    <div class="mt-auto pt-10 pb-4 text-center z-10">
+        <p class="text-[10px] text-slate-500">طراحی شده توسط EstateMind AI CRM</p>
+    </div>
+
+</body>
+</html>

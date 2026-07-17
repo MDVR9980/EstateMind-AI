@@ -37,3 +37,22 @@ def generate_property_qr(property_id: int, request: Request, session: Session = 
     buffer.seek(0)
 
     return StreamingResponse(buffer, media_type="image/png", headers={"Content-Disposition": f"attachment; filename=qr_{property_id}.png"})
+
+@router.get("/agent-qr")
+def generate_agent_qr(request: Request, session: Session = Depends(get_session)):
+    """تولید QR Code لینک کارت ویزیت دیجیتال مشاور (برای چاپ یا NFC)"""
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+
+    url = f"https://estatemind.ir/card/{user.username}"
+
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+    qr.add_data(url)
+    qr.make(fit=True)
+
+    img = qr.make_image(fill_color="#0f172a", back_color="white")
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    buffer.seek(0)
+
+    return StreamingResponse(buffer, media_type="image/png")

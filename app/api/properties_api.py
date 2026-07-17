@@ -516,3 +516,50 @@ def generate_ai_details(property_id: int, session: Session = Depends(get_session
     session.commit()
     
     return {"status": "success", "pros": prop.ai_pros, "cons": prop.ai_cons}
+
+class PublicPropertyCreateRequest(BaseModel):
+    agency_id: int
+    title: str
+    property_type: str
+    deal_type: str
+    neighborhood: str
+    built_area: float
+    price_total: float
+    owner_name: str
+    owner_phone: str
+    description: str
+
+@router.post("/public-save")
+def save_property_from_owner(data: PublicPropertyCreateRequest, session: Session = Depends(get_session)):
+    """API ذخیره فایل مستقیم توسط صاحب ملک (بدون نیاز به احراز هویت)"""
+    try:
+        p_type = PropertyType.APARTMENT
+        if data.property_type == "villa": p_type = PropertyType.VILLA
+        elif data.property_type == "land": p_type = PropertyType.LAND
+
+        d_type = DealType.SALE
+        if data.deal_type == "rent": d_type = DealType.RENT
+        
+        new_property = Property(
+            agency_id=data.agency_id, 
+            title=data.title,
+            property_type=p_type,
+            deal_type=d_type,
+            city="مشهد", # پیش‌فرض یا گرفتن از فرم
+            neighborhood=data.neighborhood,
+            built_area=data.built_area,
+            price_total=data.price_total,
+            owner_name=data.owner_name,
+            owner_phone=data.owner_phone,
+            description=f"ثبت شده توسط مالک از طریق فرم آنلاین:\n{data.description}",
+            is_exclusive=True, # فایلی که مالک مستقیم میده معمولا شخصیه
+            status="active",
+            publisher="مالک (ثبت آنلاین)"
+        )
+        
+        session.add(new_property)
+        session.commit()
+        return {"status": "success", "message": "ملک شما با موفقیت در سیستم آژانس ثبت شد."}
+    except Exception as e:
+        print(f"❌ Owner Submit Error: {e}")
+        raise HTTPException(status_code=500, detail="خطا در ثبت اطلاعات")

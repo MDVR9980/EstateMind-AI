@@ -180,6 +180,23 @@ async def render_login(request: Request, session: Session = Depends(get_session)
     if user: return RedirectResponse(url="/")
     return templates.TemplateResponse(request=request, name="auth/login.html", context={"request": request, "page_title": "ورود به EstateMind"})
 
+@app.get("/submit-property/{agency_id}")
+async def render_owner_form(agency_id: int, request: Request, session: Session = Depends(get_session)):
+    """نمایش فرم ثبت ملک به مالک"""
+    agency = session.get(Agency, agency_id)
+    if not agency: 
+        return HTMLResponse("<h1>آژانس یافت نشد</h1>", status_code=404)
+    return templates.TemplateResponse(request=request, name="public/owner_form.html", context={"request": request, "agency": agency, "page_title": "ثبت ملک شما"})
+
+@app.get("/card/{username}")
+async def render_agent_card(username: str, request: Request, session: Session = Depends(get_session)):
+    """نمایش کارت ویزیت دیجیتال مشاور (برای اسکن NFC)"""
+    agent = session.exec(select(User).where(User.username == username)).first()
+    if not agent: 
+        return HTMLResponse("<h1>مشاور یافت نشد</h1>", status_code=404)
+    agency = session.get(Agency, agent.agency_id)
+    return templates.TemplateResponse(request=request, name="public/agent_card.html", context={"request": request, "agent": agent, "agency": agency, "page_title": f"کارت ویزیت {agent.full_name}"})
+
 @app.get("/funnel")
 async def render_funnel(request: Request, session: Session = Depends(get_session)):
     user = get_current_user(request, session)
