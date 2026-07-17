@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlmodel import Session, select
+from sqlmodel import Session, select, or_
 from app.core.models import (
     Property, Client, Deal, UploadedForm,
     Reminder, Ticket, User, Agency 
@@ -140,20 +140,40 @@ async def render_login(request: Request, session: Session = Depends(get_session)
 async def render_funnel(request: Request, session: Session = Depends(get_session)):
     user = get_current_user(request, session)
     if not user: return RedirectResponse(url="/login")
+    
     stages = [
         {"id": "لید جدید", "name": "تماس اولیه (لید جدید)", "color": "border-blue-500", "bg": "bg-blue-50 dark:bg-blue-900/10"},
         {"id": "بازدید", "name": "در حال بازدید", "color": "border-amber-500", "bg": "bg-amber-50 dark:bg-amber-900/10"},
         {"id": "جلسه در دفتر", "name": "جلسه و مذاکره", "color": "border-purple-500", "bg": "bg-purple-50 dark:bg-purple-900/10"},
         {"id": "قرارداد موفق", "name": "قرارداد موفق", "color": "border-emerald-500", "bg": "bg-emerald-50 dark:bg-emerald-900/10"},
     ]
-    clients = session.exec(select(Client).order_by(Client.id.desc())).all()
+    
+    # 🔒 فیلتر امنیتی: مدیر کل مشتریان آژانس را می‌بیند، مشاور فقط مشتریان خودش را
+    if user.role in ["SUPER_ADMIN", "MANAGER"]:
+        clients = session.exec(select(Client).where(Client.agency_id == user.agency_id).order_by(Client.id.desc())).all()
+    else:
+        clients = session.exec(select(Client).where(Client.user_id == user.id).order_by(Client.id.desc())).all()
+        
     return templates.TemplateResponse(request=request, name="dashboard/funnel.html", context={"request": request, "page_title": "مدیریت قیف فروش (Kanban)", "stages": stages, "clients": clients, "user": user})
 
 @app.get("/properties")
 async def render_properties_list(request: Request, session: Session = Depends(get_session)):
     user = get_current_user(request, session)
     if not user: return RedirectResponse(url="/login")
-    properties_list = session.exec(select(Property).order_by(Property.id.desc())).all()
+    
+    # 🔒 فیلتر امنیتی فایل‌ها
+    if user.role in ["SUPER_ADMIN", "MANAGER"]:
+        # مدیر کل فایل‌های آژانس را می‌بیند
+        properties_list = session.exec(select(Property).where(Property.agency_id == user.agency_id).order_by(Property.id.desc())).all()
+    else:
+        # مشاور فقط فایل‌های خودش + فایل‌هایی که همکاران عمومی کرده‌اند را می‌بیند
+        properties_list = session.exec(
+            select(Property)
+            .where(Property.agency_id == user.agency_id)
+            .where(or_(Property.created_by_id == user.id, Property.is_exclusive == False))
+            .order_by(Property.id.desc())
+        ).all()
+        
     return templates.TemplateResponse(request=request, name="dashboard/properties_list.html", context={"request": request, "page_title": "مدیریت فایل‌ها", "properties": properties_list, "user": user})
 
 @app.get("/properties/add")
@@ -185,9 +205,15 @@ async def render_settings(request: Request, session: Session = Depends(get_sessi
 async def render_customers(request: Request, session: Session = Depends(get_session)):
     user = get_current_user(request, session)
     if not user: return RedirectResponse(url="/login")
-    clients_list = session.exec(select(Client).order_by(Client.id.desc())).all()
+    
+    # 🔒 فیلتر امنیتی دفترچه مشتریان
+    if user.role in ["SUPER_ADMIN", "MANAGER"]:
+        clients_list = session.exec(select(Client).where(Client.agency_id == user.agency_id).order_by(Client.id.desc())).all()
+    else:
+        clients_list = session.exec(select(Client).where(Client.user_id == user.id).order_by(Client.id.desc())).all()
+        
     return templates.TemplateResponse(request=request, name="dashboard/customers.html", context={"request": request, "page_title": "دفترچه مشتریان", "clients": clients_list, "user": user})
-
+    
 @app.get("/partnership")
 async def render_partnership(request: Request, session: Session = Depends(get_session)):
     user = get_current_user(request, session)

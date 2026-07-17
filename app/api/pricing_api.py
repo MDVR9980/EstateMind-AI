@@ -18,28 +18,20 @@ def get_current_user_api(request: Request, session: Session):
         return session.exec(select(User).where(User.username == payload.get("sub"))).first()
     except: return None
 
-class PriceAnalysisRequest(BaseModel):
-    property_id: int
-    neighborhood: str
-    built_area: float
-    rooms: int
-    age: int
-    has_elevator: bool = False
-    has_parking: bool = False
-    has_store_room: bool = False
-    property_type: str = "apartment"
-    deal_type: str = "sale"
-
-@router.post("/analyze")
-def analyze_property_price(data: PriceAnalysisRequest, request: Request, session: Session = Depends(get_session)):
+@router.get("/analyze/{property_id}")
+def analyze_property_price(property_id: int, request: Request, session: Session = Depends(get_session)):
     user = get_current_user_api(request, session)
     if not user: raise HTTPException(status_code=401)
 
+    target_prop = session.get(Property, property_id)
+    if not target_prop: raise HTTPException(status_code=404, detail="فایل یافت نشد")
+
+    # پیدا کردن فایل‌های مشابه در همان محله
     comparables = session.exec(
         select(Property)
-        .where(Property.neighborhood == data.neighborhood)
-        .where(Property.status == "active")
-        .where(Property.id != data.property_id)
+        .where(Property.neighborhood == target_prop.neighborhood)
+        .where(Property.property_type == target_prop.property_type)
+        .where(Property.id != target_prop.id)
         .limit(10)
     ).all()
 
@@ -48,30 +40,30 @@ def analyze_property_price(data: PriceAnalysisRequest, request: Request, session
         if prop.built_area and prop.built_area > 0 and prop.price_total and prop.price_total > 0:
             price_per_meter.append(prop.price_total / prop.built_area)
 
-    avg_price_per_meter = sum(price_per_meter) / len(price_per_meter) if price_per_meter else 0
+    # اگر فایل مشابهی نبود، قیمت خود فایل را پایه قرار می‌دهیم
+    avg_price_per_meter = sum(price_per_meter) / len(price_per_meter) if price_per_meter else (target_prop.price_total / target_prop.built_area if target_prop.built_area else 0)
 
+    # تاثیر امکانات روی قیمت
     adjustment = 0
-    if data.has_elevator: adjustment += 0.05
-    if data.has_parking: adjustment += 0.03
-    if data.has_store_room: adjustment += 0.02
+    if target_prop.has_elevator: adjustment += 0.05
+    if target_prop.has_parking: adjustment += 0.03
+    if target_prop.has_store_room: adjustment += 0.02
 
-    age_depreciation = min(data.age * 0.01, 0.3) 
+    age_depreciation = min((target_prop.age or 0) * 0.01, 0.3) 
 
-    suggested_price = avg_price_per_meter * data.built_area * (1 + adjustment - age_depreciation)
+    suggested_price = avg_price_per_meter * (target_prop.built_area or 0) * (1 + adjustment - age_depreciation)
 
-    ai_conclusion = ""
-    if comparables:
-        comps_data = [{"title": c.title, "price": c.price_total, "area": c.built_area} for c in comparables[:5]]
-        ai_conclusion = generate_smart_comparison("ملک هدف", suggested_price, data.built_area, comps_data)
+    if suggested_price == 0:
+        suggested_price = target_prop.price_total
 
     return {
         "status": "success",
+        "property_title": target_prop.title,
+        "owner_price": target_prop.price_total,
         "suggested_price": round(suggested_price, 0),
-        "price_range": {
-            "min": round(suggested_price * 0.9, 0),
-            "max": round(suggested_price * 1.1, 0)
-        },
-        "price_per_meter": round(avg_price_per_meter, 0),
-        "comparables_count": len(comparables),
-        "ai_conclusion": ai_conclusion
+        "scenarios": {
+            "conservative": {"price": round(suggested_price * 0.9, 0), "days": "۵ الی ۱۰ روز (فروش فوری)"},
+            "market": {"price": round(suggested_price, 0), "days": "۱۵ الی ۳۰ روز (نرمال)"},
+            "aggressive": {"price": round(suggested_price * 1.15, 0), "days": "بیش از ۶۰ روز (احتمال رسوب)"}
+        }
     }
