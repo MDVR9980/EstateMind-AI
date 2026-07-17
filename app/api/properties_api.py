@@ -3,6 +3,7 @@ import shutil
 import json
 import io
 import jwt
+from datetime import datetime
 from app.core.security import SECRET_KEY, ALGORITHM
 from PIL import Image, ImageDraw, ImageFont
 from typing import Optional, List
@@ -12,13 +13,14 @@ from fastapi import (
 )
 from openai import OpenAI
 from pydantic import BaseModel
-from sqlmodel import Session, select
+from sqlmodel import Session, select, or_
 from app.services.ai_engine import analyze_property_text
 from app.core.database import get_session
 from app.core.models import Property, PropertyType, DealType, DocumentType
 from app.services.vector_db import add_property_to_vector_db
 from app.services.notifier import send_telegram_alert
-from app.core.models import User, Client, AgentNotification, Property
+from app.core.models import User, Client, AgentNotification, Property, Reminder, FunnelStage
+from app.core.socket_manager import notify_user_sync
 from app.services.ai_engine import generate_smart_comparison
 
 nvidia_client = OpenAI(
@@ -174,6 +176,48 @@ def save_property_to_db(data: PropertyCreateRequest, session: Session = Depends(
         session.commit()
         
         session.refresh(new_property)
+        
+        # ====== سیستم مچینگ هوشمند مشتریان (Live Alerts) ======
+        try:
+            # پیدا کردن مشتریانی که معامله‌شان هنوز باز است و بودجه‌شان به این فایل می‌خورد
+            matching_clients = session.exec(
+                select(Client)
+                .where(Client.agency_id == new_property.agency_id)
+                .where(Client.funnel_stage != FunnelStage.WON)
+                .where(Client.funnel_stage != FunnelStage.LOST)
+                .where(or_(Client.budget_limit >= new_property.price_total, Client.budget_limit == 0))
+            ).all()
+
+            for client in matching_clients:
+                # 1. ثبت یادآور برای مشاور صاحب مشتری
+                new_rem = Reminder(
+                    user_id=client.user_id,
+                    client_id=client.id,
+                    property_id=new_property.id,
+                    title=f"🎯 تطابق طلایی: {client.name}",
+                    description=f"فایل جدید '{new_property.title}' دقیقاً با بودجه مشتری شما همخوانی دارد. سریعاً با او تماس بگیرید!",
+                    remind_date=datetime.utcnow()
+                )
+                session.add(new_rem)
+
+                # 2. ثبت نوتیفیکیشن زنگوله
+                notif = AgentNotification(
+                    user_id=client.user_id,
+                    message=f"فایل مناسب برای مشتری شما ({client.name}) شکار شد!"
+                )
+                session.add(notif)
+                
+                # 3. ارسال پیام زنده روی مانیتور مشاور (WebSockets)
+                notify_user_sync(client.user_id, {
+                    "type": "success",
+                    "title": "شکار طلایی! 🎯",
+                    "message": f"فایلی مطابق با نیاز مشتری شما ({client.name}) هم‌اکنون در سیستم ثبت شد."
+                })
+            
+            session.commit()
+        except Exception as match_err:
+            print(f"⚠️ Matchmaking Alert Error: {match_err}")
+        # =====================================================
         
         try:
             desc = data.description if data.description else ""

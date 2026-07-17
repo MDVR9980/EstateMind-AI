@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 from app.core.database import get_session
 import jwt
 from app.core.security import SECRET_KEY, ALGORITHM
-from app.core.models import User
+from app.core.models import User, Property
 
 router = APIRouter(prefix="/api/crawler", tags=["Crawler"])
 
@@ -58,3 +58,23 @@ def trigger_divar_login(request: Request, session: Session = Depends(get_session
     except Exception as e:
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail="خطا در باز کردن مرورگر")
+
+@router.post("/publish-to-divar/{property_id}")
+def publish_to_divar_api(property_id: int, request: Request, session: Session = Depends(get_session)):
+    """ارسال دستور به ربات Playwright برای درج آگهی در سایت دیوار"""
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(401)
+    
+    prop = session.get(Property, property_id)
+    if not prop: raise HTTPException(404, "فایل یافت نشد")
+    
+    try:
+        # اجرای اسکریپت ربات درج آگهی (در بک‌گراند)
+        script_path = "scripts/divar_publisher.py"
+        if os.path.exists(script_path):
+            subprocess.Popen([sys.executable, script_path, str(prop.id)])
+            
+        return {"status": "success", "message": "ربات در حال باز کردن مرورگر و درج آگهی شما در دیوار است..."}
+    except Exception as e:
+        print(f"❌ Publish Error: {e}")
+        raise HTTPException(500, "خطا در ارتباط با ربات دیوار")

@@ -2,6 +2,7 @@ import os
 import jwt
 import sys
 import subprocess
+from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.core.security import SECRET_KEY, ALGORITHM
 from contextlib import asynccontextmanager
@@ -55,6 +56,47 @@ def run_crawler_job():
     except Exception as e:
         print(f"CRON Error: {e}")
 
+def check_stale_properties():
+    """کرون‌جاب برای پیدا کردن فایل‌های رسوب کرده (بالای ۳۰ روز)"""
+    print("⏰ [CRON JOB]: Checking for stale properties...")
+    try:
+        with Session(engine) as session:
+            # محاسبه تاریخ 30 روز پیش
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            
+            # پیدا کردن فایل‌های فعال که قبل از 30 روز پیش ثبت شده‌اند
+            stale_props = session.exec(
+                select(Property)
+                .where(Property.status == "active")
+                .where(Property.created_at <= thirty_days_ago)
+            ).all()
+
+            for prop in stale_props:
+                if not prop.created_by_id: continue
+
+                # بررسی اینکه آیا قبلاً یادآور برای این فایل ثبت شده یا نه (جلوگیری از اسپم)
+                existing_reminder = session.exec(
+                    select(Reminder)
+                    .where(Reminder.property_id == prop.id)
+                    .where(Reminder.title.contains("رسوب"))
+                    .where(Reminder.is_completed == False)
+                ).first()
+
+                if not existing_reminder:
+                    new_reminder = Reminder(
+                        user_id=prop.created_by_id,
+                        property_id=prop.id,
+                        title=f"⚠️ فایل رسوب کرده: {prop.title}",
+                        description=f"این فایل بیش از ۳۰ روز است که روی دست آژانس مانده! لطفاً با مالک (تلفن: {prop.owner_phone or 'نامشخص'}) تماس بگیرید و با استفاده از دکمه 'کارشناسی قیمت' او را برای کاهش قیمت متقاعد کنید.",
+                        remind_date=datetime.utcnow() + timedelta(hours=1) # یادآوری برای یک ساعت دیگر
+                    )
+                    session.add(new_reminder)
+                    print(f"🔔 Reminder created for stale property: {prop.title}")
+            
+            session.commit()
+    except Exception as e:
+        print(f"Stale Check Error: {e}")
+
 # 🌟 فیکس شدن باگ دوگانه بودن lifespan 🌟
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -65,6 +107,7 @@ async def lifespan(app: FastAPI):
     print("⏳ Starting Background Scheduler...")
     scheduler = BackgroundScheduler()
     scheduler.add_job(run_crawler_job, 'interval', minutes=60)
+    scheduler.add_job(check_stale_properties, 'interval', hours=24)
     scheduler.start()
     
     yield

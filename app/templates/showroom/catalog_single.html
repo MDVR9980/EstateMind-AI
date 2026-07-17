@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body { font-family: 'Vazirmatn', sans-serif; background-color: #f8fafc; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -160,6 +161,35 @@
                 }
             }
         });
+    </script>
+
+    <!-- دکمه شناور QR / NFC -->
+    <button onclick="showNfcQrModal({{ prop.id }})" class="fixed bottom-6 left-6 z-50 w-14 h-14 bg-gradient-to-tr from-slate-800 to-slate-900 text-white rounded-full flex items-center justify-center text-3xl shadow-2xl hover:scale-110 transition-transform shadow-slate-900/40">
+        <i class="ph-bold ph-qr-code"></i>
+    </button>
+
+    <script>
+        function showNfcQrModal(propId) {
+            const catalogUrl = `${window.location.origin}/catalog/property/${propId}`;
+            const qrApiUrl = `/api/nfc/generate-qr/${propId}`;
+
+            Swal.fire({
+                title: 'انتقال کاتالوگ به موبایل شما 📱',
+                html: `
+                    <div class="flex flex-col items-center justify-center p-2">
+                        <p class="text-sm text-slate-600 text-center mb-4 leading-relaxed font-bold">
+                            لطفاً دوربین موبایل خود را باز کرده و روی بارکد زیر بگیرید:
+                        </p>
+                        <div class="bg-white p-3 rounded-3xl shadow-lg border border-gray-100 mb-2">
+                            <img src="${qrApiUrl}" alt="QR Code" class="w-56 h-56 rounded-xl object-contain mx-auto">
+                        </div>
+                    </div>
+                `,
+                showConfirmButton: true,
+                confirmButtonText: 'بستن',
+                confirmButtonColor: '#0f172a'
+            });
+        }
     </script>
 </body>
 </html>

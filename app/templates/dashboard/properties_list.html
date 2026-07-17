@@ -118,7 +118,13 @@
                     </div>
                     {% endif %}
 
-                    <h3 class="font-bold text-slate-800 dark:text-white text-sm line-clamp-2 search-target mb-3">{{ prop.title }}</h3>
+                    <!-- عنوان و دکمه QR Code -->
+                    <div class="flex justify-between items-start gap-2 mb-3">
+                        <h3 class="font-bold text-slate-800 dark:text-white text-sm line-clamp-2 search-target">{{ prop.title }}</h3>
+                        <button onclick="showNfcQrModal({{ prop.id }})" title="NFC و اشتراک‌گذاری" class="text-slate-500 hover:text-primary-500 bg-gray-100 hover:bg-primary-50 dark:bg-slate-800 dark:hover:bg-primary-900/30 transition shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm">
+                            <i class="ph-bold ph-qr-code text-lg"></i>
+                        </button>
+                    </div>
                     
                     <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1 search-target">
                         <i class="ph-fill ph-map-pin text-rose-500"></i> {{ prop.neighborhood }} | <i class="ph-fill ph-user ml-1"></i> {{ prop.publisher }}
@@ -148,6 +154,11 @@
 
                     <!-- دکمه‌های عملیات -->
                     <div class="mt-auto grid grid-cols-2 gap-2">
+
+                        <button onclick="publishToDivar({{ prop.id }})" class="col-span-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-bold py-2 rounded-xl text-xs shadow-md shadow-rose-500/30 flex items-center justify-center gap-2 transition mb-1">
+                            <i class="ph-bold ph-share-network"></i> انتشار یک کلیکی در دیوار
+                        </button>
+
                         <!-- دکمه جدید CMA -->
                         <button onclick="openCMA({prop.id})" class="col-span-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-2 rounded-xl text-xs shadow-md shadow-orange-500/30 flex items-center justify-center gap-2 transition mb-1">
                             <i class="ph-bold ph-presentation-chart"></i> کارشناسی قیمت و متقاعدسازی (CMA)
@@ -728,5 +739,65 @@
             Swal.fire('خطا', 'مشکل در ارتباط با سرور هوش مصنوعی', 'error');
         }
     }
+
+    // ----------------------------------------------------
+    // ربات درج آگهی اتوماتیک در دیوار
+    // ----------------------------------------------------
+    async function publishToDivar(propId) {
+        let conf = await Swal.fire({
+            title: 'انتشار در دیوار؟', 
+            text: 'ربات به صورت خودکار فرم دیوار را با اطلاعات این فایل پر می‌کند.', 
+            icon: 'question', 
+            showCancelButton: true, 
+            confirmButtonText: 'بله، منتشر کن',
+            cancelButtonText: 'انصراف'
+        });
+        
+        if (conf.isConfirmed) {
+            Swal.fire({title: 'در حال بیدار کردن ربات...', didOpen: () => { Swal.showLoading() }});
+            try {
+                let res = await fetch(`/api/crawler/publish-to-divar/${propId}`, { method: 'POST' });
+                let data = await res.json();
+                if (res.ok) {
+                    Swal.fire('ربات فعال شد!', data.message, 'success');
+                } else {
+                    Swal.fire('خطا', 'مشکلی در اجرای ربات پیش آمد.', 'error');
+                }
+            } catch(e) {
+                Swal.fire('خطا', 'عدم ارتباط با سرور', 'error');
+            }
+        }
+    }
+
+    // ----------------------------------------------------
+    // سیستم تولید QR Code و NFC
+    // ----------------------------------------------------
+    function showNfcQrModal(propId) {
+        const catalogUrl = `${window.location.origin}/catalog/property/${propId}`;
+        const qrApiUrl = `/api/nfc/generate-qr/${propId}`;
+
+        Swal.fire({
+            title: 'اشتراک‌گذاری هوشمند 📱',
+            html: `
+                <div class="flex flex-col items-center justify-center p-2">
+                    <div class="bg-white p-3 rounded-3xl shadow-md border border-gray-100 mb-6">
+                        <img src="${qrApiUrl}" alt="QR Code" class="w-48 h-48 rounded-xl object-contain mx-auto">
+                    </div>
+                    <p class="text-sm text-slate-600 dark:text-slate-300 text-center mb-4 leading-relaxed">
+                        مشتری می‌تواند این بارکد را با دوربین موبایل خود اسکن کند.<br>
+                        برای رایت روی <b>کارت NFC</b>، لینک زیر را کپی کنید:
+                    </p>
+                    <div class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 p-3 rounded-2xl flex items-center justify-between gap-3">
+                        <span class="text-xs font-mono text-slate-500 dir-ltr truncate flex-1 text-left">${catalogUrl}</span>
+                        <button onclick="navigator.clipboard.writeText('${catalogUrl}'); Swal.showValidationMessage('لینک کپی شد!');" class="bg-primary-100 text-primary-700 hover:bg-primary-600 hover:text-white px-3 py-1.5 rounded-xl font-bold text-xs shrink-0 transition">کپی لینک</button>
+                    </div>
+                </div>
+            `,
+            showConfirmButton: true,
+            confirmButtonText: 'بستن پنجره',
+            customClass: { popup: 'swal-wide' }
+        });
+    }
+    
 </script>
 {% endblock %}
