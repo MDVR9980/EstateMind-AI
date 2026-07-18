@@ -1,6 +1,6 @@
 from fastapi import Request, APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlmodel import Session
+from sqlmodel import select, Session
 from datetime import datetime
 from app.core.database import get_session
 from app.core.models import Reminder
@@ -46,3 +46,17 @@ def complete_reminder(reminder_id: int, session: Session = Depends(get_session))
         session.commit()
         return {"status": "success"}
     raise HTTPException(status_code=404, detail="یادآور یافت نشد")
+
+@router.get("/app-list")
+def get_reminders_for_app(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+    
+    # گرفتن تمام یادآورهای این مشاور
+    reminders = session.exec(
+        select(Reminder)
+        .where(Reminder.user_id == user.id)
+        .order_by(Reminder.is_completed, Reminder.remind_date.asc())
+    ).all()
+    
+    return {"status": "success", "reminders": reminders}
