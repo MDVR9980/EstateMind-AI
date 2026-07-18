@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from app.core.database import get_session
-from app.core.models import User, UserRole
+from app.core.models import User, UserRole, Property, Client
 from app.core.security import (
     get_password_hash, SECRET_KEY, 
     ALGORITHM, verify_password, 
@@ -73,3 +73,34 @@ def change_password(data: ChangePasswordRequest, request: Request, session: Sess
     user.hashed_password = get_password_hash(data.new_password)
     session.commit()
     return {"status": "success"}
+
+@router.get("/dashboard-stats")
+def get_dashboard_stats(request: Request, session: Session = Depends(get_session)):
+    """API دریافت آمار زنده داشبورد برای اپلیکیشن موبایل"""
+    user = get_current_user_api(request, session)
+    if not user: 
+        raise HTTPException(status_code=401)
+    
+    # محاسبه تعداد فایل‌های فعال این مشاور
+    my_props_count = len(session.exec(
+        select(Property).where(Property.created_by_id == user.id, Property.status == "active")
+    ).all())
+    
+    # محاسبه تعداد مشتریان فعال در قیف این مشاور
+    my_clients_count = len(session.exec(
+        select(Client).where(Client.user_id == user.id)
+    ).all())
+    
+    return {
+        "status": "success",
+        "user": {
+            "full_name": user.full_name,
+            "role": "مدیر شعبه" if user.role in ["MANAGER", "SUPER_ADMIN"] else "مشاور املاک",
+            "avatar_letter": user.full_name[0] if user.full_name else "U"
+        },
+        "stats": {
+            "properties": my_props_count,
+            "clients": my_clients_count,
+            "ai_matches": 3 # این عدد را در فازهای بعدی داینامیک می‌کنیم
+        }
+    }

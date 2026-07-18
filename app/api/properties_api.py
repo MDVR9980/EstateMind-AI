@@ -132,6 +132,24 @@ async def upload_temp_media(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, buffer)
     return {"status": "success", "url": f"/{file_path}"}
 
+@router.get("/app-list")
+def get_properties_for_app(request: Request, session: Session = Depends(get_session)):
+    """API مخصوص دریافت لیست فایل‌ها برای اپلیکیشن موبایل (امن و ایزوله)"""
+    from app.core.security import get_current_user_api
+    user = get_current_user_api(request, session)
+    
+    if user.role in ["SUPER_ADMIN", "MANAGER"]:
+        properties_list = session.exec(select(Property).where(Property.agency_id == user.agency_id).order_by(Property.id.desc())).all()
+    else:
+        properties_list = session.exec(
+            select(Property)
+            .where(Property.agency_id == user.agency_id)
+            .where(or_(Property.created_by_id == user.id, Property.is_exclusive == False))
+            .order_by(Property.id.desc())
+        ).all()
+        
+    return {"status": "success", "properties": properties_list}
+
 @router.post("/save")
 def save_property_to_db(data: PropertyCreateRequest, session: Session = Depends(get_session)):
     
@@ -563,3 +581,24 @@ def save_property_from_owner(data: PublicPropertyCreateRequest, session: Session
     except Exception as e:
         print(f"❌ Owner Submit Error: {e}")
         raise HTTPException(status_code=500, detail="خطا در ثبت اطلاعات")
+
+@router.get("/list")
+def get_properties_list(request: Request, session: Session = Depends(get_session)):
+    """API اختصاصی برای ارسال لیست فایل‌ها به اپلیکیشن موبایل"""
+    user = get_current_user_api(request, session)
+    if not user: 
+        raise HTTPException(status_code=401, detail="باید لاگین باشید")
+    
+    # فیلتر امنیتی: مدیر همه را می‌بیند، مشاور فقط فایل‌های خودش و عمومی‌ها را
+    if user.role in ["SUPER_ADMIN", "MANAGER"]:
+        props = session.exec(select(Property).where(Property.agency_id == user.agency_id).order_by(Property.id.desc())).all()
+    else:
+        from sqlmodel import or_
+        props = session.exec(
+            select(Property)
+            .where(Property.agency_id == user.agency_id)
+            .where(or_(Property.created_by_id == user.id, Property.is_exclusive == False))
+            .order_by(Property.id.desc())
+        ).all()
+        
+    return {"status": "success", "properties": props}

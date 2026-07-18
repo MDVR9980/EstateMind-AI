@@ -64,7 +64,7 @@ def login(request_data: LoginRequest, response: Response, session: Session = Dep
         samesite="lax"
     )
     
-    return {"message": "ورود موفقیت‌آمیز بود", "user": user.full_name}
+    return {"message": "ورود موفقیت‌آمیز بود", "user": user.full_name, "access_token": access_token}
 
 @router.post("/logout")
 def logout(response: Response):
@@ -104,4 +104,4 @@ def verify_otp(request_data: VerifyOtpRequest, response: Response, session: Sess
         samesite="lax"
     )
     
-    return {"status": "success", "message": "ورود موفقیت‌آمیز بود"}
+    return {"status": "success", "message": "ورود موفقیت‌آمیز بود", "access_token": access_token}
