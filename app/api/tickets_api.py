@@ -5,7 +5,7 @@ import jwt
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile, Form
 from pydantic import BaseModel
-from sqlmodel import Session, select
+from sqlmodel import Session, select, or_
 from datetime import datetime
 from app.core.database import get_session
 from app.core.models import Ticket, TicketReply, TicketStatus, TicketPriority, User
@@ -130,3 +130,19 @@ def change_status(ticket_id: int, data: StatusUpdateRequest, request: Request, s
         session.commit()
         return {"status": "success"}
     raise HTTPException(400, "وضعیت نامعتبر")
+
+@router.get("/app-list")
+def get_tickets_for_app(request: Request, session: Session = Depends(get_session)):
+    """API دریافت لیست تیکت‌های کاربر برای موبایل"""
+    from app.core.security import get_current_user_api
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+    
+    # گرفتن تیکت‌هایی که این کاربر یا فرستنده آن است یا گیرنده
+    tickets = session.exec(
+        select(Ticket)
+        .where(or_(Ticket.sender_id == user.id, Ticket.receiver_id == user.id))
+        .order_by(Ticket.id.desc())
+    ).all()
+    
+    return {"status": "success", "tickets": tickets}

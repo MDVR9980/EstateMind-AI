@@ -118,3 +118,18 @@ def add_requirement(data: RequirementCreateRequest, request: Request, session: S
     session.add(new_req)
     session.commit()
     return {"status": "success", "message": "نیاز مشتری با موفقیت ثبت شد و در رادار سیستم قرار گرفت!"}
+
+@router.get("/app-list")
+def get_clients_for_app(request: Request, session: Session = Depends(get_session)):
+    """API دریافت لیست مشتریان برای اپلیکیشن موبایل (با رعایت کامل حریم خصوصی)"""
+    from app.core.security import get_current_user_api
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+    
+    # مدیر کل مشتریان آژانس را می‌بیند، مشاور فقط مشتریان خودش را
+    if user.role in ["SUPER_ADMIN", "MANAGER"]:
+        clients_list = session.exec(select(Client).where(Client.agency_id == user.agency_id).order_by(Client.id.desc())).all()
+    else:
+        clients_list = session.exec(select(Client).where(Client.user_id == user.id).order_by(Client.id.desc())).all()
+        
+    return {"status": "success", "clients": clients_list}
