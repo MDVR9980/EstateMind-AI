@@ -36,3 +36,12 @@ async def upload_form(request: Request, title: str = Form(...), file: UploadFile
     except Exception as e:
         print(f"❌ Upload error: {e}")
         raise HTTPException(status_code=500, detail="خطا در آپلود فایل")
+    
+@router.get("/app-list")
+def get_forms_for_app(request: Request, session: Session = Depends(get_session)):
+    from app.core.security import get_current_user_api
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+    
+    forms = session.exec(select(UploadedForm).where(UploadedForm.agency_id == user.agency_id).order_by(UploadedForm.id.desc())).all()
+    return {"status": "success", "forms": forms}
