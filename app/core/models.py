@@ -3,7 +3,6 @@ from typing import Optional
 from datetime import datetime
 from enum import Enum
 
-# --- Enums (مقادیر ثابت سیستم) ---
 class UserRole(str, Enum):
     SUPER_ADMIN = "SUPER_ADMIN"
     MANAGER = "MANAGER"
@@ -59,8 +58,6 @@ class PublisherType(str, Enum):
     AGENCY = "املاک"
     UNKNOWN = "نامشخص"
 
-# --- Database Tables (جداول دیتابیس) ---
-
 class Agency(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
@@ -80,7 +77,11 @@ class User(SQLModel, table=True):
     role: UserRole = Field(default=UserRole.AGENT)
     target_neighborhoods: Optional[str] = None
     is_active: bool = Field(default=True)
-    commission_rate: float = Field(default=0.5) # سهم مشاور (پیش‌فرض ۵۰ درصد)
+    # اضافه شدن آواتار و 3 کمیسیون اختصاصی
+    avatar_url: Optional[str] = None
+    commission_sale: float = Field(default=0.5)
+    commission_rent: float = Field(default=0.5)
+    commission_partnership: float = Field(default=0.5)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class Property(SQLModel, table=True):
@@ -117,7 +118,7 @@ class Property(SQLModel, table=True):
     ai_cons: Optional[str] = None
     description: Optional[str] = None
     image_urls: Optional[str] = Field(default="[]") 
-    status: str = Field(default="active")
+    status: str = Field(default="active") # active, pending, archived
     created_by_id: Optional[int] = Field(default=None, foreign_key="users.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     made_public_by_name: Optional[str] = None
@@ -135,6 +136,9 @@ class Client(SQLModel, table=True):
     funnel_stage: FunnelStage = Field(default=FunnelStage.LEAD)
     last_interaction: datetime = Field(default_factory=datetime.utcnow)
     client_category: str = Field(default="normal")
+    is_public: bool = Field(default=False) # آیا این مشتری عمومی است؟
+    category_updated_at: datetime = Field(default_factory=datetime.utcnow)
+    drip_stage: int = Field(default=0)
 
 class Deal(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -148,7 +152,6 @@ class Deal(SQLModel, table=True):
     deal_date: datetime = Field(default_factory=datetime.utcnow)
 
 class AgentMonthlyCommission(SQLModel, table=True):
-    """جدول جدید: ردیابی کمیسیون ماهانه مشاورین"""
     __tablename__ = "agent_monthly_commissions"
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
@@ -220,3 +223,11 @@ class Requirement(SQLModel, table=True):
     preferred_neighborhoods: str
     has_barter: bool = Field(default=False)
     barter_asset_desc: Optional[str] = None
+
+class ClientInteraction(SQLModel, table=True):
+    """جدول ذخیره تحلیل تماس‌های مشتریان (Call Analyzer)"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    client_id: int = Field(foreign_key="client.id", index=True)
+    summary: str
+    sentiment: str # positive, neutral, negative
+    created_at: datetime = Field(default_factory=datetime.utcnow)

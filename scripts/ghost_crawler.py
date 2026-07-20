@@ -178,6 +178,7 @@ def human_like_crawler(city="mashhad", neighborhoods="سجاد", agency_id=1):
                                 has_master_room=ai_data.get("has_master_room", False), 
                                 ai_pros=ai_data.get("ai_pros", ""), ai_cons=ai_data.get("ai_cons", ""), 
                                 description="شکار شده توسط ربات هوشمند", is_exclusive=False,
+                                status="pending",
                                 image_urls=json.dumps(scraped_data['images'])
                             )
                             session.add(new_prop)

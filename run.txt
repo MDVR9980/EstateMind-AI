@@ -2,7 +2,7 @@ uvicorn app.main:app --reload
 
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-npx localtunnel --port 8000  
+npx localtunnel --port 8000 
 
 
 https://api.telegram.org/bot8941958802:AAFpbX3iClj_F30WaYbZKMXo76ISwqViqro/setWebhook?url=https://giant-gifts-start.loca.lt/api/webhooks/client-bot-webhook

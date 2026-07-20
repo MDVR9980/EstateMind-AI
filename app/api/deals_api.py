@@ -134,25 +134,45 @@ def calculate_monthly_commissions(data: MonthlyCommissionRequest, request: Reque
         agent_id = deal.user_id
         if agent_id not in agent_commissions:
             agent = session.get(User, agent_id)
-            rate = agent.commission_rate if agent else 0.5
-            agent_commissions[agent_id] = {"total_deals": 0, "total_value": 0, "total_commission": 0, "rate": rate}
+            agent_commissions[agent_id] = {
+                "total_deals": 0, "total_value": 0, "total_commission": 0, 
+                "agent_share_amount": 0, "office_share_amount": 0, "agent_ref": agent
+            }
+        
+        agent_obj = agent_commissions[agent_id]["agent_ref"]
+        
+        # 🌟 استخراج درصد داینامیک بر اساس نوع قرارداد
+        rate = 0.5
+        if agent_obj:
+            if "فروش" in deal.deal_type: rate = agent_obj.commission_sale
+            elif "اجاره" in deal.deal_type: rate = agent_obj.commission_rent
+            elif "مشارکت" in deal.deal_type: rate = agent_obj.commission_partnership
+            
+        a_share = deal.commission_amount * rate
+        o_share = deal.commission_amount * (1 - rate)
+            
         agent_commissions[agent_id]["total_deals"] += 1
         agent_commissions[agent_id]["total_value"] += deal.deal_price
         agent_commissions[agent_id]["total_commission"] += deal.commission_amount
+        agent_commissions[agent_id]["agent_share_amount"] += a_share
+        agent_commissions[agent_id]["office_share_amount"] += o_share
 
     for agent_id, c_data in agent_commissions.items():
         existing = session.exec(select(AgentMonthlyCommission).where(AgentMonthlyCommission.user_id == agent_id, AgentMonthlyCommission.year_month == data.year_month)).first()
-        a_share = c_data["total_commission"] * c_data["rate"]
-        o_share = c_data["total_commission"] * (1 - c_data["rate"])
-
+        
         if existing:
             existing.total_deals = c_data["total_deals"]
             existing.total_deal_value = c_data["total_value"]
             existing.total_commission = c_data["total_commission"]
-            existing.agent_share = a_share
-            existing.office_share = o_share
+            existing.agent_share = c_data["agent_share_amount"]
+            existing.office_share = c_data["office_share_amount"]
         else:
-            new_record = AgentMonthlyCommission(user_id=agent_id, agency_id=user.agency_id, year_month=data.year_month, total_deals=c_data["total_deals"], total_deal_value=c_data["total_value"], total_commission=c_data["total_commission"], agent_share=a_share, office_share=o_share)
+            new_record = AgentMonthlyCommission(
+                user_id=agent_id, agency_id=user.agency_id, year_month=data.year_month, 
+                total_deals=c_data["total_deals"], total_deal_value=c_data["total_value"], 
+                total_commission=c_data["total_commission"], 
+                agent_share=c_data["agent_share_amount"], office_share=c_data["office_share_amount"]
+            )
             session.add(new_record)
 
     session.commit()

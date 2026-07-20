@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from app.core.database import get_session
@@ -9,6 +9,11 @@ from app.core.security import (
     get_current_user_api,
 )
 import jwt
+import os
+import shutil
+import time
+
+os.makedirs("uploads/avatars", exist_ok=True)
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -18,7 +23,28 @@ class UserCreateRequest(BaseModel):
     password: str
     role: str
     target_neighborhoods: str = ""
+    commission_sale: float = 0.5
+    commission_rent: float = 0.5
+    commission_partnership: float = 0.5
 
+@router.post("/upload-avatar")
+async def upload_user_avatar(request: Request, file: UploadFile = File(...), session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(401)
+    
+    # ساخت اسم یکتا برای فایل
+    ext = file.filename.split(".")[-1].lower()
+    file_name = f"avatar_{user.id}_{int(time.time())}.{ext}"
+    file_path = f"uploads/avatars/{file_name}"
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    user.avatar_url = f"/{file_path}"
+    session.commit()
+    
+    return {"status": "success", "avatar_url": user.avatar_url}
+    
 @router.post("/add")
 def add_user(data: UserCreateRequest, session: Session = Depends(get_session)):
     """API استخدام و ثبت مشاور / مدیر رنج جدید"""
@@ -36,7 +62,10 @@ def add_user(data: UserCreateRequest, session: Session = Depends(get_session)):
             username=data.username,
             hashed_password=get_password_hash(data.password),
             role=role_enum,
-            target_neighborhoods=data.target_neighborhoods
+            target_neighborhoods=data.target_neighborhoods,
+            commission_sale=data.commission_sale,
+            commission_rent=data.commission_rent,
+            commission_partnership=data.commission_partnership
         )
         
         session.add(new_user)

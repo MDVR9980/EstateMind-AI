@@ -17,6 +17,7 @@ from app.core.models import (
     AgentMonthlyCommission,
 )
 from app.core.database import create_db_and_tables, get_session, engine 
+from app.services.sms_sender import send_otp_sms
 
 # --- ایمپورت روترها ---
 from app.api.properties_api import router as properties_router
@@ -98,6 +99,37 @@ def check_stale_properties():
     except Exception as e:
         print(f"Stale Check Error: {e}")
 
+def run_drip_campaigns():
+    """کرون‌جاب اتوماسیون بازاریابی (هر ۲۴ ساعت یکبار اجرا می‌شود)"""
+    print("⏰ [CRON JOB]: Running Smart Drip Campaigns...")
+    try:
+        with Session(engine) as session:
+            # فقط مشتریان سرد (Cold) را می‌گیریم
+            cold_clients = session.exec(select(Client).where(Client.client_category == "cold")).all()
+            now = datetime.utcnow()
+            
+            for client in cold_clients:
+                days_passed = (now - client.category_updated_at).days
+                
+                if days_passed >= 7 and client.drip_stage == 0:
+                    print(f"✉️ [Drip SMS 1] به {client.name} (تشکر)")
+                    client.drip_stage = 1
+                    session.add(client)
+                    
+                elif days_passed >= 30 and client.drip_stage == 1:
+                    print(f"✉️ [Drip SMS 2] به {client.name} (وضعیت بازار)")
+                    client.drip_stage = 2
+                    session.add(client)
+                    
+                elif days_passed >= 60 and client.drip_stage == 2:
+                    print(f"✉️ [Drip SMS 3] به {client.name} (پیگیری نهایی)")
+                    client.drip_stage = 3
+                    session.add(client)
+                    
+            session.commit()
+    except Exception as e:
+        print(f"Drip Campaign Error: {e}")
+
 # 🌟 فیکس شدن باگ دوگانه بودن lifespan 🌟
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -109,6 +141,7 @@ async def lifespan(app: FastAPI):
     scheduler = BackgroundScheduler()
     scheduler.add_job(run_crawler_job, 'interval', minutes=60)
     scheduler.add_job(check_stale_properties, 'interval', hours=24)
+    scheduler.add_job(run_drip_campaigns, 'interval', hours=24)
     scheduler.start()
     
     yield
@@ -331,15 +364,21 @@ async def render_smart_catalog(client_id: int, request: Request, session: Sessio
 
 @app.get("/catalog/property/{property_id}")
 async def view_single_property(property_id: int, request: Request, session: Session = Depends(get_session)):
+    from app.core.models import Agency
     prop = session.get(Property, property_id)
     if not prop: 
-        return HTMLResponse("<h1 style='text-align:center; margin-top:50px; font-family:tahoma;'>فایل یافت نشد یا حذف شده است.</h1>", status_code=404)
+        return HTMLResponse("<h1>فایل یافت نشد</h1>", status_code=404)
+    
+    agency = session.get(Agency, prop.agency_id) # گرفتن اطلاعات آژانس
+    
     import json
     media_list = []
     if hasattr(prop, 'image_urls') and prop.image_urls:
         try: media_list = json.loads(prop.image_urls)
         except Exception: pass
-    return templates.TemplateResponse(request=request, name="showroom/catalog_single.html", context={"request": request, "prop": prop, "media_list": media_list, "page_title": prop.title})
+    
+    # ارسال آژانس به قالب HTML
+    return templates.TemplateResponse(request=request, name="showroom/catalog_single.html", context={"request": request, "prop": prop, "agency": agency, "media_list": media_list, "page_title": prop.title})
 
 # 🌟 روت جدید برای پرزنت اینستاگرامی (Reels) 🌟
 @app.get("/reels")

@@ -142,3 +142,43 @@ def generate_smart_comparison(target_title, target_price, target_area, comparabl
     except Exception as e:
         print(f"⚠️ AI Comparison Error: {e}")
         return "سیستم در حال حاضر قادر به تحلیل هوشمند نیست."
+
+
+def analyze_client_call(transcript: str) -> dict:
+    """تحلیلگر تماس مشتری: استخراج خلاصه و احساسات"""
+    prompt = f"""
+    شما یک تحلیلگر حرفه‌ای تماس‌های فروش املاک هستید. متن زیر پیاده‌سازی شده‌ی (صوت به متن) مکالمه مشاور با مشتری است.
+    لطفاً یک خلاصه ۲ خطی از نیاز مشتری و حس و حال (Sentiment) مشتری را استخراج کن.
+    خروجی فقط یک JSON معتبر باشد:
+    {{"summary": "خلاصه مکالمه...", "sentiment": "positive یا neutral یا negative"}}
+    
+    متن مکالمه: {transcript}
+    """
+    try:
+        response = nvidia_client.chat.completions.create(
+            model="meta/llama-3.1-70b-instruct",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1, max_tokens=500
+        )
+        raw_output = response.choices[0].message.content.strip()
+        import re, json
+        json_match = re.search(r'```(?:json)?(.*?)```', raw_output, re.DOTALL)
+        if json_match: raw_output = json_match.group(1).strip()
+        return json.loads(raw_output)
+    except:
+        return {"summary": "مشتری در مورد فایل سوالاتی داشت.", "sentiment": "neutral"}
+
+def virtual_staging_api(image_path: str) -> str:
+    """
+    چیدمان مجازی (Virtual Staging)
+    در نسخه پروداکشن اینجا به API شرکت‌هایی مثل Replicate (Stable Diffusion) متصل می‌شود.
+    فعلا برای عملکرد سیستم، مسیر عکس را برمی‌گردانیم.
+    """
+    # TODO: Connect to Stable Diffusion Inpainting API
+    # import requests
+    # url = "https://api.replicate.com/v1/predictions"
+    # payload = {"version": "...", "input": {"image": open(image_path, "rb"), "prompt": "modern luxury living room furniture"}}
+    
+    import time
+    time.sleep(3) # شبیه‌سازی زمان پردازش هوش مصنوعی
+    return image_path

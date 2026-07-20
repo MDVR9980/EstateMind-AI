@@ -18,7 +18,7 @@
     <div class="w-full max-w-sm mt-12 z-10 relative">
         <!-- عکس مشاور -->
         <div class="relative w-32 h-32 mx-auto mb-6">
-            <img src="https://ui-avatars.com/api/?name={{ agent.full_name.replace(' ', '+') }}&background=10b981&color=fff&size=256" class="w-full h-full rounded-full border-4 border-slate-800 shadow-2xl object-cover">
+            <img src="{% if agent.avatar_url %}{{ agent.avatar_url }}{% else %}https://ui-avatars.com/api/?name={{ agent.full_name.replace(' ', '+') }}&background=10b981&color=fff&size=256{% endif %}" class="w-full h-full rounded-full border-4 border-slate-800 shadow-2xl object-cover">
             <div class="absolute bottom-1 right-1 w-6 h-6 bg-emerald-500 border-2 border-slate-800 rounded-full animate-pulse"></div>
         </div>
 

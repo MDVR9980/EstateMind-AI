@@ -18,9 +18,9 @@
     <!-- Header -->
     <header class="bg-slate-900 text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md">
         <div class="flex items-center gap-2">
-            <span class="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-lg">کد فایل: {{ prop.id }}</span>
+            <span class="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-lg">املاک {{ agency.name }}</span>
         </div>
-        <h1 class="text-sm font-bold flex items-center gap-2"><i class="ph-fill ph-buildings"></i> اطلاعات تکمیلی ملک</h1>
+        <h1 class="text-sm font-bold flex items-center gap-2">اطلاعات تکمیلی ملک</h1>
     </header>
 
     <main class="max-w-3xl mx-auto mt-6 px-4">
@@ -77,13 +77,6 @@
                     </div>
                     <div class="flex items-center gap-4">
                         <span class="text-sm font-bold text-rose-600 dir-ltr"><i class="ph-fill ph-phone"></i> {{ prop.contact_phone }}</span>
-                        
-                        <!-- 🌟 نمایش چت دیوار فقط اگر divar_token داشته باشد 🌟 -->
-                        {% if prop.divar_token %}
-                            <a href="https://divar.ir/v/{{ prop.divar_token }}" target="_blank" class="text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1">
-                                <img src="https://divar.ir/favicon.ico" class="w-4 h-4 rounded"> چت دیوار
-                            </a>
-                        {% endif %}
                     </div>
                 </div>
 

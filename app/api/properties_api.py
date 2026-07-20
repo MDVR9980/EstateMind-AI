@@ -19,6 +19,7 @@ from app.core.database import get_session
 from app.core.models import Property, PropertyType, DealType, DocumentType
 from app.services.vector_db import add_property_to_vector_db
 from app.services.notifier import send_telegram_alert
+from app.services.ai_engine import virtual_staging_api
 from app.core.models import (
     User, Client, AgentNotification, 
     Property, Reminder, FunnelStage,
@@ -68,6 +69,9 @@ class PropertyEditRequest(BaseModel):
     ai_cons: Optional[str] = None
     publisher: Optional[str] = None
     image_urls: Optional[List[str]] = None # 👈 این خط برای ذخیره تغییرات عکس/فیلم اضافه شد
+
+class ApproveRequest(BaseModel):
+    is_exclusive: bool
 
 def get_current_user_local(request: Request, session: Session):
     token = request.cookies.get("access_token")
@@ -132,23 +136,52 @@ async def upload_temp_media(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, buffer)
     return {"status": "success", "url": f"/{file_path}"}
 
+@router.put("/{property_id}/approve")
+def approve_scraped_property(property_id: int, data: ApproveRequest, request: Request, session: Session = Depends(get_session)):
+    """تایید فایل شکار شده و انتقال به بانک اصلی املاک"""
+    user = get_current_user_local(request, session)
+    if not user: raise HTTPException(401)
+    
+    prop = session.get(Property, property_id)
+    if not prop: raise HTTPException(404)
+    
+    prop.status = "active"
+    prop.is_exclusive = data.is_exclusive
+    # ثبت نام مشاوری که فایل را تایید و وارد سیستم کرده است
+    prop.created_by_id = user.id
+    if not data.is_exclusive:
+        prop.made_public_by_name = user.full_name
+        
+    session.commit()
+    return {"status": "success", "message": "فایل با موفقیت وارد بانک املاک شد."}
+
+@router.get("/pending-list")
+def get_pending_properties(request: Request, session: Session = Depends(get_session)):
+    """API دریافت فایل‌های شکار شده در صندوق ورودی ربات"""
+    from app.core.security import get_current_user_api
+    user = get_current_user_api(request, session)
+    
+    # فایل‌های بررسی نشده (pending) را برمی‌گرداند
+    props = session.exec(select(Property).where(Property.agency_id == user.agency_id, Property.status == "pending").order_by(Property.id.desc())).all()
+    return {"status": "success", "properties": props}
+    
 @router.get("/app-list")
 def get_properties_for_app(request: Request, session: Session = Depends(get_session)):
-    """API مخصوص دریافت لیست فایل‌ها برای اپلیکیشن موبایل (امن و ایزوله)"""
+    """API دریافت لیست فایل‌های فعال برای اپلیکیشن"""
     from app.core.security import get_current_user_api
     user = get_current_user_api(request, session)
     
     if user.role in ["SUPER_ADMIN", "MANAGER"]:
-        properties_list = session.exec(select(Property).where(Property.agency_id == user.agency_id).order_by(Property.id.desc())).all()
+        props = session.exec(select(Property).where(Property.agency_id == user.agency_id, Property.status == "active").order_by(Property.id.desc())).all()
     else:
-        properties_list = session.exec(
+        from sqlmodel import or_
+        props = session.exec(
             select(Property)
-            .where(Property.agency_id == user.agency_id)
+            .where(Property.agency_id == user.agency_id, Property.status == "active")
             .where(or_(Property.created_by_id == user.id, Property.is_exclusive == False))
             .order_by(Property.id.desc())
         ).all()
-        
-    return {"status": "success", "properties": properties_list}
+    return {"status": "success", "properties": props}
 
 @router.post("/save")
 def save_property_to_db(data: PropertyCreateRequest, session: Session = Depends(get_session)):
@@ -600,5 +633,28 @@ def get_properties_list(request: Request, session: Session = Depends(get_session
             .where(or_(Property.created_by_id == user.id, Property.is_exclusive == False))
             .order_by(Property.id.desc())
         ).all()
+
+from app.services.ai_engine import virtual_staging_api
+
+@router.post("/{property_id}/virtual-stage")
+def perform_virtual_staging(property_id: int, request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_local(request, session)
+    if not user: raise HTTPException(401)
+    
+    prop = session.get(Property, property_id)
+    if not prop or not prop.image_urls or prop.image_urls == "[]":
+        raise HTTPException(400, "ملک عکسی برای دکور شدن ندارد.")
         
-    return {"status": "success", "properties": props}
+    import json
+    images = json.loads(prop.image_urls)
+    first_image_path = images[0].lstrip("/") # گرفتن اولین عکس
+    
+    # اجرای چیدمان مجازی
+    staged_image = virtual_staging_api(first_image_path)
+    
+    # اضافه کردن عکس دکور شده به گالری
+    images.append(f"/{staged_image}?staged=true")
+    prop.image_urls = json.dumps(images)
+    session.commit()
+    
+    return {"status": "success", "message": "چیدمان مجازی با موفقیت انجام شد."}

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from typing import Optional
@@ -6,10 +6,12 @@ from app.core.database import get_session
 from app.core.models import (
     Client, DealType, FunnelStage, 
     User, Requirement, PropertyType,
+    ClientInteraction,
 )
 import jwt
+import os, shutil
 from app.core.security import SECRET_KEY, ALGORITHM, get_current_user_api
-
+from app.services.ai_engine import analyze_client_call
 router = APIRouter(prefix="/api/clients", tags=["Clients"])
 
 class ClientCreateRequest(BaseModel):
@@ -87,6 +89,7 @@ class RequirementCreateRequest(BaseModel):
     client_id: int
     deal_type: str
     property_type: str
+    min_budget: float
     max_budget: float
     preferred_neighborhoods: str
 
@@ -112,6 +115,7 @@ def add_requirement(data: RequirementCreateRequest, request: Request, session: S
         created_by_user_id=user.id,
         deal_type=d_type,
         property_type=p_type,
+        min_budget=data.min_budget,
         max_budget=data.max_budget,
         preferred_neighborhoods=data.preferred_neighborhoods
     )
@@ -121,15 +125,41 @@ def add_requirement(data: RequirementCreateRequest, request: Request, session: S
 
 @router.get("/app-list")
 def get_clients_for_app(request: Request, session: Session = Depends(get_session)):
-    """API دریافت لیست مشتریان برای اپلیکیشن موبایل (با رعایت کامل حریم خصوصی)"""
     from app.core.security import get_current_user_api
+    from sqlmodel import or_
     user = get_current_user_api(request, session)
-    if not user: raise HTTPException(status_code=401)
     
-    # مدیر کل مشتریان آژانس را می‌بیند، مشاور فقط مشتریان خودش را
+    # 🔒 امنیت: مشاور فقط مشتری خودش یا مشتریان عمومی را می‌بیند
     if user.role in ["SUPER_ADMIN", "MANAGER"]:
         clients_list = session.exec(select(Client).where(Client.agency_id == user.agency_id).order_by(Client.id.desc())).all()
     else:
-        clients_list = session.exec(select(Client).where(Client.user_id == user.id).order_by(Client.id.desc())).all()
+        clients_list = session.exec(select(Client).where(Client.agency_id == user.agency_id).where(or_(Client.user_id == user.id, Client.is_public == True)).order_by(Client.id.desc())).all()
         
     return {"status": "success", "clients": clients_list}
+
+@router.post("/{client_id}/analyze-call")
+async def analyze_call_audio(client_id: int, request: Request, audio: UploadFile = File(...), session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(401)
+    
+    temp_path = f"temp_call_{client_id}.m4a"
+    with open(temp_path, "wb") as f:
+        shutil.copyfileobj(audio.file, f)
+        
+    try:
+        # 1. تبدیل صوت به متن (Whisper)
+        from app.properties_api import nvidia_client
+        with open(temp_path, "rb") as af:
+            transcription = nvidia_client.audio.transcriptions.create(model="openai/whisper-large-v3", file=af, language="fa")
+        
+        # 2. تحلیل متن با Llama
+        analysis = analyze_client_call(transcription.text)
+        
+        # 3. ذخیره در دیتابیس
+        interaction = ClientInteraction(client_id=client_id, summary=analysis["summary"], sentiment=analysis["sentiment"])
+        session.add(interaction)
+        session.commit()
+        
+        return {"status": "success", "analysis": analysis}
+    finally:
+        if os.path.exists(temp_path): os.remove(temp_path)
