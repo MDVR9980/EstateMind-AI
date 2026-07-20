@@ -1,0 +1,3569 @@
+
+
+==================================================
+FILE: ./Backend\ChatBot.json
+==================================================
+
+{
+  "name": "ChatBot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crm-chat",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "6cc5b431-bb2a-4305-858c-0cc802325c39",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        2640,
+        864
+      ],
+      "webhookId": "27501df9-f54e-4107-953d-d072b68ad165"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.chatInput }}",
+        "options": {
+          "systemMessage": "=شما دستیار هوشمند و داخلی سیستم CRM املاک (EstateMind) هستید.\nکاربرانی که با شما چت می‌کنند، \"مشاورین املاک\" و \"مدیران آژانس\" هستند (نه مشتریان خریدار یا مستأجر).\nوظیفه شما این است که مانند یک همکارِ حرفه‌ای و سریع، به مشاوران کمک کنید تا اطلاعات فایل‌ها را از دیتابیس پیدا کنند، فایل‌ها را با هم مقایسه کنند یا به سوالاتشان در مورد املاکِ موجود پاسخ دهید.\nلحن شما باید صمیمی، همکارانه و کاملاً به زبان فارسی باشد. اگر مشاور به دنبال فایل خاصی گشت، فقط از لیست زیر به او پیشنهاد بدهید.\n\nلیست فایل‌های آژانسِ این مشاور:\n{{ $json.body.dbContext }}"
+        }
+      },
+      "id": "ad75d0bb-11e3-44ca-b195-4bc7ac906d4c",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        2896,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "model": "meta/llama-3.1-70b-instruct",
+        "options": {
+          "baseURL": "https://integrate.api.nvidia.com/v1"
+        }
+      },
+      "id": "80965944-987d-4613-92b8-61904a7978a7",
+      "name": "NVIDIA Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        2752,
+        1072
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "GisDh3syaKNARlls",
+          "name": "Nvidia Ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "{{ $json.body.user_id }}",
+        "contextWindowLength": 8
+      },
+      "id": "eea48ca7-5a93-4d98-8297-534ad53374f1",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [
+        2992,
+        1072
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NVIDIA Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "272a7cb8-e0e2-4161-989a-a2df10584189",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "226fa82dc2ac827a4f932403f468a9c4c5398702f6c5af7de60446959e8097da"
+  },
+  "nodeGroups": [],
+  "id": "LQajhAnfnYZZj31q",
+  "tags": []
+}
+
+==================================================
+FILE: ./Backend\README.md
+==================================================
+
+# EstateMind-AI
+
+==================================================
+FILE: ./Backend\app\main.py
+==================================================
+
+import os
+import jwt
+import sys
+import subprocess
+from datetime import datetime, timedelta
+from apscheduler.schedulers.background import BackgroundScheduler
+from app.core.security import SECRET_KEY, ALGORITHM
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request, Depends
+from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from sqlmodel import Session, select, or_
+from app.core.models import (
+    Property, Client, Deal, UploadedForm,
+    Reminder, Ticket, User, Agency,
+    AgentMonthlyCommission,
+)
+from app.core.database import create_db_and_tables, get_session, engine 
+from app.services.sms_sender import send_otp_sms
+
+# --- ایمپورت روترها ---
+from app.api.properties_api import router as properties_router
+from app.api.auth_api import router as auth_router
+from app.api.clients_api import router as clients_router
+from app.api.deals_api import router as deals_router
+from app.api.reminders_api import router as reminders_router
+from app.api.tickets_api import router as tickets_router
+from app.api.users_api import router as users_router
+from app.api.chatbot_api import router as chatbot_router
+from app.api.crawler_api import router as crawler_router
+from app.api.webhooks_api import router as webhooks_router
+from app.api.superadmin_api import router as superadmin_router
+from app.api.match_api import router as match_router
+from app.api.forms_api import router as forms_router
+from app.api.pricing_api import router as pricing_router
+from app.api.nfc_api import router as nfc_router
+from app.api.ws_api import router as ws_router
+
+def run_crawler_job():
+    """کرون‌جاب بک‌گراند برای استارت اتوماتیک خزش"""
+    print("⏰ [CRON JOB]: Triggering scheduled crawler...")
+    try:
+        with Session(engine) as session:
+            # در سیستم ما فعلا آژانس تستی آیدی 1 دارد
+            users = session.exec(select(User).where(User.agency_id == 1)).all()
+            target_hoods = set()
+            for u in users:
+                if u.target_neighborhoods:
+                    hoods = [h.strip() for h in u.target_neighborhoods.split(",") if h.strip()]
+                    for h in hoods:
+                        target_hoods.add(h)
+            
+            if target_hoods:
+                hoods_param = ",".join(target_hoods)
+                print(f"⏰ Running crawler for Hoods: {hoods_param}")
+                subprocess.Popen([sys.executable, "scripts/ghost_crawler.py", "mashhad", hoods_param, "1"])
+    except Exception as e:
+        print(f"CRON Error: {e}")
+
+def check_stale_properties():
+    """کرون‌جاب برای پیدا کردن فایل‌های رسوب کرده (بالای ۳۰ روز)"""
+    print("⏰ [CRON JOB]: Checking for stale properties...")
+    try:
+        with Session(engine) as session:
+            # محاسبه تاریخ 30 روز پیش
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            
+            # پیدا کردن فایل‌های فعال که قبل از 30 روز پیش ثبت شده‌اند
+            stale_props = session.exec(
+                select(Property)
+                .where(Property.status == "active")
+                .where(Property.created_at <= thirty_days_ago)
+            ).all()
+
+            for prop in stale_props:
+                if not prop.created_by_id: continue
+
+                # بررسی اینکه آیا قبلاً یادآور برای این فایل ثبت شده یا نه (جلوگیری از اسپم)
+                existing_reminder = session.exec(
+                    select(Reminder)
+                    .where(Reminder.property_id == prop.id)
+                    .where(Reminder.title.contains("رسوب"))
+                    .where(Reminder.is_completed == False)
+                ).first()
+
+                if not existing_reminder:
+                    new_reminder = Reminder(
+                        user_id=prop.created_by_id,
+                        property_id=prop.id,
+                        title=f"⚠️ فایل رسوب کرده: {prop.title}",
+                        description=f"این فایل بیش از ۳۰ روز است که روی دست آژانس مانده! لطفاً با مالک (تلفن: {prop.owner_phone or 'نامشخص'}) تماس بگیرید و با استفاده از دکمه 'کارشناسی قیمت' او را برای کاهش قیمت متقاعد کنید.",
+                        remind_date=datetime.utcnow() + timedelta(hours=1) # یادآوری برای یک ساعت دیگر
+                    )
+                    session.add(new_reminder)
+                    print(f"🔔 Reminder created for stale property: {prop.title}")
+            
+            session.commit()
+    except Exception as e:
+        print(f"Stale Check Error: {e}")
+
+def run_drip_campaigns():
+    """کرون‌جاب اتوماسیون بازاریابی (هر ۲۴ ساعت یکبار اجرا می‌شود)"""
+    print("⏰ [CRON JOB]: Running Smart Drip Campaigns...")
+    try:
+        with Session(engine) as session:
+            # فقط مشتریان سرد (Cold) را می‌گیریم
+            cold_clients = session.exec(select(Client).where(Client.client_category == "cold")).all()
+            now = datetime.utcnow()
+            
+            for client in cold_clients:
+                days_passed = (now - client.category_updated_at).days
+                
+                if days_passed >= 7 and client.drip_stage == 0:
+                    print(f"✉️ [Drip SMS 1] به {client.name} (تشکر)")
+                    client.drip_stage = 1
+                    session.add(client)
+                    
+                elif days_passed >= 30 and client.drip_stage == 1:
+                    print(f"✉️ [Drip SMS 2] به {client.name} (وضعیت بازار)")
+                    client.drip_stage = 2
+                    session.add(client)
+                    
+                elif days_passed >= 60 and client.drip_stage == 2:
+                    print(f"✉️ [Drip SMS 3] به {client.name} (پیگیری نهایی)")
+                    client.drip_stage = 3
+                    session.add(client)
+                    
+            session.commit()
+    except Exception as e:
+        print(f"Drip Campaign Error: {e}")
+
+# 🌟 فیکس شدن باگ دوگانه بودن lifespan 🌟
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("🚀 EstateMind AI is starting...")
+    create_db_and_tables()
+    print("✅ Database is ready!")
+    
+    print("⏳ Starting Background Scheduler...")
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(run_crawler_job, 'interval', minutes=60)
+    scheduler.add_job(check_stale_properties, 'interval', hours=24)
+    scheduler.add_job(run_drip_campaigns, 'interval', hours=24)
+    scheduler.start()
+    
+    yield
+    
+    print("🛑 EstateMind AI is shutting down...")
+    scheduler.shutdown()
+
+# تعریف اپلیکیشن اصلی
+app = FastAPI(
+    title="EstateMind AI",
+    version="3.0",
+    lifespan=lifespan
+)
+
+# ثبت روترها
+app.include_router(properties_router)
+app.include_router(auth_router)
+app.include_router(clients_router)
+app.include_router(deals_router)
+app.include_router(reminders_router)
+app.include_router(tickets_router)
+app.include_router(users_router)
+app.include_router(chatbot_router)
+app.include_router(crawler_router)
+app.include_router(webhooks_router)
+app.include_router(superadmin_router) 
+app.include_router(match_router)
+app.include_router(forms_router)
+app.include_router(pricing_router)
+app.include_router(nfc_router)
+app.include_router(ws_router)
+
+os.makedirs("app/static", exist_ok=True)
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+templates = Jinja2Templates(directory="app/templates")
+
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+def get_current_user(request: Request, session: Session):
+    token = request.cookies.get("access_token")
+    if not token:
+        return None
+    try:
+        token = token.replace("Bearer ", "")
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        user = session.exec(select(User).where(User.username == username)).first()
+        return user
+    except Exception:
+        return None
+
+@app.get("/")
+async def render_dashboard(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user(request, session)
+    if not user: return RedirectResponse(url="/login")
+
+    sales_count = len(session.exec(select(Deal).where(Deal.deal_type == "sale")).all())
+    rent_count = len(session.exec(select(Deal).where(Deal.deal_type == "rent")).all())
+    leads_count = len(session.exec(select(Client)).all())
+    ai_matches = 3 
+
+    return templates.TemplateResponse(request=request, name="dashboard/index.html", context={"request": request, "page_title": "داشبورد مدیریت", "user": user, "stats": {"sales": sales_count, "rents": rent_count, "leads": leads_count, "ai_matches": ai_matches}})
+
+@app.get("/login")
+async def render_login(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user(request, session)
+    if user: return RedirectResponse(url="/")
+    return templates.TemplateResponse(request=request, name="auth/login.html", context={"request": request, "page_title": "ورود به EstateMind"})
+
+@app.get("/submit-property/{agency_id}")
+async def render_owner_form(agency_id: int, request: Request, session: Session = Depends(get_session)):
+    """نمایش فرم ثبت ملک به مالک"""
+    agency = session.get(Agency, agency_id)
+    if not agency: 
+        return HTMLResponse("<h1>آژانس یافت نشد</h1>", status_code=404)
+    return templates.TemplateResponse(request=request, name="public/owner_form.html", context={"request": request, "agency": agency, "page_title": "ثبت ملک شما"})
+
+@app.get("/card/{username}")
+async def render_agent_card(username: str, request: Request, session: Session = Depends(get_session)):
+    """نمایش کارت ویزیت دیجیتال مشاور (برای اسکن NFC)"""
+    agent = session.exec(select(User).where(User.username == username)).first()
+    if not agent: 
+        return HTMLResponse("<h1>مشاور یافت نشد</h1>", status_code=404)
+    agency = session.get(Agency, agent.agency_id)
+    return templates.TemplateResponse(request=request, name="public/agent_card.html", context={"request": request, "agent": agent, "agency": agency, "page_title": f"کارت ویزیت {agent.full_name}"})
+
+@app.get("/funnel")
+async def render_funnel(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user(request, session)
+    if not user: return RedirectResponse(url="/login")
+    
+    stages = [
+        {"id": "لید جدید", "name": "تماس اولیه (لید جدید)", "color": "border-blue-500", "bg": "bg-blue-50 dark:bg-blue-900/10"},
+        {"id": "بازدید", "name": "در حال بازدید", "color": "border-amber-500", "bg": "bg-amber-50 dark:bg-amber-900/10"},
+        {"id": "جلسه در دفتر", "name": "جلسه و مذاکره", "color": "border-purple-500", "bg": "bg-purple-50 dark:bg-purple-900/10"},
+        {"id": "قرارداد موفق", "name": "قرارداد موفق", "color": "border-emerald-500", "bg": "bg-emerald-50 dark:bg-emerald-900/10"},
+    ]
+    
+    # 🔒 فیلتر امنیتی: مدیر کل مشتریان آژانس را می‌بیند، مشاور فقط مشتریان خودش را
+    if user.role in ["SUPER_ADMIN", "MANAGER"]:
+        clients = session.exec(select(Client).where(Client.agency_id == user.agency_id).order_by(Client.id.desc())).all()
+    else:
+        clients = session.exec(select(Client).where(Client.user_id == user.id).order_by(Client.id.desc())).all()
+        
+    return templates.TemplateResponse(request=request, name="dashboard/funnel.html", context={"request": request, "page_title": "مدیریت قیف فروش (Kanban)", "stages": stages, "clients": clients, "user": user})
+
+@app.get("/properties")
+async def render_properties_list(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user(request, session)
+    if not user: return RedirectResponse(url="/login")
+    
+    # 🔒 فیلتر امنیتی فایل‌ها
+    if user.role in ["SUPER_ADMIN", "MANAGER"]:
+        # مدیر کل فایل‌های آژانس را می‌بیند
+        properties_list = session.exec(select(Property).where(Property.agency_id == user.agency_id).order_by(Property.id.desc())).all()
+    else:
+        # مشاور فقط فایل‌های خودش + فایل‌هایی که همکاران عمومی کرده‌اند را می‌بیند
+        properties_list = session.exec(
+            select(Property)
+            .where(Property.agency_id == user.agency_id)
+            .where(or_(Property.created_by_id == user.id, Property.is_exclusive == False))
+            .order_by(Property.id.desc())
+        ).all()
+        
+    return templates.TemplateResponse(request=request, name="dashboard/properties_list.html", context={"request": request, "page_title": "مدیریت فایل‌ها", "properties": properties_list, "user": user})
+
+@app.get("/properties/add")
+async def add_property(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user(request, session)
+    if not user: return RedirectResponse(url="/login")
+    return templates.TemplateResponse(request=request, name="dashboard/add_property.html", context={"request": request, "page_title": "ثبت فایل جدید (هوشمند)", "user": user})
+
+@app.get("/financials")
+async def render_financials(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user(request, session)
+    if not user: return RedirectResponse(url="/login")
+    deals = session.exec(select(Deal).order_by(Deal.id.desc())).all()
+    total_revenue = sum(d.commission_amount for d in deals) if deals else 0
+    office_share = total_revenue * 0.5 
+    agent_share = total_revenue * 0.5  
+    active_clients = session.exec(select(Client).where(Client.funnel_stage != "قرارداد موفق")).all()
+    available_properties = session.exec(select(Property).where(Property.status == "active")).all()
+    agent_commissions = session.exec(
+        select(AgentMonthlyCommission, User.full_name)
+        .join(User, User.id == AgentMonthlyCommission.user_id)
+        .where(AgentMonthlyCommission.agency_id == user.agency_id)
+        .order_by(AgentMonthlyCommission.id.desc())
+    ).all()
+    return templates.TemplateResponse(request=request, name="dashboard/financials.html", context={"request": request, "page_title": "گزارشات مالی و عملکرد", "deals": deals, "total_revenue": total_revenue, "office_share": office_share, "agent_share": agent_share, "clients": active_clients, "properties": available_properties, "user": user, "agent_commissions": agent_commissions})
+
+@app.get("/settings")
+async def render_settings(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user(request, session)
+    if not user: return RedirectResponse(url="/login")
+    agency_forms = session.exec(select(UploadedForm).order_by(UploadedForm.id.desc())).all()
+    return templates.TemplateResponse(request=request, name="dashboard/settings.html", context={"request": request, "page_title": "تنظیمات و مدارک", "user": user, "forms": agency_forms})
+
+@app.get("/customers")
+async def render_customers(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user(request, session)
+    if not user: return RedirectResponse(url="/login")
+    
+    # 🔒 فیلتر امنیتی دفترچه مشتریان
+    if user.role in ["SUPER_ADMIN", "MANAGER"]:
+        clients_list = session.exec(select(Client).where(Client.agency_id == user.agency_id).order_by(Client.id.desc())).all()
+    else:
+        clients_list = session.exec(select(Client).where(Client.user_id == user.id).order_by(Client.id.desc())).all()
+        
+    return templates.TemplateResponse(request=request, name="dashboard/customers.html", context={"request": request, "page_title": "دفترچه مشتریان", "clients": clients_list, "user": user})
+    
+@app.get("/partnership")
+async def render_partnership(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user(request, session)
+    if not user: return RedirectResponse(url="/login")
+    from app.core.models import DealType
+    lands = session.exec(select(Property).where(Property.deal_type == DealType.PARTNERSHIP).order_by(Property.id.desc())).all()
+    builders = session.exec(select(Client).where(Client.deal_type_requested == DealType.PARTNERSHIP).order_by(Client.id.desc())).all()
+    return templates.TemplateResponse(request=request, name="dashboard/partnership.html", context={"request": request, "page_title": "دپارتمان مشارکت در ساخت", "lands": lands, "builders": builders, "user": user})
+
+@app.get("/team")
+async def render_team(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user(request, session)
+    if not user: return RedirectResponse(url="/login")
+    agents = session.exec(select(User).where(User.username != "admin").order_by(User.id.desc())).all()
+    return templates.TemplateResponse(request=request, name="dashboard/team.html", context={"request": request, "page_title": "مدیریت تیم و مشاوران", "agents": agents, "user": user})
+
+@app.get("/reminders")
+async def render_reminders(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user(request, session)
+    if not user: return RedirectResponse(url="/login")
+    reminders_list = session.exec(select(Reminder).order_by(Reminder.is_completed, Reminder.remind_date.asc())).all()
+    active_clients = session.exec(select(Client)).all()
+    return templates.TemplateResponse(request=request, name="dashboard/reminders.html", context={"request": request, "page_title": "تقویم و یادآورها", "reminders": reminders_list, "clients": active_clients, "user": user})
+
+@app.get("/tickets")
+async def render_tickets(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user(request, session)
+    if not user: return RedirectResponse(url="/login")
+    tickets_list = session.exec(select(Ticket).order_by(Ticket.id.desc())).all()
+    return templates.TemplateResponse(request=request, name="dashboard/tickets.html", context={"request": request, "page_title": "پشتیبانی و تیکت‌ها", "tickets": tickets_list, "user": user})
+
+@app.get("/super-admin")
+async def render_superadmin(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user(request, session)
+    if not user or user.role != "SUPER_ADMIN": 
+        return RedirectResponse(url="/")
+    agencies = session.exec(select(Agency).order_by(Agency.id.desc())).all()
+    return templates.TemplateResponse(request=request, name="dashboard/super_admin.html", context={"request": request, "page_title": "اتاق فرمان SaaS", "user": user, "agencies": agencies})
+
+@app.get("/catalog/{client_id}")
+async def render_smart_catalog(client_id: int, request: Request, session: Session = Depends(get_session)):
+    client = session.get(Client, client_id)
+    if not client:
+        return templates.TemplateResponse(request=request, name="auth/login.html", context={"request": request, "page_title": "یافت نشد"})
+    matched_properties = session.exec(select(Property).where(Property.status == "active").where(Property.deal_type == client.deal_type_requested)).all()
+    top_matches = matched_properties[:3]
+    return templates.TemplateResponse(request=request, name="showroom/catalog.html", context={"request": request, "page_title": f"پیشنهادات ویژه {client.name}", "client": client, "properties": top_matches})
+
+@app.get("/catalog/property/{property_id}")
+async def view_single_property(property_id: int, request: Request, session: Session = Depends(get_session)):
+    from app.core.models import Agency
+    prop = session.get(Property, property_id)
+    if not prop: 
+        return HTMLResponse("<h1>فایل یافت نشد</h1>", status_code=404)
+    
+    agency = session.get(Agency, prop.agency_id) # گرفتن اطلاعات آژانس
+    
+    import json
+    media_list = []
+    if hasattr(prop, 'image_urls') and prop.image_urls:
+        try: media_list = json.loads(prop.image_urls)
+        except Exception: pass
+    
+    # ارسال آژانس به قالب HTML
+    return templates.TemplateResponse(request=request, name="showroom/catalog_single.html", context={"request": request, "prop": prop, "agency": agency, "media_list": media_list, "page_title": prop.title})
+
+# 🌟 روت جدید برای پرزنت اینستاگرامی (Reels) 🌟
+@app.get("/reels")
+async def render_reels(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user(request, session)
+    if not user: return RedirectResponse(url="/login")
+    properties_list = session.exec(select(Property).where(Property.status == "active").order_by(Property.id.desc())).all()
+    return templates.TemplateResponse(request=request, name="dashboard/reels_presentation.html", context={"request": request, "page_title": "پرزنت تعاملی (Reels)", "properties": properties_list, "user": user})
+
+==================================================
+FILE: ./Backend\app\__init__.py
+==================================================
+
+
+
+==================================================
+FILE: ./Backend\app\api\auth_api.py
+==================================================
+
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
+from pydantic import BaseModel
+from sqlmodel import Session, select
+from app.core.database import get_session
+from app.core.models import User, UserRole, Agency
+from app.core.security import verify_password, create_access_token, get_password_hash
+from app.services.sms_sender import send_otp_sms, verify_otp_code
+
+router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class SendOtpRequest(BaseModel):
+    phone: str
+
+class VerifyOtpRequest(BaseModel):
+    phone: str
+    code: str
+
+@router.post("/login")
+def login(request_data: LoginRequest, response: Response, session: Session = Depends(get_session)):
+    """API بررسی اطلاعات ورود و صدور کوکی امنیتی"""
+    
+    # --- ساخت کاربر ادمین پیش‌فرض اگر سیستم کاملا خالی است ---
+    user_count = session.exec(select(User)).all()
+    if not user_count:
+        # ابتدا یک آژانس پیش‌فرض می‌سازیم
+        default_agency = Agency(name="آژانس مرکزی", owner_name="مدیر سیستم", phone="0210000000")
+        session.add(default_agency)
+        session.commit()
+        
+        # سپس یوزر ادمین را می‌سازیم (username: admin, password: 123)
+        admin_user = User(
+            agency_id=default_agency.id,
+            full_name="مدیر ارشد",
+            username="admin",
+            hashed_password=get_password_hash("123"),
+            role=UserRole.SUPER_ADMIN
+        )
+        session.add(admin_user)
+        session.commit()
+    # --------------------------------------------------------
+
+    # جستجوی کاربر در دیتابیس
+    user = session.exec(select(User).where(User.username == request_data.username)).first()
+    
+    if not user or not verify_password(request_data.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="نام کاربری یا رمز عبور اشتباه است.")
+        
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="حساب کاربری شما غیرفعال شده است.")
+
+    # تولید توکن
+    access_token = create_access_token(data={"sub": user.username, "role": user.role})
+    
+    # قرار دادن توکن داخل کوکیِ مرورگر (HttpOnly برای امنیت بالا)
+    response.set_cookie(
+        key="access_token", 
+        value=f"Bearer {access_token}", 
+        httponly=True,
+        max_age=7 * 24 * 60 * 60, # 7 days
+        samesite="lax"
+    )
+    
+    return {"message": "ورود موفقیت‌آمیز بود", "user": user.full_name, "access_token": access_token}
+
+@router.post("/logout")
+def logout(response: Response):
+    """پاک کردن کوکی مرورگر برای خروج"""
+    response.delete_cookie(key="access_token")
+    return {"message": "شما با موفقیت خارج شدید."}
+
+@router.post("/send-otp")
+def send_otp(request_data: SendOtpRequest, session: Session = Depends(get_session)):
+    """API درخواست ارسال کد پیامکی"""
+    # بررسی اینکه آیا این شماره موبایل اصلاً در تیم ما ثبت شده یا نه
+    user = session.exec(select(User).where(User.username == request_data.phone)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="این شماره در سیستم ثبت نشده است. به مدیر شعبه اطلاع دهید.")
+    
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="حساب کاربری شما مسدود است.")
+        
+    send_otp_sms(request_data.phone)
+    return {"status": "success", "message": "کد ۵ رقمی با موفقیت ارسال شد."}
+
+@router.post("/verify-otp")
+def verify_otp(request_data: VerifyOtpRequest, response: Response, session: Session = Depends(get_session)):
+    """API بررسی کد و لاگین نهایی"""
+    if not verify_otp_code(request_data.phone, request_data.code):
+        raise HTTPException(status_code=400, detail="کد وارد شده اشتباه است یا منقضی شده.")
+        
+    user = session.exec(select(User).where(User.username == request_data.phone)).first()
+    
+    # تولید توکن امنیتی و ورود به سیستم
+    access_token = create_access_token(data={"sub": user.username, "role": user.role})
+    response.set_cookie(
+        key="access_token", 
+        value=f"Bearer {access_token}", 
+        httponly=True,
+        max_age=7 * 24 * 60 * 60,
+        samesite="lax"
+    )
+    
+    return {"status": "success", "message": "ورود موفقیت‌آمیز بود", "access_token": access_token}
+
+==================================================
+FILE: ./Backend\app\api\chatbot_api.py
+==================================================
+
+# --- START OF FILE chatbot_api.py ---
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
+from sqlmodel import Session, select
+import requests
+from app.core.database import get_session
+from app.core.models import Property
+import jwt
+from app.core.security import SECRET_KEY, ALGORITHM
+from app.core.models import User
+
+router = APIRouter(prefix="/api/chat", tags=["Chatbot"])
+
+class ChatRequest(BaseModel):
+    message: str
+
+def get_current_user_local(request: Request, session: Session):
+    token = request.cookies.get("access_token")
+    if not token: return None
+    try:
+        payload = jwt.decode(token.replace("Bearer ", ""), SECRET_KEY, algorithms=[ALGORITHM])
+        return session.exec(select(User).where(User.username == payload.get("sub"))).first()
+    except: return None
+
+@router.post("/")
+def chat_with_crm(data: ChatRequest, request: Request, session: Session = Depends(get_session)):
+    try:
+        user = get_current_user_local(request, session)
+        if not user:
+            return {"status": "error", "reply": "لطفاً ابتدا وارد حساب کاربری خود شوید."}
+
+        # 🌟 تغییر ۱: ربات الان فقط فایل‌های آژانسِ همین کاربر را می‌خواند (امنیت ۱۰۰٪)
+        properties = session.exec(
+            select(Property)
+            .where(Property.status == "active")
+            .where(Property.agency_id == user.agency_id)
+        ).all()
+        
+        db_context = "لیست فایل‌های موجود در آژانس:\n"
+        for p in properties:
+            price = f"{p.price_total:,.0f} تومان" if p.price_total > 0 else "توافقی"
+            db_context += f"- کد {p.id}: {p.title} در محله {p.neighborhood}، متراژ {p.built_area}، قیمت: {price}\n"
+
+        N8N_WEBHOOK_URL = "http://127.0.0.1:5678/webhook/crm-chat"
+
+        # 🌟 تغییر ۲: ساخت یک کلید حافظه کاملاً یکتا و تضمینی (مثل: agency_1_user_5)
+        unique_session_id = f"agency_{user.agency_id}_user_{user.id}"
+
+        payload = {
+            "user_id": unique_session_id, 
+            "chatInput": data.message,
+            "dbContext": db_context
+        }
+
+        response = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=90)
+        
+        if response.status_code == 200:
+            n8n_data = response.json()
+            ai_reply = n8n_data.get("output") or n8n_data.get("text") or n8n_data.get("response")
+            if not ai_reply:
+                ai_reply = f"خطا در فرمت خروجی: {n8n_data}"
+            return {"status": "success", "reply": ai_reply}
+        else:
+            return {"status": "error", "reply": "خطا در ارتباط با سرور n8n."}
+
+    except Exception as e:
+        print(f"❌ Connection Error: {e}")
+        raise HTTPException(status_code=500, detail="ارتباط با سرور n8n برقرار نشد.")
+
+==================================================
+FILE: ./Backend\app\api\clients_api.py
+==================================================
+
+from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile
+from pydantic import BaseModel
+from sqlmodel import Session, select
+from typing import Optional
+from app.core.database import get_session
+from app.core.models import (
+    Client, DealType, FunnelStage, 
+    User, Requirement, PropertyType,
+    ClientInteraction,
+)
+import jwt
+import os, shutil
+from app.core.security import SECRET_KEY, ALGORITHM, get_current_user_api
+from app.services.ai_engine import analyze_client_call
+router = APIRouter(prefix="/api/clients", tags=["Clients"])
+
+class ClientCreateRequest(BaseModel):
+    name: str
+    phone: str
+    deal_type_requested: str
+    budget_limit: float
+
+@router.post("/add")
+def add_client(data: ClientCreateRequest, request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401, detail="باید لاگین باشید")
+    try:
+        d_type = DealType.SALE
+        if data.deal_type_requested == "rent": d_type = DealType.RENT
+        elif data.deal_type_requested == "partnership": d_type = DealType.PARTNERSHIP
+
+        new_client = Client(
+            agency_id=user.agency_id,
+            user_id=user.id,
+            name=data.name,
+            phone=data.phone,
+            deal_type_requested=d_type,
+            budget_limit=data.budget_limit,
+            funnel_stage=FunnelStage.LEAD,
+            client_category="normal"
+        )
+        session.add(new_client)
+        session.commit()
+        return {"status": "success", "message": "مشتری جدید با موفقیت اضافه شد!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="خطا در ذخیره اطلاعات")
+
+class StageUpdateRequest(BaseModel):
+    client_id: int
+    new_stage: str
+
+@router.put("/update-stage")
+def update_client_stage(data: StageUpdateRequest, session: Session = Depends(get_session)):
+    try:
+        client = session.get(Client, data.client_id)
+        if not client: raise HTTPException(status_code=404, detail="مشتری یافت نشد!")
+        client.funnel_stage = data.new_stage
+        session.commit()
+        return {"status": "success", "message": "وضعیت مشتری آپدیت شد"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="خطا در تغییر وضعیت مشتری")
+
+class CategoryUpdateRequest(BaseModel):
+    client_id: int
+    category: str
+
+class ClientFilterRequest(BaseModel):
+    category: Optional[str] = None
+    deal_type: Optional[str] = None
+    min_budget: Optional[float] = None
+    max_budget: Optional[float] = None
+
+@router.put("/update-category")
+def update_client_category(data: CategoryUpdateRequest, request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+    
+    client = session.get(Client, data.client_id)
+    if not client: raise HTTPException(status_code=404)
+    
+    valid_categories = ["normal", "vip", "hot_lead", "cold"]
+    if data.category not in valid_categories: raise HTTPException(status_code=400)
+        
+    client.client_category = data.category
+    session.commit()
+    return {"status": "success"}
+
+class RequirementCreateRequest(BaseModel):
+    client_id: int
+    deal_type: str
+    property_type: str
+    min_budget: float
+    max_budget: float
+    preferred_neighborhoods: str
+
+@router.post("/add-requirement")
+def add_requirement(data: RequirementCreateRequest, request: Request, session: Session = Depends(get_session)):
+    """API ثبت فرم نیاز دقیق مشتری برای ردیابی هوشمند"""
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+    
+    # مپ کردن نوع معامله و ملک
+    d_type = DealType.SALE
+    if data.deal_type == "rent": d_type = DealType.RENT
+    elif data.deal_type == "partnership": d_type = DealType.PARTNERSHIP
+        
+    p_type = PropertyType.APARTMENT
+    if data.property_type == "villa": p_type = PropertyType.VILLA
+    elif data.property_type == "land": p_type = PropertyType.LAND
+    elif data.property_type == "commercial": p_type = PropertyType.COMMERCIAL
+
+    new_req = Requirement(
+        agency_id=user.agency_id,
+        client_id=data.client_id,
+        created_by_user_id=user.id,
+        deal_type=d_type,
+        property_type=p_type,
+        min_budget=data.min_budget,
+        max_budget=data.max_budget,
+        preferred_neighborhoods=data.preferred_neighborhoods
+    )
+    session.add(new_req)
+    session.commit()
+    return {"status": "success", "message": "نیاز مشتری با موفقیت ثبت شد و در رادار سیستم قرار گرفت!"}
+
+@router.get("/app-list")
+def get_clients_for_app(request: Request, session: Session = Depends(get_session)):
+    from app.core.security import get_current_user_api
+    from sqlmodel import or_
+    user = get_current_user_api(request, session)
+    
+    # 🔒 امنیت: مشاور فقط مشتری خودش یا مشتریان عمومی را می‌بیند
+    if user.role in ["SUPER_ADMIN", "MANAGER"]:
+        clients_list = session.exec(select(Client).where(Client.agency_id == user.agency_id).order_by(Client.id.desc())).all()
+    else:
+        clients_list = session.exec(select(Client).where(Client.agency_id == user.agency_id).where(or_(Client.user_id == user.id, Client.is_public == True)).order_by(Client.id.desc())).all()
+        
+    return {"status": "success", "clients": clients_list}
+
+@router.post("/{client_id}/analyze-call")
+async def analyze_call_audio(client_id: int, request: Request, audio: UploadFile = File(...), session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(401)
+    
+    temp_path = f"temp_call_{client_id}.m4a"
+    with open(temp_path, "wb") as f:
+        shutil.copyfileobj(audio.file, f)
+        
+    try:
+        from app.api.properties_api import nvidia_client
+        with open(temp_path, "rb") as af:
+            transcription = nvidia_client.audio.transcriptions.create(model="openai/whisper-large-v3", file=af, language="fa")
+        
+        analysis = analyze_client_call(transcription.text)
+        
+        interaction = ClientInteraction(client_id=client_id, summary=analysis["summary"], sentiment=analysis["sentiment"])
+        session.add(interaction)
+        session.commit()
+        
+        return {"status": "success", "analysis": analysis}
+    finally:
+        if os.path.exists(temp_path): os.remove(temp_path)
+
+==================================================
+FILE: ./Backend\app\api\crawler_api.py
+==================================================
+
+import os
+import sys
+import subprocess
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlmodel import Session, select
+from app.core.database import get_session
+import jwt
+from app.core.security import SECRET_KEY, ALGORITHM, get_current_user_api
+from app.core.models import User, Property
+
+router = APIRouter(prefix="/api/crawler", tags=["Crawler"])
+
+@router.post("/start")
+def start_crawler_bot(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user:
+        raise HTTPException(status_code=401, detail="باید لاگین باشید")
+        
+    # استفاده از محله هدف مشاور (یا پیش‌فرض "سجاد")
+    # ما در اینجا اگر مشاور چند محله داشت (با کاما جدا شده)، فعلاً اولی را برمی‌داریم
+    target_hood = "سجاد"
+    target_hoods = "سجاد"
+    if user.target_neighborhoods:
+        target_hoods = user.target_neighborhoods.strip()
+    
+    # 🚀 بیدار کردن ربات در سیستم‌عامل (اجرای ایزوله بدون قفل کردن سرور)
+    try:
+        # مسیر دقیق فایل ربات
+        script_path = "scripts/ghost_crawler.py"
+        
+        if os.path.exists(script_path):
+            subprocess.Popen([sys.executable, script_path, "mashhad", target_hoods, str(user.id)])
+        
+        return {
+            "status": "success", 
+            "message": f"ربات خزنده‌ی نامرئی بیدار شد و در حال اسکن محله '{target_hood}' است. شما می‌توانید به کارهای خود برسید!"
+        }
+    except Exception as e:
+        print(f"❌ Crawler execution error: {e}")
+        raise HTTPException(status_code=500, detail="خطا در راه‌اندازی ربات")
+
+@router.post("/divar-login")
+def trigger_divar_login(request: Request, session: Session = Depends(get_session)):
+    """باز کردن مرورگر برای لاگین در دیوار جهت ذخیره نشست (Session)"""
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+    try:
+        # آدرس دقیق فایل لاگین که ساختی
+        subprocess.Popen([sys.executable, "scripts/divar_login.py"])
+        return {"status": "success", "message": "مرورگر باز شد."}
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail="خطا در باز کردن مرورگر")
+
+@router.post("/publish-to-divar/{property_id}")
+def publish_to_divar_api(property_id: int, request: Request, session: Session = Depends(get_session)):
+    """ارسال دستور به ربات Playwright برای درج آگهی در سایت دیوار"""
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(401)
+    
+    prop = session.get(Property, property_id)
+    if not prop: raise HTTPException(404, "فایل یافت نشد")
+    
+    try:
+        # اجرای اسکریپت ربات درج آگهی (در بک‌گراند)
+        script_path = "scripts/divar_publisher.py"
+        if os.path.exists(script_path):
+            subprocess.Popen([sys.executable, script_path, str(prop.id)])
+            
+        return {"status": "success", "message": "ربات در حال باز کردن مرورگر و درج آگهی شما در دیوار است..."}
+    except Exception as e:
+        print(f"❌ Publish Error: {e}")
+        raise HTTPException(500, "خطا در ارتباط با ربات دیوار")
+
+==================================================
+FILE: ./Backend\app\api\deals_api.py
+==================================================
+
+import io
+import os
+from datetime import datetime
+from fastapi.responses import StreamingResponse
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+import arabic_reshaper
+from bidi.algorithm import get_display
+import jdatetime
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
+from sqlmodel import Session, select
+from app.core.database import get_session
+from app.core.models import Deal, Client, Property, FunnelStage, User, AgentMonthlyCommission
+import jwt
+from app.core.security import SECRET_KEY, ALGORITHM, get_current_user_api
+
+router = APIRouter(prefix="/api/deals", tags=["Deals"])
+
+class DealCreateRequest(BaseModel):
+    client_id: int
+    property_id: int
+    deal_type: str
+    deal_price: float
+    commission_amount: float
+
+@router.post("/add")
+def add_deal(data: DealCreateRequest, request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401, detail="باید لاگین باشید")
+    try:
+        new_deal = Deal(
+            agency_id=user.agency_id,
+            user_id=user.id,
+            client_id=data.client_id,
+            property_id=data.property_id,
+            deal_type=data.deal_type,
+            deal_price=data.deal_price,
+            commission_amount=data.commission_amount
+        )
+        session.add(new_deal)
+
+        client = session.get(Client, data.client_id)
+        if client:
+            client.funnel_stage = FunnelStage.WON
+            session.add(client)
+
+        property_obj = session.get(Property, data.property_id)
+        if property_obj:
+            property_obj.status = "archived"
+            session.add(property_obj)
+
+        session.commit()
+        return {"status": "success", "message": "قرارداد ثبت شد."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="خطا در ذخیره قرارداد")
+
+FONT_PATH = "app/static/Vazirmatn-Regular.ttf"
+
+def persian_text(text):
+    reshaped_text = arabic_reshaper.reshape(str(text))
+    return get_display(reshaped_text)
+
+@router.get("/{deal_id}/contract-pdf")
+def generate_deal_contract_pdf(deal_id: int, session: Session = Depends(get_session)):
+    deal = session.get(Deal, deal_id)
+    if not deal: raise HTTPException(status_code=404)
+    
+    client = session.get(Client, deal.client_id)
+    property_obj = session.get(Property, deal.property_id) if deal.property_id else None
+    
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer)
+    width, height = 595, 842
+    
+    try:
+        pdfmetrics.registerFont(TTFont('Vazir', FONT_PATH))
+        c.setFont("Vazir", 14)
+    except: pass
+
+    c.setStrokeColorRGB(0.1, 0.7, 0.5)
+    c.setLineWidth(2)
+    c.rect(30, 30, width-60, height-60)
+
+    c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica-Bold", 24)
+    c.drawCentredString(width/2, height - 80, persian_text("رسید ثبت اولیه قرارداد معامله"))
+    
+    c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica", 14)
+    c.drawRightString(width - 50, height - 140, persian_text(f"کد رهگیری: #{deal.id}"))
+    shamsi_date = jdatetime.datetime.fromgregorian(datetime=deal.deal_date).strftime("%Y/%m/%d")
+    c.drawString(50, height - 140, persian_text(f"تاریخ: {shamsi_date}"))
+    c.line(50, height - 150, width - 50, height - 150)
+
+    c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica-Bold", 16)
+    c.drawRightString(width - 50, height - 200, persian_text("مشخصات مشتری:"))
+    c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica", 14)
+    c.drawRightString(width - 70, height - 230, persian_text(f"نام: {client.name if client else ''}"))
+    c.drawRightString(width - 70, height - 260, persian_text(f"تلفن: {client.phone if client else ''}"))
+
+    c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica-Bold", 16)
+    c.drawRightString(width - 50, height - 310, persian_text("مشخصات ملک:"))
+    c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica", 14)
+    c.drawRightString(width - 70, height - 340, persian_text(f"عنوان: {property_obj.title if property_obj else 'دستی'}"))
+    
+    c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica-Bold", 16)
+    c.drawRightString(width - 50, height - 420, persian_text("اطلاعات مالی:"))
+    c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica", 14)
+    c.drawRightString(width - 70, height - 450, persian_text(f"نوع: {deal.deal_type}"))
+    c.drawRightString(width - 70, height - 480, persian_text(f"مبلغ کل: {int(deal.deal_price):,} تومان"))
+    
+    c.line(50, 150, width - 50, 150)
+    c.setFont("Vazir" if os.path.exists(FONT_PATH) else "Helvetica-Bold", 14)
+    c.drawRightString(width - 80, 100, persian_text("امضا مشتری"))
+    c.drawString(100, 100, persian_text("مهر آژانس"))
+
+    c.save()
+    buffer.seek(0)
+    return StreamingResponse(buffer, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=Contract_{deal.id}.pdf"})
+
+class MonthlyCommissionRequest(BaseModel):
+    year_month: str
+
+@router.post("/calculate-monthly")
+def calculate_monthly_commissions(data: MonthlyCommissionRequest, request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user or user.role not in ["MANAGER", "SUPER_ADMIN"]: raise HTTPException(403)
+    
+    deals = session.exec(select(Deal).where(Deal.agency_id == user.agency_id)).all()
+    month_deals = [d for d in deals if d.deal_date.strftime("%Y-%m") == data.year_month]
+    
+    agent_commissions = {}
+    for deal in month_deals:
+        agent_id = deal.user_id
+        if agent_id not in agent_commissions:
+            agent = session.get(User, agent_id)
+            agent_commissions[agent_id] = {
+                "total_deals": 0, "total_value": 0, "total_commission": 0, 
+                "agent_share_amount": 0, "office_share_amount": 0, "agent_ref": agent
+            }
+        
+        agent_obj = agent_commissions[agent_id]["agent_ref"]
+        
+        # 🌟 استخراج درصد داینامیک بر اساس نوع قرارداد
+        rate = 0.5
+        if agent_obj:
+            if "فروش" in deal.deal_type: rate = agent_obj.commission_sale
+            elif "اجاره" in deal.deal_type: rate = agent_obj.commission_rent
+            elif "مشارکت" in deal.deal_type: rate = agent_obj.commission_partnership
+            
+        a_share = deal.commission_amount * rate
+        o_share = deal.commission_amount * (1 - rate)
+            
+        agent_commissions[agent_id]["total_deals"] += 1
+        agent_commissions[agent_id]["total_value"] += deal.deal_price
+        agent_commissions[agent_id]["total_commission"] += deal.commission_amount
+        agent_commissions[agent_id]["agent_share_amount"] += a_share
+        agent_commissions[agent_id]["office_share_amount"] += o_share
+
+    for agent_id, c_data in agent_commissions.items():
+        existing = session.exec(select(AgentMonthlyCommission).where(AgentMonthlyCommission.user_id == agent_id, AgentMonthlyCommission.year_month == data.year_month)).first()
+        
+        if existing:
+            existing.total_deals = c_data["total_deals"]
+            existing.total_deal_value = c_data["total_value"]
+            existing.total_commission = c_data["total_commission"]
+            existing.agent_share = c_data["agent_share_amount"]
+            existing.office_share = c_data["office_share_amount"]
+        else:
+            new_record = AgentMonthlyCommission(
+                user_id=agent_id, agency_id=user.agency_id, year_month=data.year_month, 
+                total_deals=c_data["total_deals"], total_deal_value=c_data["total_value"], 
+                total_commission=c_data["total_commission"], 
+                agent_share=c_data["agent_share_amount"], office_share=c_data["office_share_amount"]
+            )
+            session.add(new_record)
+
+    session.commit()
+    return {"status": "success", "message": "محاسبات کمیسیون آپدیت شد."}
+
+@router.get("/app-financials")
+def get_financials_for_app(request: Request, session: Session = Depends(get_session)):
+    """API دریافت گزارشات مالی و کمیسیون‌ها مخصوص موبایل"""
+    from app.core.security import get_current_user_api
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+    
+    if user.role in ["SUPER_ADMIN", "MANAGER"]:
+        deals = session.exec(select(Deal).where(Deal.agency_id == user.agency_id).order_by(Deal.id.desc())).all()
+    else:
+        deals = session.exec(select(Deal).where(Deal.user_id == user.id).order_by(Deal.id.desc())).all()
+        
+    total_revenue = sum(d.commission_amount for d in deals) if deals else 0
+    
+    # 👈 محاسبه پویای سهم مشاور بر اساس نوع هر قرارداد جهت جلوگیری از ارور
+    agent_share = 0
+    for d in deals:
+        rate = 0.5  # مقدار پیش‌فرض ۵۰ درصد
+        if "فروش" in d.deal_type:
+            rate = getattr(user, 'commission_sale', 0.5)
+        elif "اجاره" in d.deal_type:
+            rate = getattr(user, 'commission_rent', 0.5)
+        elif "مشارکت" in d.deal_type:
+            rate = getattr(user, 'commission_partnership', 0.5)
+        agent_share += d.commission_amount * rate
+
+    office_share = total_revenue - agent_share
+    
+    deals_data = []
+    for d in deals[:10]:
+        deals_data.append({
+            "id": d.id,
+            "type": d.deal_type,
+            "price": d.deal_price,
+            "commission": d.commission_amount,
+            "date": d.deal_date.strftime('%Y-%m-%d')
+        })
+        
+    return {
+        "status": "success",
+        "stats": {
+            "total_revenue": total_revenue,
+            "agent_share": agent_share,
+            "office_share": office_share
+        },
+        "recent_deals": deals_data
+    }
+
+==================================================
+FILE: ./Backend\app\api\forms_api.py
+==================================================
+
+import os
+import shutil
+from fastapi import (
+    Request, APIRouter, Depends,
+    HTTPException, File, UploadFile, Form,
+)
+from sqlmodel import Session, select
+from app.core.database import get_session
+from app.core.models import UploadedForm
+
+router = APIRouter(prefix="/api/forms", tags=["Forms"])
+
+# اطمینان از وجود پوشه برای ذخیره فایل‌ها
+os.makedirs("uploads/forms", exist_ok=True)
+
+@router.post("/upload")
+async def upload_form(request: Request, title: str = Form(...), file: UploadFile = File(...), session: Session = Depends(get_session)):
+    """API آپلود فایل و ذخیره آدرس آن در دیتابیس"""
+    
+    user = get_current_user_api(request, session)
+
+    try:
+        # ساخت مسیر ذخیره فایل
+        file_path = f"uploads/forms/{file.filename}"
+        
+        # ذخیره فایل در هارد سرور
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # ذخیره اطلاعات در دیتابیس
+        new_form = UploadedForm(agency_id=user.agency_id, title=title, file_path=file_path)
+        session.add(new_form)
+        session.commit()
+        
+        return {"status": "success", "message": "فرم با موفقیت به زونکن اضافه شد."}
+    except Exception as e:
+        print(f"❌ Upload error: {e}")
+        raise HTTPException(status_code=500, detail="خطا در آپلود فایل")
+    
+@router.get("/app-list")
+def get_forms_for_app(request: Request, session: Session = Depends(get_session)):
+    from app.core.security import get_current_user_api
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+    
+    forms = session.exec(select(UploadedForm).where(UploadedForm.agency_id == user.agency_id).order_by(UploadedForm.id.desc())).all()
+    return {"status": "success", "forms": forms}
+
+==================================================
+FILE: ./Backend\app\api\match_api.py
+==================================================
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session
+from app.core.database import get_session
+from app.core.models import Client, Property
+from app.services.vector_db import search_best_matches_semantic
+from pydantic import BaseModel
+
+router = APIRouter(prefix="/api/match", tags=["Matching"])
+
+@router.get("/client/{client_id}")
+def match_for_client(client_id: int, session: Session = Depends(get_session)):
+    client = session.get(Client, client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="مشتری یافت نشد")
+    
+    # ساختن جمله نیازمندی مشتری برای هوش مصنوعی
+    deal_fa = "خرید" if client.deal_type_requested == "SALE" else ("رهن و اجاره" if client.deal_type_requested == "RENT" else "مشارکت")
+    query = f"مشتری به دنبال {deal_fa} ملک با بودجه حدود {client.budget_limit} تومان است."
+    
+    try:
+        # جستجو در مغز ChromaDB
+        results = search_best_matches_semantic(query, n_results=3)
+        
+        matched_properties = []
+        if results and results['ids'] and len(results['ids'][0]) > 0:
+            for idx, prop_id_str in enumerate(results['ids'][0]):
+                prop = session.get(Property, int(prop_id_str))
+                if prop and prop.status == "active":
+                    # محاسبه درصد تطابق فرضی بر اساس فاصله معنایی
+                    distance = results['distances'][0][idx]
+                    match_score = max(10, 100 - int(distance * 50)) 
+                    
+                    matched_properties.append({
+                        "id": prop.id,
+                        "title": prop.title,
+                        "price": prop.price_total,
+                        "score": match_score
+                    })
+        
+        return {"status": "success", "matches": matched_properties}
+    except Exception as e:
+        print(f"❌ Matching Error: {e}")
+        raise HTTPException(status_code=500, detail="خطا در موتور جستجوی معنایی")
+
+class SemanticSearchRequest(BaseModel):
+    query: str
+
+@router.post("/semantic-search")
+def semantic_search_properties(data: SemanticSearchRequest, session: Session = Depends(get_session)):
+    """جستجوی مفهومی و عامیانه در فایل‌های املاک با استفاده از ChromaDB"""
+    try:
+        # جستجوی 5 فایل شبیه‌ترین به مفهوم سرچ شده
+        results = search_best_matches_semantic(data.query, n_results=5)
+        
+        matched_properties = []
+        if results and results['ids'] and len(results['ids'][0]) > 0:
+            for idx, prop_id_str in enumerate(results['ids'][0]):
+                prop = session.get(Property, int(prop_id_str))
+                
+                # فقط فایل‌های فعال رو نشون بده
+                if prop and prop.status == "active":
+                    distance = results['distances'][0][idx]
+                    # تبدیل فاصله برداری به یک درصد تطابق قابل فهم برای انسان
+                    match_score = max(10, 100 - int(distance * 50)) 
+                    
+                    matched_properties.append({
+                        "id": prop.id,
+                        "title": prop.title,
+                        "price": prop.price_total,
+                        "neighborhood": prop.neighborhood,
+                        "score": match_score
+                    })
+                    
+        return {"status": "success", "matches": matched_properties}
+    except Exception as e:
+        print(f"❌ Semantic Search Error: {e}")
+        raise HTTPException(status_code=500, detail="خطا در موتور جستجوی معنایی هوش مصنوعی")
+
+==================================================
+FILE: ./Backend\app\api\nfc_api.py
+==================================================
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
+from sqlmodel import Session, select
+from app.core.database import get_session
+from app.core.models import Property, User
+import jwt
+from app.core.security import SECRET_KEY, ALGORITHM, get_current_user_api
+import qrcode
+import io
+import json
+
+router = APIRouter(prefix="/api/nfc", tags=["NFC & QR"])
+
+@router.get("/generate-qr/{property_id}")
+def generate_property_qr(property_id: int, request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+
+    prop = session.get(Property, property_id)
+    if not prop: raise HTTPException(status_code=404)
+
+    property_data = {
+        "id": prop.id,
+        "title": prop.title,
+        "price": prop.price_total,
+        "agent": user.full_name,
+        "url": f"https://estatemind.ir/catalog/property/{prop.id}"
+    }
+
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+    qr.add_data(json.dumps(property_data, ensure_ascii=False))
+    qr.make(fit=True)
+
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    buffer.seek(0)
+
+    return StreamingResponse(buffer, media_type="image/png", headers={"Content-Disposition": f"attachment; filename=qr_{property_id}.png"})
+
+@router.get("/agent-qr")
+def generate_agent_qr(request: Request, session: Session = Depends(get_session)):
+    """تولید QR Code لینک کارت ویزیت دیجیتال مشاور (برای چاپ یا NFC)"""
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+
+    url = f"https://estatemind.ir/card/{user.username}"
+
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+    qr.add_data(url)
+    qr.make(fit=True)
+
+    img = qr.make_image(fill_color="#0f172a", back_color="white")
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    buffer.seek(0)
+
+    return StreamingResponse(buffer, media_type="image/png")
+
+==================================================
+FILE: ./Backend\app\api\pricing_api.py
+==================================================
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
+from sqlmodel import Session, select
+from typing import Optional
+from app.core.database import get_session
+from app.core.models import Property, User
+from app.services.ai_engine import generate_smart_comparison
+import jwt
+from app.core.security import SECRET_KEY, ALGORITHM, get_current_user_api
+
+router = APIRouter(prefix="/api/pricing", tags=["Smart Pricing"])
+
+@router.get("/analyze/{property_id}")
+def analyze_property_price(property_id: int, request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+
+    target_prop = session.get(Property, property_id)
+    if not target_prop: raise HTTPException(status_code=404, detail="فایل یافت نشد")
+
+    # پیدا کردن فایل‌های مشابه در همان محله
+    comparables = session.exec(
+        select(Property)
+        .where(Property.neighborhood == target_prop.neighborhood)
+        .where(Property.property_type == target_prop.property_type)
+        .where(Property.id != target_prop.id)
+        .limit(10)
+    ).all()
+
+    price_per_meter = []
+    for prop in comparables:
+        if prop.built_area and prop.built_area > 0 and prop.price_total and prop.price_total > 0:
+            price_per_meter.append(prop.price_total / prop.built_area)
+
+    # اگر فایل مشابهی نبود، قیمت خود فایل را پایه قرار می‌دهیم
+    avg_price_per_meter = sum(price_per_meter) / len(price_per_meter) if price_per_meter else (target_prop.price_total / target_prop.built_area if target_prop.built_area else 0)
+
+    # تاثیر امکانات روی قیمت
+    adjustment = 0
+    if target_prop.has_elevator: adjustment += 0.05
+    if target_prop.has_parking: adjustment += 0.03
+    if target_prop.has_store_room: adjustment += 0.02
+
+    age_depreciation = min((target_prop.age or 0) * 0.01, 0.3) 
+
+    suggested_price = avg_price_per_meter * (target_prop.built_area or 0) * (1 + adjustment - age_depreciation)
+
+    if suggested_price == 0:
+        suggested_price = target_prop.price_total
+
+    return {
+        "status": "success",
+        "property_title": target_prop.title,
+        "owner_price": target_prop.price_total,
+        "suggested_price": round(suggested_price, 0),
+        "scenarios": {
+            "conservative": {"price": round(suggested_price * 0.9, 0), "days": "۵ الی ۱۰ روز (فروش فوری)"},
+            "market": {"price": round(suggested_price, 0), "days": "۱۵ الی ۳۰ روز (نرمال)"},
+            "aggressive": {"price": round(suggested_price * 1.15, 0), "days": "بیش از ۶۰ روز (احتمال رسوب)"}
+        }
+    }
+
+==================================================
+FILE: ./Backend\app\api\properties_api.py
+==================================================
+
+import os
+import shutil
+import json
+import io
+import jwt
+from datetime import datetime
+from app.core.security import SECRET_KEY, ALGORITHM
+from PIL import Image, ImageDraw, ImageFont
+from typing import Optional, List
+from fastapi import (
+    APIRouter, File, UploadFile, 
+    HTTPException, Depends, Request
+)
+from openai import OpenAI
+from pydantic import BaseModel
+from sqlmodel import Session, select, or_
+from app.services.ai_engine import analyze_property_text
+from app.core.database import get_session
+from app.core.models import Property, PropertyType, DealType, DocumentType
+from app.services.vector_db import add_property_to_vector_db
+from app.services.notifier import send_telegram_alert
+from app.services.ai_engine import virtual_staging_api
+from app.core.models import (
+    User, Client, AgentNotification, 
+    Property, Reminder, FunnelStage,
+    Requirement,
+)
+from app.core.socket_manager import notify_user_sync
+from app.services.ai_engine import generate_smart_comparison
+
+nvidia_client = OpenAI(
+    base_url="https://integrate.api.nvidia.com/v1",
+    api_key=os.getenv("NVIDIA_API_KEY")
+)
+
+router = APIRouter(prefix="/api/properties", tags=["Properties"])
+
+# مدل Pydantic پیشرفته برای دریافت تمام جزئیات از فرم فرانت‌اند
+class PropertyCreateRequest(BaseModel):
+    title: str
+    property_type: str
+    deal_type: str
+    city: str
+    neighborhood: str
+    address: Optional[str] = None
+    built_area: float
+    rooms: int
+    age: Optional[int] = 0
+    floor: Optional[int] = None
+    has_elevator: bool = False
+    has_parking: bool = False
+    has_store_room: bool = False
+    has_master_room: bool = False
+    cabinet_type: Optional[str] = None
+    floor_covering: Optional[str] = None
+    document_type: str
+    price_total: float
+    owner_name: Optional[str] = None
+    owner_phone: Optional[str] = None
+    is_exclusive: bool = False
+    description: Optional[str] = None
+    image_urls: Optional[list] = []
+
+class PropertyEditRequest(BaseModel):
+    title: Optional[str] = None
+    price_total: Optional[float] = None
+    owner_phone: Optional[str] = None
+    ai_pros: Optional[str] = None
+    ai_cons: Optional[str] = None
+    publisher: Optional[str] = None
+    image_urls: Optional[List[str]] = None # 👈 این خط برای ذخیره تغییرات عکس/فیلم اضافه شد
+
+class ApproveRequest(BaseModel):
+    is_exclusive: bool
+
+def get_current_user_local(request: Request, session: Session):
+    token = request.cookies.get("access_token")
+    if not token: return None
+    try:
+        payload = jwt.decode(token.replace("Bearer ", ""), SECRET_KEY, algorithms=[ALGORITHM])
+        return session.exec(select(User).where(User.username == payload.get("sub"))).first()
+    except: return None
+    
+@router.post("/voice-parse")
+async def parse_voice_to_form(audio: UploadFile = File(...)):
+    temp_audio_path = f"temp_voice_{audio.filename}"
+    
+    try:
+        # ۱. ابتدا فایل صوتیِ دریافتی از کاربر را موقتاً روی سرور ذخیره می‌کنیم
+        with open(temp_audio_path, "wb") as f:
+            f.write(await audio.read())
+            
+        # ۲. فایل ذخیره شده را باز کرده و به Whisper انویدیا می‌فرستیم
+        with open(temp_audio_path, "rb") as audio_file:
+            transcription = nvidia_client.audio.transcriptions.create(
+                model="openai/whisper-large-v3",
+                file=audio_file,
+                language="fa" # اجبار هوش مصنوعی به تشخیص زبان فارسی
+            )
+        
+        # ۳. متن استخراج شده از ویس را می‌گیریم
+        transcript = transcription.text
+        print(f"🎙️ متن استخراج شده از ویس مشاور: {transcript}")
+                
+        # ۴. متن را به موتور هوش مصنوعی خودمان (Qwen/Mistral) می‌دهیم تا فرم (JSON) را پر کند
+        # مقدار target_hood را فعلا خالی می‌دهیم چون در ویس محله مشخص می‌شود
+        ai_extracted_data = analyze_property_text(transcript, target_hood="")
+        
+        # (داده‌های هاردکد و تستی حذف شدند تا اطلاعات واقعی برگردد)
+        
+        return {
+            "status": "success",
+            "transcript": transcript,
+            "data": ai_extracted_data
+        }
+        
+    except Exception as e:
+        print(f"❌ Error in Voice API: {e}")
+        raise HTTPException(status_code=500, detail="خطا در پردازش هوشمند فایل صوتی.")
+        
+    finally:
+        # ۵. در پایان (چه موفقیت‌آمیز، چه ارور)، فایل صوتی موقت را از سرور پاک می‌کنیم تا هارد پر نشود
+        if os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path)
+
+@router.post("/upload-temp")
+async def upload_temp_media(file: UploadFile = File(...)):
+    """آپلود موقت رسانه قبل از ساخته شدن کامل ملک"""
+    os.makedirs("uploads/properties", exist_ok=True)
+    import random
+    file_ext = file.filename.split(".")[-1].lower()
+    file_name = f"temp_{random.randint(100000,999999)}.{file_ext}"
+    file_path = f"uploads/properties/{file_name}"
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return {"status": "success", "url": f"/{file_path}"}
+
+@router.put("/{property_id}/approve")
+def approve_scraped_property(property_id: int, data: ApproveRequest, request: Request, session: Session = Depends(get_session)):
+    """تایید فایل شکار شده و انتقال به بانک اصلی املاک"""
+    user = get_current_user_local(request, session)
+    if not user: raise HTTPException(401)
+    
+    prop = session.get(Property, property_id)
+    if not prop: raise HTTPException(404)
+    
+    prop.status = "active"
+    prop.is_exclusive = data.is_exclusive
+    # ثبت نام مشاوری که فایل را تایید و وارد سیستم کرده است
+    prop.created_by_id = user.id
+    if not data.is_exclusive:
+        prop.made_public_by_name = user.full_name
+        
+    session.commit()
+    return {"status": "success", "message": "فایل با موفقیت وارد بانک املاک شد."}
+
+@router.get("/pending-list")
+def get_pending_properties(request: Request, session: Session = Depends(get_session)):
+    """API دریافت فایل‌های شکار شده در صندوق ورودی ربات"""
+    from app.core.security import get_current_user_api
+    user = get_current_user_api(request, session)
+    
+    # فایل‌های بررسی نشده (pending) را برمی‌گرداند
+    props = session.exec(select(Property).where(Property.agency_id == user.agency_id, Property.status == "pending").order_by(Property.id.desc())).all()
+    return {"status": "success", "properties": props}
+    
+@router.get("/app-list")
+def get_properties_for_app(request: Request, session: Session = Depends(get_session)):
+    """API دریافت لیست فایل‌های فعال برای اپلیکیشن"""
+    from app.core.security import get_current_user_api
+    user = get_current_user_api(request, session)
+    
+    if user.role in ["SUPER_ADMIN", "MANAGER"]:
+        props = session.exec(select(Property).where(Property.agency_id == user.agency_id, Property.status == "active").order_by(Property.id.desc())).all()
+    else:
+        from sqlmodel import or_
+        props = session.exec(
+            select(Property)
+            .where(Property.agency_id == user.agency_id, Property.status == "active")
+            .where(or_(Property.created_by_id == user.id, Property.is_exclusive == False))
+            .order_by(Property.id.desc())
+        ).all()
+    return {"status": "success", "properties": props}
+
+@router.post("/save")
+def save_property_to_db(request: Request, data: PropertyCreateRequest, session: Session = Depends(get_session)):
+    
+    user = get_current_user_api(request, session)
+    try:
+        # مپ کردن داده‌های فرم با Enums دیتابیس
+        p_type = PropertyType.APARTMENT
+        if data.property_type == "villa": p_type = PropertyType.VILLA
+        elif data.property_type == "land": p_type = PropertyType.LAND
+        elif data.property_type == "commercial": p_type = PropertyType.COMMERCIAL
+        
+        d_type = DealType.SALE
+        if data.deal_type == "rent": d_type = DealType.RENT
+        elif data.deal_type == "partnership": d_type = DealType.PARTNERSHIP
+        
+        doc_type = DocumentType.SINGLE
+        if data.document_type == "PROMISSORY": doc_type = DocumentType.PROMISSORY
+        elif data.document_type == "ENDOWMENT": doc_type = DocumentType.ENDOWMENT
+
+        new_property = Property(
+            agency_id=user.agency_id, 
+            created_by_id=user.id,
+            title=data.title,
+            property_type=p_type,
+            deal_type=d_type,
+            city=data.city,
+            neighborhood=data.neighborhood,
+            address=data.address,
+            built_area=data.built_area,
+            rooms=data.rooms,
+            age=data.age,
+            floor=data.floor,
+            has_elevator=data.has_elevator,
+            has_parking=data.has_parking,
+            has_store_room=data.has_store_room,
+            has_master_room=data.has_master_room,
+            cabinet_type=data.cabinet_type,
+            floor_covering=data.floor_covering,
+            document_type=doc_type,
+            price_total=data.price_total,
+            owner_name=data.owner_name,
+            owner_phone=data.owner_phone,
+            is_exclusive=data.is_exclusive,
+            description=data.description, 
+            image_urls=json.dumps(data.image_urls)
+        )
+        
+        session.add(new_property)
+        session.commit()
+        
+        session.refresh(new_property)
+        
+        # ====== سیستم مچینگ هوشمند مشتریان (Live Alerts) ======
+        try:
+            # حالا به جای کلاینت خام، جدول Requirement (نیازهای دقیق) را می‌خوانیم
+            requirements = session.exec(
+                select(Requirement)
+                .where(Requirement.agency_id == new_property.agency_id)
+                .where(Requirement.deal_type == new_property.deal_type)
+                .where(Requirement.property_type == new_property.property_type)
+            ).all()
+
+            for req in requirements:
+                # چک کردن بودجه و محله
+                if (req.max_budget == 0 or new_property.price_total <= req.max_budget):
+                    # آیا محله فایل جدید، داخل محله‌های درخواستی مشتری هست؟
+                    if new_property.neighborhood in req.preferred_neighborhoods or req.preferred_neighborhoods in new_property.neighborhood:
+                        
+                        client = session.get(Client, req.client_id)
+                        if not client or client.funnel_stage in [FunnelStage.WON, FunnelStage.LOST]:
+                            continue # اگر معامله بسته شده بود، آلارم نده
+                            
+                        # 1. ثبت یادآور برای مشاور
+                        new_rem = Reminder(
+                            user_id=req.created_by_user_id,
+                            client_id=client.id,
+                            property_id=new_property.id,
+                            title=f"🎯 تطابق طلایی: {client.name}",
+                            description=f"فایل جدید '{new_property.title}' دقیقاً در محله درخواستی و بودجه این مشتری است!",
+                            remind_date=datetime.utcnow()
+                        )
+                        session.add(new_rem)
+
+                        # 2. ثبت نوتیفیکیشن
+                        notif = AgentNotification(user_id=req.created_by_user_id, message=f"فایل اکازیون برای {client.name} شکار شد!")
+                        session.add(notif)
+                        
+                        # 3. پوش نوتیفیکیشن زنده
+                        notify_user_sync(req.created_by_user_id, {
+                            "type": "success",
+                            "title": "شکار طلایی! 🎯",
+                            "message": f"فایلی در محله {new_property.neighborhood} مطابق با نیاز مشتری شما ({client.name}) ثبت شد."
+                        })
+            
+            session.commit()
+        except Exception as match_err:
+            print(f"⚠️ Matchmaking Alert Error: {match_err}")
+        # =====================================================
+        
+        try:
+            desc = data.description if data.description else ""
+            add_property_to_vector_db(
+                property_id=new_property.id,
+                title=new_property.title,
+                description=desc,
+                prop_type=data.property_type,
+                deal_type=data.deal_type,
+                neighborhood=data.neighborhood,
+                price=data.price_total
+            )
+        except Exception as vec_err:
+            print(f"⚠️ Vector DB Error: {vec_err}")
+
+        send_telegram_alert(new_property.title, new_property.neighborhood, new_property.price_total, new_property.owner_phone, "ثبت صوتی/دستی")
+        
+        return {"status": "success", "message": "فایل با موفقیت ذخیره شد!"}
+    
+    except Exception as e:
+        print(f"❌ Database Save Error: {e}")
+        raise HTTPException(status_code=500, detail="خطا در ذخیره اطلاعات در دیتابیس")
+
+@router.put("/{property_id}/make-public")
+def make_property_public(property_id: int, request: Request, session: Session = Depends(get_session)):
+    """API تبدیل فایل شخصی به عمومی و ثبت نام مشاور"""
+    from app.main import get_current_user
+    user = get_current_user(request, session)
+    
+    prop = session.get(Property, property_id)
+    if prop and prop.is_exclusive:
+        prop.is_exclusive = False
+        prop.made_public_by_name = user.full_name
+        session.commit()
+        return {"status": "success"}
+    raise HTTPException(status_code=400, detail="فایل یافت نشد یا قبلاً عمومی است")
+
+from app.services.ai_engine import generate_smart_comparison
+
+@router.get("/{property_id}/compare")
+def compare_property_ai(property_id: int, session: Session = Depends(get_session)):
+    """API ارتقا یافته ارزیابی هوشمند (با تلورانس ۲۰٪ قیمت)"""
+    target = session.get(Property, property_id)
+    if not target: raise HTTPException(status_code=404)
+    
+    # محاسبه تلورانس ۲۰ درصد قیمت
+    min_price = target.price_total * 0.8
+    max_price = target.price_total * 1.2
+    
+    comparables = session.exec(
+        select(Property)
+        .where(Property.id != property_id)
+        .where(Property.deal_type == target.deal_type)
+        .where(Property.price_total >= min_price)
+        .where(Property.price_total <= max_price)
+        .limit(10) # تا 10 فایل رو پیدا میکنه
+    ).all()
+    
+    if not comparables: return {"comparables_count": 0}
+        
+    comps_data_for_ai = [{"title": c.title, "price": c.price_total, "area": c.built_area} for c in comparables]
+    ai_conclusion = generate_smart_comparison(target.title, target.price_total, target.built_area, comps_data_for_ai)
+    
+    target_data = {
+        "title": target.title, "price": target.price_total, 
+        "images": json.loads(target.image_urls) if target.image_urls else [],
+        "pros": target.ai_pros or "ثبت نشده", "cons": target.ai_cons or "ثبت نشده"
+    }
+
+    comps_data = []
+    for c in comparables:
+        comps_data.append({
+            "title": c.title, "price": c.price_total, 
+            "images": json.loads(c.image_urls) if c.image_urls else [],
+            "pros": c.ai_pros or "ثبت نشده", "cons": c.ai_cons or "ثبت نشده"
+        })
+        
+    return {
+        "comparables_count": len(comparables), 
+        "target": target_data, 
+        "comparables": comps_data, 
+        "conclusion": ai_conclusion
+    }
+
+@router.get("/notifications/unread")
+def get_unread_notifications(request: Request, session: Session = Depends(get_session)):
+    """خواندن هشدارهای ردیابی مشتری برای مشاور"""
+    from app.main import get_current_user
+    user = get_current_user(request, session)
+    if not user: return []
+    
+    notifs = session.exec(select(AgentNotification).where(AgentNotification.user_id == user.id).order_by(AgentNotification.id.desc())).all()
+    return [{"id": n.id, "msg": n.message} for n in notifs]
+
+# ==========================================
+# 🗺️ API ارسال اطلاعات برای نقشه هوشمند
+# ==========================================
+@router.get("/map-data")
+def get_map_data(request: Request, session: Session = Depends(get_session)):
+    from app.main import get_current_user
+    user = get_current_user(request, session)
+    if not user: raise HTTPException(401)
+    
+    # گرفتن تمام فایل‌های آژانس
+    properties = session.exec(select(Property).where(Property.agency_id == user.agency_id)).all()
+    
+    map_items = []
+    for p in properties:
+        # چون دیوار لوکیشن دقیق نمیده، ما بر اساس قیمت فایل رو ارزیابی میکنیم
+        # برای نمایش رو نقشه، مختصات حدودی محله‌ها رو نیاز داریم (میتونیم از API نشان بگیریم، اما اینجا سیمولیت میکنیم)
+        # پین سبز = اکازیون، پین قرمز = گران، پین آبی = عادی
+        color = "blue"
+        if p.price_total:
+            if p.price_total < 5000000000: color = "green"
+            elif p.price_total > 15000000000: color = "red"
+
+        map_items.append({
+            "id": p.id,
+            "title": p.title,
+            "neighborhood": p.neighborhood,
+            "price": f"{int(p.price_total):,} تومان" if p.price_total else "توافقی",
+            "type": p.deal_type,
+            "color": color
+        })
+        
+    return {"status": "success", "data": map_items}
+
+# ==========================================
+# 🖼️ تابع جادویی واترمارک اتوماتیک روی عکس‌ها
+# ==========================================
+def add_watermark(image_path: str, text: str = "EstateMind AI CRM"):
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        # باز کردن عکس اصلی
+        img = Image.open(image_path).convert("RGBA")
+        width, height = img.size
+        
+        # ساخت یک لایه شفاف برای واترمارک
+        txt_layer = Image.new('RGBA', img.size, (255,255,255,0))
+        draw = ImageDraw.Draw(txt_layer)
+        
+        # تنظیم فونت (اگر فونت نبود، از پیش‌فرض استفاده میکنه)
+        try: font = ImageFont.truetype("app/static/Vazirmatn-Regular.ttf", int(width/20))
+        except: font = ImageFont.load_default()
+        
+        # محاسبه سایز متن برای قرار دادن در مرکز متمایل به پایین
+        text_bbox = draw.textbbox((0, 0), text, font=font)
+        text_w = text_bbox[2] - text_bbox[0]
+        text_h = text_bbox[3] - text_bbox[1]
+        
+        x = (width - text_w) / 2
+        y = height - text_h - 50
+        
+        # رسم متن با رنگ سفید و سایه مشکی (نیمه شفاف)
+        draw.text((x+2, y+2), text, font=font, fill=(0, 0, 0, 128)) # سایه
+        draw.text((x, y), text, font=font, fill=(255, 255, 255, 180)) # متن اصلی
+        
+        # ترکیب لایه واترمارک با عکس اصلی
+        watermarked = Image.alpha_composite(img, txt_layer)
+        
+        # ذخیره مجدد عکس
+        watermarked.convert("RGB").save(image_path, "JPEG", quality=90)
+    except Exception as e:
+        print(f"Watermark Error: {e}")
+
+# ==========================================
+# 📸 API آپلود ویدیو و عکس + اعمال واترمارک
+# ==========================================
+os.makedirs("uploads/properties", exist_ok=True)
+
+@router.post("/{property_id}/upload-media")
+async def upload_property_media(property_id: int, request: Request, file: UploadFile = File(...), session: Session = Depends(get_session)):
+    """API قدرتمند آپلود عکس و فیلم (MP4)"""
+    user = get_current_user_local(request, session)
+    if not user: raise HTTPException(401)
+    
+    prop = session.get(Property, property_id)
+    if not prop: raise HTTPException(404)
+    
+    # اطمینان از وجود پوشه ذخیره‌سازی
+    os.makedirs("uploads/properties", exist_ok=True)
+    
+    file_ext = file.filename.split(".")[-1].lower()
+    import random
+    file_name = f"prop_{prop.id}_{random.randint(10000,99999)}.{file_ext}"
+    file_path = f"uploads/properties/{file_name}"
+    
+    # ذخیره امن فایل
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # ثبت مسیر در دیتابیس
+    import json
+    current_media = []
+    if hasattr(prop, 'image_urls') and prop.image_urls:
+        try: current_media = json.loads(prop.image_urls)
+        except: pass
+        
+    current_media.append(f"/{file_path}")
+    prop.image_urls = json.dumps(current_media)
+    session.commit()
+    
+    return {"status": "success", "url": f"/{file_path}"}
+
+# ==========================================
+# ✏️ API ویرایش اطلاعات فایل
+# ==========================================
+@router.put("/{property_id}/edit")
+def edit_and_sync_property(property_id: int, req_data: PropertyEditRequest, request: Request, session: Session = Depends(get_session)):
+    """API ویرایش با رفع باگ احراز هویت"""
+    user = get_current_user_local(request, session) # <--- باگ اینجا بود، فیکس شد
+    if not user: raise HTTPException(401)
+
+    prop = session.get(Property, property_id)
+    if not prop: raise HTTPException(status_code=404)
+    
+    if req_data.title is not None: prop.title = req_data.title
+    if req_data.price_total is not None: prop.price_total = req_data.price_total
+    if req_data.owner_phone is not None: prop.owner_phone = req_data.owner_phone
+    if req_data.ai_pros is not None: prop.ai_pros = req_data.ai_pros
+    if req_data.ai_cons is not None: prop.ai_cons = req_data.ai_cons
+    if req_data.publisher is not None: prop.publisher = req_data.publisher
+    if req_data.image_urls is not None: prop.image_urls = json.dumps(req_data.image_urls)
+    
+    session.commit()
+    return {"message": "ویرایش با موفقیت انجام شد."}
+
+@router.get("/{property_id}/match-buyers")
+def match_buyers_for_property(property_id: int, request: Request, session: Session = Depends(get_session)):
+    """پیدا کردن خریدارانی که بودجه‌شان به این ملک می‌خورد"""
+    from app.core.auth import get_user_from_request
+    user = get_user_from_request(request, session)
+    if not user: raise HTTPException(401)
+    
+    prop = session.get(Property, property_id)
+    if not prop: raise HTTPException(404)
+    
+    # پیدا کردن مشتریان آژانس که بودجه‌شون از قیمت ملک بیشتره یا توافقیه
+    clients = session.exec(select(Client).where(Client.agency_id == user.agency_id)).all()
+    matches = []
+    for c in clients:
+        if c.budget_limit >= prop.price_total or c.budget_limit == 0:
+            matches.append({"id": c.id, "name": c.name, "phone": c.phone, "budget": c.budget_limit})
+            
+    return {"status": "success", "matches": matches[:5]} # ارسال ۵ خریدار برتر
+
+@router.delete("/{property_id}")
+def delete_property(property_id: int, request: Request, session: Session = Depends(get_session)):
+    """API حذف فایل"""
+    user = get_current_user_local(request, session)
+    if not user or user.role not in ["MANAGER", "SUPER_ADMIN"]: 
+        raise HTTPException(status_code=403, detail="عدم دسترسی")
+    
+    prop = session.get(Property, property_id)
+    if not prop: raise HTTPException(status_code=404)
+    
+    session.delete(prop)
+    session.commit()
+    return {"status": "success"}
+
+@router.get("/{property_id}")
+def get_property_details(property_id: int, session: Session = Depends(get_session)):
+    """API دریافت جزئیات یک فایل برای نمایش در فرم ویرایش"""
+    prop = session.get(Property, property_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="فایل یافت نشد")
+    return prop
+
+# --- اضافه کردن روت تولید هوشمند مزایا و معایب ---
+@router.post("/{property_id}/generate-ai-details")
+def generate_ai_details(property_id: int, session: Session = Depends(get_session)):
+    """تحلیل فایل ثبت شده دستی توسط هوش مصنوعی و تولید مزایا و معایب"""
+    prop = session.get(Property, property_id)
+    if not prop: raise HTTPException(404)
+    
+    # ساخت یک متن ترکیبی برای ارسال به هوش مصنوعی
+    raw_text = f"ملک {prop.title} در محله {prop.neighborhood} با متراژ {prop.built_area} و {prop.rooms} خواب. قیمت {prop.price_total}. {prop.description}"
+    
+    from app.services.ai_engine import analyze_property_text
+    ai_data = analyze_property_text(raw_text, prop.neighborhood)
+    
+    prop.ai_pros = ai_data.get("ai_pros", "موقعیت مکانی مناسب و نورگیری خوب.")
+    prop.ai_cons = ai_data.get("ai_cons", "نیاز به بررسی دقیق‌تر سن بنا.")
+    session.commit()
+    
+    return {"status": "success", "pros": prop.ai_pros, "cons": prop.ai_cons}
+
+class PublicPropertyCreateRequest(BaseModel):
+    agency_id: int
+    title: str
+    property_type: str
+    deal_type: str
+    neighborhood: str
+    built_area: float
+    price_total: float
+    owner_name: str
+    owner_phone: str
+    description: str
+
+@router.post("/public-save")
+def save_property_from_owner(data: PublicPropertyCreateRequest, session: Session = Depends(get_session)):
+    """API ذخیره فایل مستقیم توسط صاحب ملک (بدون نیاز به احراز هویت)"""
+    try:
+        p_type = PropertyType.APARTMENT
+        if data.property_type == "villa": p_type = PropertyType.VILLA
+        elif data.property_type == "land": p_type = PropertyType.LAND
+
+        d_type = DealType.SALE
+        if data.deal_type == "rent": d_type = DealType.RENT
+        
+        new_property = Property(
+            agency_id=data.agency_id, 
+            title=data.title,
+            property_type=p_type,
+            deal_type=d_type,
+            city="مشهد", # پیش‌فرض یا گرفتن از فرم
+            neighborhood=data.neighborhood,
+            built_area=data.built_area,
+            price_total=data.price_total,
+            owner_name=data.owner_name,
+            owner_phone=data.owner_phone,
+            description=f"ثبت شده توسط مالک از طریق فرم آنلاین:\n{data.description}",
+            is_exclusive=True, # فایلی که مالک مستقیم میده معمولا شخصیه
+            status="active",
+            publisher="مالک (ثبت آنلاین)"
+        )
+        
+        session.add(new_property)
+        session.commit()
+        return {"status": "success", "message": "ملک شما با موفقیت در سیستم آژانس ثبت شد."}
+    except Exception as e:
+        print(f"❌ Owner Submit Error: {e}")
+        raise HTTPException(status_code=500, detail="خطا در ثبت اطلاعات")
+
+@router.get("/list")
+def get_properties_list(request: Request, session: Session = Depends(get_session)):
+    """API اختصاصی برای ارسال لیست فایل‌ها به اپلیکیشن موبایل"""
+    user = get_current_user_api(request, session)
+    if not user: 
+        raise HTTPException(status_code=401, detail="باید لاگین باشید")
+    
+    # فیلتر امنیتی: مدیر همه را می‌بیند، مشاور فقط فایل‌های خودش و عمومی‌ها را
+    if user.role in ["SUPER_ADMIN", "MANAGER"]:
+        props = session.exec(select(Property).where(Property.agency_id == user.agency_id).order_by(Property.id.desc())).all()
+    else:
+        from sqlmodel import or_
+        props = session.exec(
+            select(Property)
+            .where(Property.agency_id == user.agency_id)
+            .where(or_(Property.created_by_id == user.id, Property.is_exclusive == False))
+            .order_by(Property.id.desc())
+        ).all()
+
+from app.services.ai_engine import virtual_staging_api
+
+@router.post("/{property_id}/virtual-stage")
+def perform_virtual_staging(property_id: int, request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_local(request, session)
+    if not user: raise HTTPException(401)
+    
+    prop = session.get(Property, property_id)
+    if not prop or not prop.image_urls or prop.image_urls == "[]":
+        raise HTTPException(400, "ملک عکسی برای دکور شدن ندارد.")
+        
+    import json
+    images = json.loads(prop.image_urls)
+    first_image_path = images[0].lstrip("/") # گرفتن اولین عکس
+    
+    # اجرای چیدمان مجازی
+    staged_image = virtual_staging_api(first_image_path)
+    
+    # اضافه کردن عکس دکور شده به گالری
+    images.append(f"/{staged_image}?staged=true")
+    prop.image_urls = json.dumps(images)
+    session.commit()
+    
+    return {"status": "success", "message": "چیدمان مجازی با موفقیت انجام شد."}
+
+==================================================
+FILE: ./Backend\app\api\reminders_api.py
+==================================================
+
+from fastapi import Request, APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlmodel import select, Session
+from datetime import datetime
+from app.core.database import get_session
+from app.core.models import Reminder
+from app.core.security import get_current_user_api
+
+router = APIRouter(prefix="/api/reminders", tags=["Reminders"])
+
+class ReminderCreateRequest(BaseModel):
+    title: str
+    description: str
+    client_id: int = 0
+    remind_date: str # فرمت: YYYY-MM-DDTHH:MM
+
+@router.post("/add")
+def add_reminder(request: Request, data: ReminderCreateRequest, session: Session = Depends(get_session)):
+    
+    user = get_current_user_api(request, session)
+
+    try:
+        # تبدیل رشته تاریخ به فرمت استاندارد دیتابیس
+        dt_obj = datetime.strptime(data.remind_date, "%Y-%m-%dT%H:%M")
+        
+        new_reminder = Reminder(
+            user_id=user.id,
+            client_id=data.client_id if data.client_id > 0 else None,
+            title=data.title,
+            description=data.description,
+            remind_date=dt_obj
+        )
+        
+        session.add(new_reminder)
+        session.commit()
+        return {"status": "success", "message": "یادآور با موفقیت ثبت شد!"}
+    except Exception as e:
+        print(f"❌ Error adding reminder: {e}")
+        raise HTTPException(status_code=500, detail="خطا در ذخیره یادآور")
+
+@router.put("/{reminder_id}/complete")
+def complete_reminder(reminder_id: int, session: Session = Depends(get_session)):
+    reminder = session.get(Reminder, reminder_id)
+    if reminder:
+        reminder.is_completed = True
+        session.commit()
+        return {"status": "success"}
+    raise HTTPException(status_code=404, detail="یادآور یافت نشد")
+
+@router.get("/app-list")
+def get_reminders_for_app(request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+    
+    # گرفتن تمام یادآورهای این مشاور
+    reminders = session.exec(
+        select(Reminder)
+        .where(Reminder.user_id == user.id)
+        .order_by(Reminder.is_completed, Reminder.remind_date.asc())
+    ).all()
+    
+    return {"status": "success", "reminders": reminders}
+
+==================================================
+FILE: ./Backend\app\api\superadmin_api.py
+==================================================
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlmodel import Session, select
+from app.core.database import get_session
+from app.core.models import Agency, User, UserRole
+from app.core.security import get_password_hash
+
+router = APIRouter(prefix="/api/super-admin", tags=["Super Admin"])
+
+class AgencyCreateRequest(BaseModel):
+    agency_name: str
+    owner_name: str
+    phone: str
+    city: str
+    admin_username: str
+    admin_password: str
+
+class AgencyEditRequest(BaseModel):
+    name: str
+    owner_name: str
+    phone: str
+    city: str
+
+@router.post("/agencies/add")
+def add_agency(data: AgencyCreateRequest, session: Session = Depends(get_session)):
+    """ثبت یک آژانس املاک جدید به همراه مدیر آن"""
+    try:
+        # بررسی تکراری نبودن یوزرنیم مدیر
+        if session.exec(select(User).where(User.username == data.admin_username)).first():
+            raise HTTPException(status_code=400, detail="این نام کاربری از قبل وجود دارد.")
+            
+        # ۱. ساخت آژانس جدید
+        new_agency = Agency(
+            name=data.agency_name,
+            owner_name=data.owner_name,
+            phone=data.phone,
+            city=data.city
+        )
+        session.add(new_agency)
+        session.commit()
+        session.refresh(new_agency)
+        
+        # ۲. ساخت اکانت مدیر برای این آژانس
+        agency_admin = User(
+            agency_id=new_agency.id,
+            full_name=data.owner_name,
+            username=data.admin_username,
+            hashed_password=get_password_hash(data.admin_password),
+            role=UserRole.MANAGER
+        )
+        session.add(agency_admin)
+        session.commit()
+        
+        return {"status": "success", "message": "آژانس جدید با موفقیت راه‌اندازی شد!"}
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="خطا در ثبت آژانس")
+
+@router.put("/agencies/{agency_id}/toggle")
+def toggle_agency_status(agency_id: int, session: Session = Depends(get_session)):
+    """فعال/غیرفعال کردن اشتراک یک آژانس"""
+    agency = session.get(Agency, agency_id)
+    if not agency: raise HTTPException(status_code=404, detail="آژانس یافت نشد")
+    
+    agency.subscription_active = not agency.subscription_active
+    session.commit()
+    return {"status": "success", "is_active": agency.subscription_active}
+
+@router.get("/agencies/{agency_id}")
+def get_agency(agency_id: int, session: Session = Depends(get_session)):
+    agency = session.get(Agency, agency_id)
+    if not agency: raise HTTPException(404)
+    return {"id": agency.id, "name": agency.name, "owner_name": agency.owner_name, "phone": agency.phone, "city": agency.city}
+
+@router.put("/agencies/{agency_id}/edit")
+def edit_agency(agency_id: int, data: AgencyEditRequest, session: Session = Depends(get_session)):
+    agency = session.get(Agency, agency_id)
+    if not agency: raise HTTPException(404)
+    
+    agency.name = data.name
+    agency.owner_name = data.owner_name
+    agency.phone = data.phone
+    agency.city = data.city
+    session.commit()
+    return {"status": "success"}
+
+==================================================
+FILE: ./Backend\app\api\tickets_api.py
+==================================================
+
+import os
+import shutil
+import random
+import jwt
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile, Form
+from pydantic import BaseModel
+from sqlmodel import Session, select, or_
+from datetime import datetime
+from app.core.database import get_session
+from app.core.models import Ticket, TicketReply, TicketStatus, TicketPriority, User
+from app.core.security import SECRET_KEY, ALGORITHM, get_current_user_api
+
+router = APIRouter(prefix="/api/tickets", tags=["Tickets"])
+
+os.makedirs("uploads/tickets", exist_ok=True)
+
+class TicketCreateRequest(BaseModel):
+    receiver_id: int
+    subject: str
+    message: str
+    priority: str
+
+class ReplyRequest(BaseModel):
+    message: str
+
+class StatusUpdateRequest(BaseModel):
+    status: str
+
+@router.get("/colleagues")
+def get_colleagues(request: Request, session: Session = Depends(get_session)):
+    """دریافت لیست همکاران داخل همان آژانس برای انتخاب گیرنده پیام"""
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+    
+    colleagues = session.exec(select(User).where(User.agency_id == user.agency_id, User.id != user.id)).all()
+    return [{"id": c.id, "name": c.full_name, "role": getattr(c.role, 'value', c.role)} for c in colleagues]
+
+@router.post("/add")
+def create_ticket(request: Request, data: TicketCreateRequest, session: Session = Depends(get_session)):
+    """ثبت مکاتبه سازمانی جدید"""
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+    
+    # تولید کد پیگیری رندوم مثل T-2026-00045
+    t_code = f"T-2026-{random.randint(10000, 99999)}"
+    
+    # مپ کردن اولویت
+    prio = TicketPriority.NORMAL
+    if data.priority == "فوری": prio = TicketPriority.URGENT
+    elif data.priority == "بالا": prio = TicketPriority.HIGH
+    elif data.priority == "پایین": prio = TicketPriority.LOW
+
+    # 1. ساخت بدنه اصلی تیکت
+    new_ticket = Ticket(
+        agency_id=user.agency_id,
+        sender_id=user.id,
+        receiver_id=data.receiver_id,
+        ticket_code=t_code,
+        subject=data.subject,
+        priority=prio,
+        status=TicketStatus.OPEN
+    )
+    session.add(new_ticket)
+    session.commit()
+    session.refresh(new_ticket)
+    
+    # 2. ثبت اولین پیام داخل تیکت
+    first_reply = TicketReply(
+        ticket_id=new_ticket.id,
+        user_id=user.id,
+        message=data.message
+    )
+    session.add(first_reply)
+    session.commit()
+    
+    return {"status": "success", "ticket_code": t_code}
+
+@router.post("/{ticket_id}/reply")
+async def add_reply(
+    ticket_id: int, 
+    request: Request, 
+    message: str = Form(...), 
+    file: Optional[UploadFile] = File(None), 
+    session: Session = Depends(get_session)
+):
+    """ثبت پاسخ (چت) و پیوست فایل در تیکت"""
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+
+    ticket = session.get(Ticket, ticket_id)
+    if not ticket or ticket.agency_id != user.agency_id: raise HTTPException(404)
+    
+    file_path = None
+    if file:
+        file_path = f"uploads/tickets/{ticket.id}_{file.filename}"
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+    reply = TicketReply(ticket_id=ticket.id, user_id=user.id, message=message, attachment_path=file_path)
+    session.add(reply)
+    
+    # آپدیت وضعیت و زمان تیکت
+    ticket.updated_at = datetime.utcnow()
+    if user.id == ticket.receiver_id:
+        ticket.status = TicketStatus.ANSWERED
+    else:
+        ticket.status = TicketStatus.PENDING
+        
+    session.commit()
+    return {"status": "success"}
+
+@router.put("/{ticket_id}/status")
+def change_status(ticket_id: int, data: StatusUpdateRequest, request: Request, session: Session = Depends(get_session)):
+    """تغییر وضعیت تیکت (باز، در حال بررسی، حل شده)"""
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+
+    ticket = session.get(Ticket, ticket_id)
+    if not ticket or ticket.agency_id != user.agency_id: raise HTTPException(404)
+    
+    status_map = {
+        "باز": TicketStatus.OPEN,
+        "در حال بررسی": TicketStatus.IN_PROGRESS,
+        "در انتظار پاسخ": TicketStatus.PENDING,
+        "حل شده": TicketStatus.RESOLVED
+    }
+    if data.status in status_map:
+        ticket.status = status_map[data.status]
+        session.commit()
+        return {"status": "success"}
+    raise HTTPException(400, "وضعیت نامعتبر")
+
+@router.get("/app-list")
+def get_tickets_for_app(request: Request, session: Session = Depends(get_session)):
+    """API دریافت لیست تیکت‌های کاربر برای موبایل"""
+    from app.core.security import get_current_user_api
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(status_code=401)
+    
+    # گرفتن تیکت‌هایی که این کاربر یا فرستنده آن است یا گیرنده
+    tickets = session.exec(
+        select(Ticket)
+        .where(or_(Ticket.sender_id == user.id, Ticket.receiver_id == user.id))
+        .order_by(Ticket.id.desc())
+    ).all()
+    
+    return {"status": "success", "tickets": tickets}
+
+==================================================
+FILE: ./Backend\app\api\users_api.py
+==================================================
+
+from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile
+from pydantic import BaseModel
+from sqlmodel import Session, select
+from app.core.database import get_session
+from app.core.models import User, UserRole, Property, Client
+from app.core.security import (
+    get_password_hash, SECRET_KEY, 
+    ALGORITHM, verify_password, 
+    get_current_user_api,
+)
+import jwt
+import os
+import shutil
+import time
+
+os.makedirs("uploads/avatars", exist_ok=True)
+
+router = APIRouter(prefix="/api/users", tags=["Users"])
+
+class UserCreateRequest(BaseModel):
+    full_name: str
+    username: str
+    password: str
+    role: str
+    target_neighborhoods: str = ""
+    commission_sale: float = 0.5
+    commission_rent: float = 0.5
+    commission_partnership: float = 0.5
+
+@router.post("/upload-avatar")
+async def upload_user_avatar(request: Request, file: UploadFile = File(...), session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(401)
+    
+    # ساخت اسم یکتا برای فایل
+    ext = file.filename.split(".")[-1].lower()
+    file_name = f"avatar_{user.id}_{int(time.time())}.{ext}"
+    file_path = f"uploads/avatars/{file_name}"
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    user.avatar_url = f"/{file_path}"
+    session.commit()
+    
+    return {"status": "success", "avatar_url": user.avatar_url}
+    
+@router.post("/add")
+def add_user(data: UserCreateRequest, session: Session = Depends(get_session)):
+    """API استخدام و ثبت مشاور / مدیر رنج جدید"""
+    try:
+        if session.exec(select(User).where(User.username == data.username)).first():
+            raise HTTPException(status_code=400, detail="این نام کاربری (موبایل) قبلاً در سیستم ثبت شده است.")
+        
+        role_enum = UserRole.AGENT
+        if data.role == "manager": 
+            role_enum = UserRole.MANAGER
+            
+        new_user = User(
+            agency_id=1, # آژانس فعلی
+            full_name=data.full_name,
+            username=data.username,
+            hashed_password=get_password_hash(data.password),
+            role=role_enum,
+            target_neighborhoods=data.target_neighborhoods,
+            commission_sale=data.commission_sale,
+            commission_rent=data.commission_rent,
+            commission_partnership=data.commission_partnership
+        )
+        
+        session.add(new_user)
+        session.commit()
+        return {"status": "success", "message": "پرسنل جدید با موفقیت به تیم اضافه شد."}
+        
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as e:
+        print(f"❌ Error adding user: {e}")
+        raise HTTPException(status_code=500, detail="خطا در ثبت کاربر")
+
+@router.delete("/{user_id}")
+def delete_user(user_id: int, session: Session = Depends(get_session)):
+    user = session.get(User, user_id)
+    if user:
+        session.delete(user)
+        session.commit()
+        return {"status": "success"}
+    raise HTTPException(status_code=404, detail="کاربر یافت نشد")
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+@router.put("/change-password")
+def change_password(data: ChangePasswordRequest, request: Request, session: Session = Depends(get_session)):
+    user = get_current_user_api(request, session)
+    if not user: raise HTTPException(401)
+    
+    if not verify_password(data.old_password, user.hashed_password):
+        raise HTTPException(400, "رمز عبور فعلی اشتباه است.")
+        
+    user.hashed_password = get_password_hash(data.new_password)
+    session.commit()
+    return {"status": "success"}
+
+@router.get("/dashboard-stats")
+def get_dashboard_stats(request: Request, session: Session = Depends(get_session)):
+    """API دریافت آمار زنده داشبورد برای اپلیکیشن موبایل"""
+    user = get_current_user_api(request, session)
+    if not user: 
+        raise HTTPException(status_code=401)
+    
+    # محاسبه تعداد فایل‌های فعال این مشاور
+    my_props_count = len(session.exec(
+        select(Property).where(Property.created_by_id == user.id, Property.status == "active")
+    ).all())
+    
+    # محاسبه تعداد مشتریان فعال در قیف این مشاور
+    my_clients_count = len(session.exec(
+        select(Client).where(Client.user_id == user.id)
+    ).all())
+    
+    return {
+        "status": "success",
+        "user": {
+            "full_name": user.full_name,
+            "role": "مدیر شعبه" if user.role in ["MANAGER", "SUPER_ADMIN"] else "مشاور املاک",
+            "avatar_letter": user.full_name[0] if user.full_name else "U"
+        },
+        "stats": {
+            "properties": my_props_count,
+            "clients": my_clients_count,
+            "ai_matches": 3 # این عدد را در فازهای بعدی داینامیک می‌کنیم
+        }
+    }
+
+==================================================
+FILE: ./Backend\app\api\webhooks_api.py
+==================================================
+
+import os
+import time
+import requests
+from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
+from pydantic import BaseModel
+from sqlmodel import Session, select
+from app.core.database import get_session
+from app.core.models import (
+    Property, PropertyType, DealType,
+    Requirement, Client, AgentNotification
+) 
+from app.services.notifier import send_telegram_alert
+from app.core.socket_manager import notify_user_sync
+
+router = APIRouter(prefix="/api/webhooks", tags=["Webhooks"])
+
+# ==========================================
+# 1. بخش دریافت اطلاعات از اتوماسیون n8n
+# ==========================================
+# class N8nPayload(BaseModel):
+#     agency_id: int
+#     token: str
+#     title: str
+#     neighborhood: str
+#     price: float
+#     raw_text: str
+#     image_urls: list = []
+#     publisher: str = "نامشخص"
+#     contact_phone: str = ""
+#     chat_link: str = ""
+
+# @router.post("/n8n-receive")
+# def receive_from_n8n(data: N8nPayload, session: Session = Depends(get_session)):
+#     """دریافت دیتا از n8n + مچینگ خودکار با تقاضای مشتریان"""
+#     try:
+#         existing = session.exec(select(Property).where(Property.divar_token == data.token)).first()
+#         if existing: return {"status": "skipped"}
+            
+#         new_prop = Property(
+#             agency_id=data.agency_id, divar_token=data.token, title=data.title,
+#             neighborhood=data.neighborhood, property_type=PropertyType.APARTMENT, 
+#             deal_type=DealType.SALE, price_total=data.price, owner_name=data.publisher,
+#             owner_phone=data.contact_phone, description=data.raw_text, is_exclusive=False
+#         )
+#         session.add(new_prop)
+#         session.commit()
+#         session.refresh(new_prop)
+
+#         # 🌟 سیستم ردیابی و پیگیری هوشمند مشتری 🌟
+#         requirements = session.exec(select(Requirement).where(Requirement.agency_id == new_prop.agency_id)).all()
+#         for req in requirements:
+#             # اگر محله و قیمت مچ شد
+#             if req.preferred_neighborhoods in new_prop.neighborhood and new_prop.price_total <= req.max_budget:
+#                 client = session.get(Client, req.client_id)
+#                 alert_msg = f"🔔 همخوانی هوشمند: فایل '{new_prop.title}' با بودجه مشتری شما '{client.name}' تطابق دارد."
+#                 new_notif = AgentNotification(user_id=req.created_by_user_id, message=alert_msg)
+#                 session.add(new_notif)
+#         session.commit()
+
+#         send_telegram_alert(new_prop.title, new_prop.neighborhood, new_prop.price_total, new_prop.owner_phone, "اتوماسیون n8n")
+#         return {"status": "success"}
+#     except Exception as e:
+#         print(f"❌ Error in n8n Webhook: {e}")
+#         raise HTTPException(status_code=500, detail="خطا در ثبت دیتای n8n")
+
+
+# ==========================================
+# 2. بخش ربات تلگرام تعاملی مشتریان
+# ==========================================
+# متغیر گلوبال برای ذخیره موقت وضعیت چت مشتریان در حافظه
+CLIENT_BOT_STATES = {}
+LAST_NOTIFIED = {}
+NOTIFICATION_COOLDOWN = 10
+
+TELEGRAM_CLIENT_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") 
+
+def send_telegram_msg(chat_id, text, reply_markup=None):
+    """تابع کمکی برای ارسال پیام به تلگرام"""
+    url = f"https://api.telegram.org/bot{TELEGRAM_CLIENT_BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+    if reply_markup: payload["reply_markup"] = reply_markup
+    requests.post(url, json=payload)
+
+@router.post("/client-bot-webhook")
+async def telegram_client_bot(request: Request, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
+    try:
+        data = await request.json()
+        if not TELEGRAM_CLIENT_BOT_TOKEN:
+            return {"status": "ignored", "reason": "No bot token configured"}
+
+        # 🌟 سیستم نوتیفیکیشن هوشمند (ضد اسپم + شناسایی نام مشتری) 🌟
+        if "message" in data or "callback_query" in data:
+            # استخراج اطلاعات کاربر (نام و آیدی)
+            from_data = data["message"]["from"] if "message" in data else data["callback_query"]["from"]
+            chat_id = from_data.get("id")
+            first_name = from_data.get("first_name", "یک مشتری")
+            
+            current_time = time.time()
+            # چک می‌کنیم آیا از آخرین نوتیفیکیشن این کاربر ۵ دقیقه گذشته یا نه
+            if current_time - LAST_NOTIFIED.get(chat_id, 0) > NOTIFICATION_COOLDOWN:
+                LAST_NOTIFIED[chat_id] = current_time
+                notify_user_sync(user_id=1, message={
+                    "type": "info",
+                    "title": "مشتری جدید در ربات! 📱",
+                    "message": f"«{first_name}» هم‌اکنون وارد ربات تلگرام شد و در حال جستجوی ملک است."
+                })
+
+        # --- ادامه منطق پاسخگویی ربات ---
+        if "callback_query" in data:
+            chat_id = data["callback_query"]["message"]["chat"]["id"]
+            action = data["callback_query"]["data"]
+            
+            if action == "buy":
+                CLIENT_BOT_STATES[chat_id] = {"step": "ask_hood", "deal_type": "فروش"}
+                send_telegram_msg(chat_id, "عالی! 🏙️ <b>در کدام محله</b> به دنبال ملک هستید؟\n(مثال: سجاد، هاشمیه، وکیل آباد)")
+            elif action == "rent":
+                CLIENT_BOT_STATES[chat_id] = {"step": "ask_hood", "deal_type": "رهن و اجاره"}
+                send_telegram_msg(chat_id, "بسیار خب! 🏙️ <b>در کدام محله</b> به دنبال ملک هستید؟\n(مثال: سجاد، هاشمیه)")
+            
+            requests.get(f"https://api.telegram.org/bot{TELEGRAM_CLIENT_BOT_TOKEN}/answerCallbackQuery?callback_query_id={data['callback_query']['id']}")
+            return {"status": "ok"}
+
+        if "message" in data and "text" in data["message"]:
+            chat_id = data["message"]["chat"]["id"]
+            text = data["message"]["text"].strip()
+
+            if text == "/start":
+                CLIENT_BOT_STATES[chat_id] = {"step": "start"}
+                markup = {"inline_keyboard": [[{"text": "💰 خرید ملک", "callback_data": "buy"}, {"text": "🔑 رهن و اجاره", "callback_data": "rent"}]]}
+                send_telegram_msg(chat_id, "سلام! 👋 به دستیار هوشمند جستجوی ملک خوش آمدید.\nمن اینجا هستم تا بهترین فایل‌های آژانس را بر اساس نیاز شما پیدا کنم.\n\nلطفاً نوع درخواست خود را مشخص کنید:", reply_markup=markup)
+                return {"status": "ok"}
+
+            user_state = CLIENT_BOT_STATES.get(chat_id)
+            if not user_state:
+                send_telegram_msg(chat_id, "لطفاً برای شروع مجدد عبارت /start را ارسال کنید.")
+                return {"status": "ok"}
+
+            if user_state["step"] == "ask_hood":
+                user_state["hood"] = text
+                user_state["step"] = "ask_budget"
+                send_telegram_msg(chat_id, f"محله '<b>{text}</b>' ثبت شد. 🎯\nحداکثر <b>بودجه</b> شما چقدر است؟\n(لطفاً فقط عدد را به تومان وارد کنید. مثال: 10000000000)")
+                return {"status": "ok"}
+
+            if user_state["step"] == "ask_budget":
+                try:
+                    budget = float(text.replace(",", "").replace("تومان", "").strip())
+                except:
+                    send_telegram_msg(chat_id, "❌ لطفاً بودجه را فقط به صورت عدد (بدون حروف) وارد کنید.")
+                    return {"status": "ok"}
+
+                hood = user_state["hood"]
+                deal = user_state["deal_type"]
+                send_telegram_msg(chat_id, "🧠 در حال اسکن دیتابیس آژانس و بررسی فایل‌ها با هوش مصنوعی... لطفاً چند لحظه صبر کنید ⏳")
+                
+                properties = session.exec(select(Property).where(Property.deal_type == deal).where(Property.status == "active")).all()
+                matches = [p for p in properties if (hood.replace(" ", "") in p.neighborhood.replace(" ", "") or p.neighborhood.replace(" ", "") in hood.replace(" ", "")) and (p.price_total <= budget or p.price_total == 0)]
+
+                if not matches:
+                    send_telegram_msg(chat_id, f"😔 متأسفانه در حال حاضر فایلی در محله <b>{hood}</b> با بودجه شما در سیستم ما موجود نیست.\nدرخواست شما ثبت شد و به محض شکار فایل جدید، به شما اطلاع خواهیم داد!\n\nبرای جستجوی جدید /start را بزنید.")
+                else:
+                    send_telegram_msg(chat_id, f"🎉 تبریک! <b>{len(matches)} فایل اکازیون</b> متناسب با نیاز شما پیدا شد:\n⬇️⬇️⬇️")
+                    for m in matches[:3]:
+                        price_str = f"{int(m.price_total):,} تومان" if m.price_total > 0 else "توافقی"
+                        link = f"http://127.0.0.1:8000/catalog/property/{m.id}"
+                        prop_msg = f"🏢 <b>{m.title}</b>\n📍 <b>محله:</b> {m.neighborhood}\n📐 <b>متراژ:</b> {m.built_area} متر | 🛏 <b>خواب:</b> {m.rooms}\n💰 <b>قیمت:</b> {price_str}\n\n✨ <b>نقطه قوت:</b> {m.ai_pros or 'موقعیت عالی'}\n"
+                        send_telegram_msg(chat_id, prop_msg, reply_markup={"inline_keyboard": [[{"text": "🌐 مشاهده کاتالوگ", "url": link}]]})
+
+                del CLIENT_BOT_STATES[chat_id]
+                return {"status": "ok"}
+
+    except Exception as e:
+        print(f"Telegram Bot Error: {e}")
+        
+    return {"status": "ok"}
+
+==================================================
+FILE: ./Backend\app\api\ws_api.py
+==================================================
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from app.core.socket_manager import manager
+
+router = APIRouter(tags=["WebSockets"])
+
+@router.websocket("/ws/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, user_id: int):
+    await manager.connect(websocket, user_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            # سوکت فقط باز می‌ماند تا سرور پیام‌ها را به کلاینت پوش (Push) کند
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, user_id)
+
+==================================================
+FILE: ./Backend\app\core\config.py
+==================================================
+
+
+
+==================================================
+FILE: ./Backend\app\core\database.py
+==================================================
+
+import os
+from sqlmodel import SQLModel, create_engine, Session
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///estatemind.db")
+
+connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+
+engine = create_engine(DATABASE_URL, echo=False, connect_args=connect_args)
+
+def create_db_and_tables():
+    """ساخت تمام جداول در دیتابیس در زمان بالا آمدن سرور"""
+    SQLModel.metadata.create_all(engine)
+
+def get_session():
+    """تولید یک سشن (نشست) جدید برای هر درخواست کاربر"""
+    with Session(engine) as session:
+        yield session
+
+==================================================
+FILE: ./Backend\app\core\models.py
+==================================================
+
+from sqlmodel import SQLModel, Field
+from typing import Optional
+from datetime import datetime
+from enum import Enum
+
+class UserRole(str, Enum):
+    SUPER_ADMIN = "SUPER_ADMIN"
+    MANAGER = "MANAGER"
+    AGENT = "AGENT"
+
+class FunnelStage(str, Enum):
+    LEAD = "لید جدید"
+    VISIT = "بازدید"
+    DECISION = "تصمیم‌گیری"
+    MEETING = "جلسه در دفتر"
+    WON = "قرارداد موفق"
+    LOST = "معامله ناموفق"
+
+class PropertyType(str, Enum): 
+    APARTMENT = "آپارتمان"
+    VILLA = "ویلایی"
+    LAND = "زمین و کلنگی"
+    COMMERCIAL = "تجاری و اداری"
+
+class DealType(str, Enum): 
+    SALE = "فروش"
+    RENT = "رهن و اجاره"
+    PARTNERSHIP = "مشارکت در ساخت"
+    BARTER = "تهاتر"
+
+class DocumentType(str, Enum):
+    SINGLE = "سند تک برگ"
+    PROMISSORY = "قولنامه‌ای"
+    ENDOWMENT = "اوقافی"
+    COOPERATIVE = "تعاونی"
+    OTHER = "سایر"
+
+class TicketStatus(str, Enum):
+    OPEN = "باز"
+    IN_PROGRESS = "در حال بررسی"
+    PENDING = "در انتظار پاسخ"
+    RESOLVED = "حل شده"
+
+class TicketPriority(str, Enum):
+    LOW = "پایین"
+    NORMAL = "عادی"
+    HIGH = "بالا"
+    URGENT = "فوری"
+
+class ClientCategory(str, Enum):
+    NORMAL = "normal"
+    VIP = "vip"
+    HOT_LEAD = "hot_lead"
+    COLD = "cold"
+
+class PublisherType(str, Enum): 
+    PERSONAL = "شخصی"
+    AGENCY = "املاک"
+    UNKNOWN = "نامشخص"
+
+class Agency(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    owner_name: str
+    phone: str = Field(unique=True)
+    city: str = Field(default="تهران")
+    subscription_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class User(SQLModel, table=True):
+    __tablename__ = "users"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    agency_id: Optional[int] = Field(default=None, foreign_key="agency.id") 
+    full_name: str
+    username: str = Field(unique=True, index=True) 
+    hashed_password: str
+    role: UserRole = Field(default=UserRole.AGENT)
+    target_neighborhoods: Optional[str] = None
+    is_active: bool = Field(default=True)
+    # اضافه شدن آواتار و 3 کمیسیون اختصاصی
+    avatar_url: Optional[str] = None
+    commission_sale: float = Field(default=0.5)
+    commission_rent: float = Field(default=0.5)
+    commission_partnership: float = Field(default=0.5)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Property(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    agency_id: int = Field(foreign_key="agency.id", index=True)
+    divar_token: Optional[str] = Field(default=None, index=True)
+    title: str
+    property_type: PropertyType
+    deal_type: DealType
+    city: str = Field(default="مشهد")
+    neighborhood: str = Field(index=True)
+    address: Optional[str] = None 
+    built_area: Optional[float] = Field(default=0)
+    land_area: Optional[float] = Field(default=0)
+    rooms: int = Field(default=0)
+    age: Optional[int] = Field(default=0)
+    floor: Optional[int] = None 
+    total_floors: Optional[int] = None
+    has_elevator: bool = Field(default=False)
+    has_parking: bool = Field(default=False)
+    has_store_room: bool = Field(default=False)
+    has_master_room: bool = Field(default=False)
+    cabinet_type: Optional[str] = None
+    floor_covering: Optional[str] = None
+    document_type: DocumentType = Field(default=DocumentType.SINGLE)
+    price_total: Optional[float] = Field(default=0)
+    price_mortgage: Optional[float] = Field(default=0)
+    price_rent: Optional[float] = Field(default=0)
+    is_barter: bool = Field(default=False)
+    owner_name: Optional[str] = None
+    owner_phone: Optional[str] = None
+    is_exclusive: bool = Field(default=False)
+    ai_pros: Optional[str] = None
+    ai_cons: Optional[str] = None
+    description: Optional[str] = None
+    image_urls: Optional[str] = Field(default="[]") 
+    status: str = Field(default="active") # active, pending, archived
+    created_by_id: Optional[int] = Field(default=None, foreign_key="users.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    made_public_by_name: Optional[str] = None
+    publisher: Optional[str] = None
+    contact_phone: Optional[str] = None
+
+class Client(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    agency_id: int = Field(foreign_key="agency.id", index=True) 
+    user_id: int = Field(foreign_key="users.id") 
+    name: str
+    phone: str = Field(index=True)
+    deal_type_requested: DealType = Field(default=DealType.SALE)
+    budget_limit: Optional[float] = Field(default=0) 
+    funnel_stage: FunnelStage = Field(default=FunnelStage.LEAD)
+    last_interaction: datetime = Field(default_factory=datetime.utcnow)
+    client_category: str = Field(default="normal")
+    is_public: bool = Field(default=False) # آیا این مشتری عمومی است؟
+    category_updated_at: datetime = Field(default_factory=datetime.utcnow)
+    drip_stage: int = Field(default=0)
+
+class Deal(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    agency_id: int = Field(foreign_key="agency.id", index=True)
+    user_id: int = Field(foreign_key="users.id")
+    client_id: int = Field(foreign_key="client.id")
+    property_id: Optional[int] = Field(default=None, foreign_key="property.id")
+    deal_type: str
+    deal_price: float
+    commission_amount: float
+    deal_date: datetime = Field(default_factory=datetime.utcnow)
+
+class AgentMonthlyCommission(SQLModel, table=True):
+    __tablename__ = "agent_monthly_commissions"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    agency_id: int = Field(foreign_key="agency.id", index=True)
+    year_month: str = Field(index=True) 
+    total_deals: int = Field(default=0)
+    total_deal_value: float = Field(default=0)
+    total_commission: float = Field(default=0)
+    agent_share: float = Field(default=0)
+    office_share: float = Field(default=0)
+    is_paid: bool = Field(default=False)
+    paid_date: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Reminder(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    client_id: Optional[int] = Field(default=None, foreign_key="client.id")
+    property_id: Optional[int] = Field(default=None, foreign_key="property.id")
+    title: str 
+    description: Optional[str] = None
+    remind_date: datetime
+    is_completed: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Ticket(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    agency_id: int = Field(foreign_key="agency.id", index=True)
+    sender_id: int = Field(foreign_key="users.id", index=True) 
+    receiver_id: int = Field(foreign_key="users.id", index=True) 
+    ticket_code: str = Field(unique=True, index=True)
+    subject: str
+    priority: TicketPriority = Field(default=TicketPriority.NORMAL)
+    status: TicketStatus = Field(default=TicketStatus.OPEN)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class TicketReply(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ticket_id: int = Field(foreign_key="ticket.id", index=True)
+    user_id: int = Field(foreign_key="users.id") 
+    message: str
+    attachment_path: Optional[str] = None 
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+class AgentNotification(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    message: str
+    is_read: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class UploadedForm(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    agency_id: int = Field(foreign_key="agency.id", index=True)
+    title: str
+    file_path: str
+    uploaded_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Requirement(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    agency_id: int = Field(foreign_key="agency.id", index=True) 
+    client_id: int = Field(foreign_key="client.id")
+    created_by_user_id: Optional[int] = Field(default=None, foreign_key="users.id", index=True)
+    deal_type: DealType
+    property_type: PropertyType
+    min_budget: float = Field(default=0)
+    max_budget: float
+    preferred_neighborhoods: str
+    has_barter: bool = Field(default=False)
+    barter_asset_desc: Optional[str] = None
+
+class ClientInteraction(SQLModel, table=True):
+    """جدول ذخیره تحلیل تماس‌های مشتریان (Call Analyzer)"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    client_id: int = Field(foreign_key="client.id", index=True)
+    summary: str
+    sentiment: str # positive, neutral, negative
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+==================================================
+FILE: ./Backend\app\core\security.py
+==================================================
+
+import os
+from datetime import datetime, timedelta
+import bcrypt
+from fastapi import Request, HTTPException
+from sqlmodel import Session, select
+import jwt
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_estate_key_2026")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 10080)) # 7 روز
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """بررسی تطابق رمز عبور تایپ شده با رمز کدگذاری شده در دیتابیس"""
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
+
+def get_password_hash(password: str) -> str:
+    """تبدیل رمز عبور ساده به یک رشته کدگذاری شده غیرقابل بازگشت"""
+    salt = bcrypt.gensalt()
+    hashed_bytes = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed_bytes.decode('utf-8')
+
+def create_access_token(data: dict) -> str:
+    """تولید یک توکن امنیتی (JWT) برای کاربر لاگین شده"""
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def get_current_user_api(request: Request, session: Session):
+    """تابع مرکزی و یکپارچه برای احراز هویت تمام API ها"""
+    token = request.cookies.get("access_token")
+    if not token: 
+        raise HTTPException(status_code=401, detail="لطفاً ابتدا وارد سیستم شوید.")
+    try:
+        payload = jwt.decode(token.replace("Bearer ", ""), SECRET_KEY, algorithms=[ALGORITHM])
+        from app.core.models import User # ایمپورت در اینجا برای جلوگیری از تداخل (Circular Import)
+        user = session.exec(select(User).where(User.username == payload.get("sub"))).first()
+        if not user or not user.is_active:
+            raise HTTPException(status_code=401, detail="حساب کاربری یافت نشد یا مسدود است.")
+        return user
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="نشست شما منقضی شده است.")
+    except Exception:
+        raise HTTPException(status_code=401, detail="توکن نامعتبر است.")
+
+==================================================
+FILE: ./Backend\app\core\socket_manager.py
+==================================================
+
+from fastapi import WebSocket
+import asyncio
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections = {}
+
+    async def connect(self, websocket: WebSocket, user_id: int):
+        await websocket.accept()
+        if user_id not in self.active_connections:
+            self.active_connections[user_id] = []
+        self.active_connections[user_id].append(websocket)
+
+    def disconnect(self, websocket: WebSocket, user_id: int):
+        if user_id in self.active_connections:
+            self.active_connections[user_id].remove(websocket)
+            if not self.active_connections[user_id]:
+                del self.active_connections[user_id]
+
+    async def send_personal_message(self, message: dict, user_id: int):
+        if user_id in self.active_connections:
+            for connection in self.active_connections[user_id]:
+                try:
+                    await connection.send_json(message)
+                except:
+                    pass
+
+manager = ConnectionManager()
+
+def notify_user_sync(user_id: int, message: dict):
+    """تابع کمکی برای ارسال پیام درلحظه از داخل توابع معمولی (مثل وب‌هوک‌ها)"""
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(manager.send_personal_message(message, user_id))
+    except RuntimeError:
+        asyncio.run(manager.send_personal_message(message, user_id))
+
+==================================================
+FILE: ./Backend\app\services\ai_engine.py
+==================================================
+
+import os
+import re
+import json
+import time
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
+
+try:
+    nvidia_client = OpenAI(
+        base_url="https://integrate.api.nvidia.com/v1", 
+        api_key=os.getenv("NVIDIA_API_KEY"), 
+        timeout=60.0
+    )
+except Exception as e: 
+    nvidia_client = None
+    print(f"⚠️ NVIDIA Client Error: {e}")
+
+def analyze_property_text(ad_text: str, target_hood: str, max_retries=4) -> dict:
+    """تحلیل عمیق و بدون خطای متن آگهی"""
+    
+    prompt = f"""
+    شما یک کارشناس ارشد و تحلیلگر حرفه‌ای املاک هستید. متن زیر، کل اطلاعات کپی شده از یک صفحه آگهی است.
+    
+    قوانین استخراج:
+    1. خروجی فقط و فقط JSON معتبر باشد.
+    2. کلید property_type: حتماً با توجه به دسته‌بندی آگهی (مثلاً فروش آپارتمان) یکی از این موارد باشد: "آپارتمان"، "ویلایی"، "زمین و کلنگی"، "تجاری و اداری".
+    3. کلید ai_pros (نقاط قوت): تمام امکانات (مانند آسانسور، پارکینگ، انباری) و ویژگی‌های مثبت (مانند BMS، روف گاردن، متریال) را به دقت در متن پیدا کنید و با ایموجی ✔️ بنویسید.
+    4. کلید ai_cons (نقاط ضعف): دقت کنید! اگر امکاناتی مثل آسانسور و پارکینگ در متن وجود دارد، به هیچ وجه ننویسید که وجود ندارند! فقط مواردی مثل "نداشتن عکس واقعی" یا نواقص واقعی را با ایموجی ❌ بنویسید. اگر نقصی نبود بنویسید "نقص مشهودی یافت نشد."
+    5. کلید built_area: متراژ را پیدا کرده و به عدد بنویسید.
+    
+    الگوی JSON:
+    {{
+      "title": "یک عنوان جذاب",
+      "real_neighborhood": "{target_hood}",
+      "property_type": "آپارتمان",
+      "price_total": 0,
+      "built_area": 135,
+      "rooms": 2,
+      "has_master_room": true,
+      "ai_pros": "✔️ دارای آسانسور، پارکینگ و انباری\\n✔️ سیستم BMS و روف گاردن",
+      "ai_cons": "❌ استفاده از عکس تزئینی و عدم درج عکس واقعی"
+    }}
+    
+    متن کامل آگهی (با دقت کلمه به کلمه بخوانید):
+    {ad_text[:4500]}
+    """
+
+    if not nvidia_client: return _get_fallback_data()
+
+    for attempt in range(max_retries):
+        try:
+            response = nvidia_client.chat.completions.create(
+                model="meta/llama-3.1-70b-instruct",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1, # دمای پایین برای جلوگیری از هذیان گفتن
+                max_tokens=1500
+            )
+            raw_output = response.choices[0].message.content.strip()
+            
+            json_match = re.search(r'```(?:json)?(.*?)```', raw_output, re.DOTALL)
+            if json_match: raw_output = json_match.group(1).strip()
+            
+            start = raw_output.find('{')
+            end = raw_output.rfind('}') + 1
+            if start != -1 and end != 0: raw_output = raw_output[start:end]
+            
+            raw_output = raw_output.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')            
+            return json.loads(raw_output)
+            
+        except Exception as e:
+            print(f"⚠️ [Backend AI] Error (Attempt {attempt+1}): {e}")
+            time.sleep(3)
+            
+    return _get_fallback_data()
+    
+def _get_fallback_data():
+    return {
+        "title": "فایل استخراج شده", "real_neighborhood": "نامشخص", "property_type": "آپارتمان",
+        "price_total": 0, "built_area": 0, "rooms": 0, "has_master_room": False,
+        "ai_pros": "اطلاعات کافی در متن آگهی یافت نشد.", 
+        "ai_cons": "نیاز به بررسی حضوری ملک."
+    }
+
+def compare_and_valuate(target_prop: dict, comparables: list) -> list:
+    prompt = f"""
+    شما یک کارشناس ارشد قیمت‌گذاری املاک هستید. مقایسه یک "ملک هدف" با چند "ملک مشابه".
+    ملک هدف: {json.dumps(target_prop, ensure_ascii=False)}
+    املاک مشابه: {json.dumps(comparables, ensure_ascii=False)}
+    
+    خروجی را فقط به صورت یک آرایه JSON برگردانید.
+    مثال:
+    [
+        {{"comp_id": 1, "conclusion": "متن مقایسه..."}}
+    ]
+    """
+    try:
+        response = nvidia_client.chat.completions.create(model="meta/llama-3.1-70b-instruct", messages=[{"role": "user", "content": prompt}], temperature=0.1, max_tokens=1500)
+        raw_output = response.choices[0].message.content.strip()
+        
+        json_match = re.search(r'```(?:json)?(.*?)```', raw_output, re.DOTALL)
+        if json_match: raw_output = json_match.group(1).strip()
+        
+        start = raw_output.find('[')
+        end = raw_output.rfind(']') + 1
+        if start != -1 and end != 0:
+            raw_output = raw_output[start:end]
+            
+        raw_output = raw_output.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+        return json.loads(raw_output)
+    except: return []
+
+def parse_property_from_audio(audio_bytes: bytes, mime_type: str = "audio/webm") -> dict:
+    return {"error": "Voice AI disabled."}
+
+def generate_smart_comparison(target_title, target_price, target_area, comparables) -> str:
+    """تولید یک پاراگراف تحلیلی برای مقایسه یک ملک با فایل‌های مشابه"""
+    if not nvidia_client:
+        return "⚠️ هوش مصنوعی متصل نیست. (حالت تستی: این فایل نسبت به بقیه ارزنده تر است)."
+        
+    comps_text = "\n".join([f"- {c['title']}: {c['price']} تومان ({c['area']} متر)" for c in comparables])
+    
+    prompt = f"""
+    شما یک مشاور املاک ارشد هستید. 
+    یک فایل هدف داریم: "{target_title}" با قیمت {target_price} تومان و متراژ {target_area} متر.
+    
+    فایل‌های مشابه در همین محله این موارد هستند:
+    {comps_text}
+    
+    لطفاً در یک پاراگراف کوتاه (حداکثر ۳-۴ خط)، به زبان فارسی روان و لحن حرفه‌ای، فایل هدف را با این فایل‌های مشابه مقایسه کن و بگو آیا فایل هدف "ارزنده"، "نرمال" یا "گران" است.
+    """
+
+    try:
+        response = nvidia_client.chat.completions.create(
+            model="qwen/qwen2.5-72b-instruct",
+            # model="meta/llama-3.1-70b-instruct",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3, max_tokens=300
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"⚠️ AI Comparison Error: {e}")
+        return "سیستم در حال حاضر قادر به تحلیل هوشمند نیست."
+
+
+def analyze_client_call(transcript: str) -> dict:
+    """تحلیلگر تماس مشتری: استخراج خلاصه و احساسات"""
+    prompt = f"""
+    شما یک تحلیلگر حرفه‌ای تماس‌های فروش املاک هستید. متن زیر پیاده‌سازی شده‌ی (صوت به متن) مکالمه مشاور با مشتری است.
+    لطفاً یک خلاصه ۲ خطی از نیاز مشتری و حس و حال (Sentiment) مشتری را استخراج کن.
+    خروجی فقط یک JSON معتبر باشد:
+    {{"summary": "خلاصه مکالمه...", "sentiment": "positive یا neutral یا negative"}}
+    
+    متن مکالمه: {transcript}
+    """
+    try:
+        response = nvidia_client.chat.completions.create(
+            model="meta/llama-3.1-70b-instruct",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1, max_tokens=500
+        )
+        raw_output = response.choices[0].message.content.strip()
+        import re, json
+        json_match = re.search(r'```(?:json)?(.*?)```', raw_output, re.DOTALL)
+        if json_match: raw_output = json_match.group(1).strip()
+        return json.loads(raw_output)
+    except:
+        return {"summary": "مشتری در مورد فایل سوالاتی داشت.", "sentiment": "neutral"}
+
+def virtual_staging_api(image_path: str) -> str:
+    """
+    چیدمان مجازی (Virtual Staging)
+    در نسخه پروداکشن اینجا به API شرکت‌هایی مثل Replicate (Stable Diffusion) متصل می‌شود.
+    فعلا برای عملکرد سیستم، مسیر عکس را برمی‌گردانیم.
+    """
+    # TODO: Connect to Stable Diffusion Inpainting API
+    # import requests
+    # url = "https://api.replicate.com/v1/predictions"
+    # payload = {"version": "...", "input": {"image": open(image_path, "rb"), "prompt": "modern luxury living room furniture"}}
+    
+    import time
+    time.sleep(3) # شبیه‌سازی زمان پردازش هوش مصنوعی
+    return image_path
+
+==================================================
+FILE: ./Backend\app\services\crawler_bot.py
+==================================================
+
+import time
+from playwright.sync_api import sync_playwright
+from sqlmodel import Session, select
+from app.core.database import engine
+from app.core.models import Property, PropertyType, DealType, DocumentType
+from app.services.ai_engine import analyze_property_text
+
+def run_ghost_crawler(city: str, hood: str, user_id: int):
+    """ربات خزنده‌ی نامرئی که در پس‌زمینه سایت دیوار را اسکن می‌کند"""
+    print(f"🕷️ [Ghost Crawler] بیدار شد! در حال اسکن محله {hood} در {city}...")
+    
+    try:
+        with sync_playwright() as p:
+            # مرورگر مخفی را باز می‌کند
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            
+            # ورود به سایت دیوار (بخش فروش مسکونی)
+            page.goto(f"https://divar.ir/s/{city}/buy-residential?q={hood}", timeout=60000)
+            page.wait_for_timeout(4000) # صبر برای لود شدن آگهی‌ها
+            
+            # استخراج ۳ لینک اول (برای تست سریع، در نسخه نهایی می‌توان ده‌ها لینک برداشت)
+            links = page.evaluate("""
+                Array.from(document.querySelectorAll('a[href^="/v/"]')).map(a => a.href).slice(0, 3)
+            """)
+            
+            if not links:
+                print("⚠️ [Ghost Crawler] هیچ آگهی جدیدی پیدا نشد.")
+                return
+
+            with Session(engine) as session:
+                for link in links:
+                    token = link.split("/")[-1].split("?")[0]
+                    
+                    # بررسی ضدتکرار (جلوگیری از ثبت فایلی که قبلاً ثبت شده)
+                    existing = session.exec(select(Property).where(Property.divar_token == token)).first()
+                    if existing:
+                        continue
+                        
+                    print(f"🔍 در حال تحلیل آگهی جدید: {token}")
+                    page.goto(link, timeout=60000)
+                    page.wait_for_timeout(2000)
+                    
+                    try:
+                        raw_text = page.locator("body").inner_text()
+                    except:
+                        raw_text = "بدون متن"
+
+                    # 🧠 ارسال متن خام به مغز هوش مصنوعی برای استخراج دقیق اطلاعات
+                    ai_data = analyze_property_text(raw_text)
+                    
+                    # تبدیل نوع ملک پیدا شده به فرمت دیتابیس خودمان
+                    p_type = PropertyType.APARTMENT
+                    if ai_data.get("property_type") == "villa": p_type = PropertyType.VILLA
+                    elif ai_data.get("property_type") == "land": p_type = PropertyType.LAND
+                    elif ai_data.get("property_type") == "commercial": p_type = PropertyType.COMMERCIAL
+
+                    # ذخیره فایل تمیز و پردازش شده در دیتابیس CRM
+                    new_prop = Property(
+                        agency_id=1,
+                        created_by_id=user_id,
+                        divar_token=token,
+                        title=ai_data.get("title", "فایل شکار شده از دیوار"),
+                        property_type=p_type,
+                        deal_type=DealType.SALE,
+                        city="مشهد",
+                        neighborhood=ai_data.get("neighborhood", hood),
+                        price_total=ai_data.get("price_total", 0),
+                        built_area=ai_data.get("area", 0),
+                        rooms=ai_data.get("rooms", 0),
+                        has_master_room=ai_data.get("has_master", False),
+                        ai_pros=ai_data.get("pros", ""),
+                        ai_cons=ai_data.get("cons", ""),
+                        description="این فایل توسط ربات EstateMind استخراج شده است.",
+                        is_exclusive=False
+                    )
+                    
+                    session.add(new_prop)
+                    session.commit()
+                    print(f"✅ فایل با موفقیت شکار و ذخیره شد: {new_prop.title}")
+                    
+            browser.close()
+        print("🏁 [Ghost Crawler] ماموریت با موفقیت به پایان رسید.")
+        
+    except Exception as e:
+        print(f"❌ [Ghost Crawler Error]: {e}")
+
+==================================================
+FILE: ./Backend\app\services\notifier.py
+==================================================
+
+import os
+import requests
+import json
+from dotenv import load_dotenv
+
+load_dotenv()
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+
+def send_telegram_alert(title: str, neighborhood: str, price: float, phone: str, source: str, image_urls: str = "[]", pros: str = "", cons: str = ""):
+    """ارسال آلارم فایل جدید به همراه آلبوم عکس (برگرفته از منطق پروژه دوم)"""
+    
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("⚠️ [Telegram]: توکن بات یا چت‌آیدی ست نشده است.")
+        return
+
+    # ارسال آلبوم عکس‌ها
+    try:
+        images = json.loads(image_urls) if image_urls else []
+        if images:
+            valid_images = images[:10] # تلگرام حداکثر 10 عکس در یک گروه قبول می‌کند
+            media = [{"type": "photo", "media": img} for img in valid_images]
+            requests.post(
+                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMediaGroup", 
+                json={"chat_id": TELEGRAM_CHAT_ID, "media": media}, 
+                timeout=15
+            )
+    except Exception as e:
+        print(f"⚠️ [Telegram Media Error]: {e}")
+
+    # فرمت‌بندی پیام
+    price_str = f"{price:,.0f} تومان" if price > 0 else "توافقی"
+    phone_str = phone if phone else "بدون شماره"
+    
+    message = f"""
+🚨 <b>فایل جدید شکار شد! ({source})</b> 🚨
+
+🏢 <b>عنوان:</b> {title}
+📍 <b>محله:</b> {neighborhood}
+💰 <b>قیمت کل:</b> {price_str}
+📞 <b>شماره تماس:</b> <code>{phone_str}</code>
+
+✨ <b>نقاط قوت:</b>
+{pros or 'بررسی نشده'}
+
+⚠️ <b>نقاط ضعف:</b>
+{cons or 'بررسی نشده'}
+
+🌐 <a href="http://127.0.0.1:8000/properties">ورود به پنل CRM</a>
+"""
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": message,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True
+    }
+    
+    try:
+        requests.post(url, json=payload, timeout=10)
+        print("📨 [Telegram]: پیام با موفقیت به تلگرام ارسال شد.")
+    except Exception as e:
+        print(f"❌ [Telegram Network Error]: {e}")
+
+==================================================
+FILE: ./Backend\app\services\sms_sender.py
+==================================================
+
+import random
+
+otp_storage = {}
+
+def send_otp_sms(phone_number: str) -> str:
+    """تولید کد ۵ رقمی و شبیه‌سازی ارسال پیامک"""
+    code = str(random.randint(10000, 99999))
+    otp_storage[phone_number] = code
+    
+    print(f"\n" + "="*50)
+    print(f"📱 [SMS MOCK] ارسال پیامک به {phone_number}:")
+    print(f"کد ورود شما به سیستم EstateMind: {code}")
+    print("="*50 + "\n")
+    
+    return code
+    
+def verify_otp_code(phone_number: str, code: str) -> bool:
+    """بررسی صحت کد وارد شده"""
+    if phone_number in otp_storage and otp_storage[phone_number] == code:
+        del otp_storage[phone_number] # کد یکبار مصرف است، پس پاک می‌شود
+        return True
+    return False
+
+==================================================
+FILE: ./Backend\app\services\vector_db.py
+==================================================
+
+import chromadb
+from chromadb.utils import embedding_functions
+
+chroma_client = chromadb.PersistentClient(path="./chroma_db")
+
+sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+    model_name="paraphrase-multilingual-MiniLM-L12-v2"
+)
+
+properties_collection = chroma_client.get_or_create_collection(
+    name="real_estate_properties",
+    embedding_function=sentence_transformer_ef
+)
+
+def add_property_to_vector_db(property_id: int, title: str, description: str, prop_type: str, deal_type: str, neighborhood: str, price: float):
+    """تبدیل مشخصات ملک به بردار (Vector) و ذخیره آن"""
+    full_text = f"ملک {prop_type} برای {deal_type} در محله {neighborhood}. با قیمت {price} تومان. عنوان: {title}. توضیحات تکمیلی: {description}"
+    
+    properties_collection.add(
+        documents=[full_text],
+        metadatas=[{"property_id": property_id, "title": title, "neighborhood": neighborhood}],
+        ids=[str(property_id)]
+    )
+    print(f"🧠 [Vector DB]: ملک شماره {property_id} به فضای برداری Chroma اضافه شد.")
+
+def search_best_matches_semantic(query_text: str, n_results: int = 3):
+    """جستجوی نزدیک‌ترین فایل‌ها به نیاز مشتری (بر اساس فاصله کسینوسی)"""
+    results = properties_collection.query(
+        query_texts=[query_text],
+        n_results=n_results
+    )
+    return results
+
+==================================================
+FILE: ./Backend\divar_profile\component_crx_cache\metadata.json
+==================================================
+
+{"hashes":{}}
+
+==================================================
+FILE: ./Backend\divar_profile\extensions_crx_cache\metadata.json
+==================================================
+
+{"hashes":{}}

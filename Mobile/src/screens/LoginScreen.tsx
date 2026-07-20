@@ -5,7 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 import Toast from 'react-native-toast-message';
 
-const BASE_URL = "http://10.56.173.18:8000";
+const BASE_URL = "http://10.77.241.18:8000";
 
 export default function LoginScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<'otp' | 'password'>('otp');

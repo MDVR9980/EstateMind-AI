@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { navigate } from '../navigation/NavigationService';
 import Toast from 'react-native-toast-message';
 
-export const BASE_URL = "http://10.56.173.18:8000";
+export const BASE_URL = "http://10.77.241.18:8000";
 
 const api = axios.create({
   baseURL: BASE_URL,
