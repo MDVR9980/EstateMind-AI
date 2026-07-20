@@ -2,19 +2,15 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
-import axios from 'axios';
 import Toast from 'react-native-toast-message';
-
-const BASE_URL = "http://10.56.173.18:8000";
+import api from '../services/api';
 
 export default function AddPropertyScreen({ navigation }: any) {
   const [isLoading, setIsLoading] = useState(false);
   
-  // استیت‌های فرم
   const [title, setTitle] = useState('');
-  const [dealType, setDealType] = useState('sale'); // sale, rent, partnership
-  const [propType, setPropType] = useState('apartment'); // apartment, villa, land
+  const [dealType, setDealType] = useState('sale');
+  const [propType, setPropType] = useState('apartment');
   const [neighborhood, setNeighborhood] = useState('');
   const [builtArea, setBuiltArea] = useState('');
   const [priceTotal, setPriceTotal] = useState('');
@@ -34,29 +30,26 @@ export default function AddPropertyScreen({ navigation }: any) {
 
     setIsLoading(true);
     try {
-      const token = await SecureStore.getItemAsync('userToken');
       const payload = {
         title,
         property_type: propType,
         deal_type: dealType,
-        city: 'مشهد', // پیش‌فرض
+        city: 'مشهد', 
         neighborhood,
         built_area: parseFloat(builtArea),
         rooms: 0,
         price_total: parseFloat(priceTotal.replace(/,/g, '')),
         owner_phone: ownerPhone,
-        document_type: "SINGLE", // پیش‌فرض
+        document_type: "SINGLE",
         is_exclusive: false,
         image_urls: []
       };
 
-      const response = await axios.post(`${BASE_URL}/api/properties/save`, payload, {
-        headers: { Cookie: `access_token=Bearer ${token}` }
-      });
+      const response = await api.post(`/api/properties/save`, payload);
 
       if (response.data.status === 'success') {
         Toast.show({ type: 'success', text1: 'موفقیت', text2: 'فایل با موفقیت در بانک املاک ثبت شد.' });
-        navigation.navigate('Properties'); // بازگشت به لیست املاک
+        navigation.navigate('Properties');
       }
     } catch (error) {
       Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکلی در ذخیره فایل پیش آمد.' });
@@ -65,12 +58,8 @@ export default function AddPropertyScreen({ navigation }: any) {
     }
   };
 
-  // کامپوننت دکمه‌های رادیویی کاستوم
   const RadioButton = ({ label, value, current, onChange }: any) => (
-    <TouchableOpacity 
-      style={[styles.radioBtn, current === value && styles.radioBtnActive]} 
-      onPress={() => onChange(value)}
-    >
+    <TouchableOpacity style={[styles.radioBtn, current === value && styles.radioBtnActive]} onPress={() => onChange(value)}>
       <Text style={[styles.radioText, current === value && styles.radioTextActive]}>{label}</Text>
     </TouchableOpacity>
   );

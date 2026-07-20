@@ -2,10 +2,7 @@ import React, { useState, useRef } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
-import axios from 'axios';
-
-const BASE_URL = "http://10.56.173.18:8000";
+import api from '../services/api';
 
 interface Message {
   id: string;
@@ -30,12 +27,7 @@ export default function ChatbotScreen({ navigation }: any) {
     setIsTyping(true);
 
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      const response = await axios.post(`${BASE_URL}/api/chat/`, 
-        { message: userMsg.text },
-        { headers: { Cookie: `access_token=Bearer ${token}` } }
-      );
-
+      const response = await api.post(`/api/chat/`, { message: userMsg.text });
       if (response.data.status === 'success') {
         const aiMsg: Message = { id: (Date.now() + 1).toString(), text: response.data.reply, isUser: false };
         setMessages(prev => [...prev, aiMsg]);

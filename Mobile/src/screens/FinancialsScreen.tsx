@@ -1,25 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as SecureStore from 'expo-secure-store';
-import axios from 'axios';
+import { useFocusEffect } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
-
-const BASE_URL = "http://10.56.173.18:8000";
+import api, { BASE_URL } from '../services/api';
 
 export default function FinancialsScreen({ navigation }: any) {
   const [stats, setStats] = useState({ total_revenue: 0, agent_share: 0, office_share: 0 });
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // استیت‌های مودال ثبت قرارداد
   const [dealModalVisible, setDealModalVisible] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
   
-  // فرم قرارداد
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [selectedProperty, setSelectedProperty] = useState<any>(null);
   const [dealType, setDealType] = useState('فروش');
@@ -27,16 +23,15 @@ export default function FinancialsScreen({ navigation }: any) {
   const [commission, setCommission] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchFinancials();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchFinancials();
+    }, [])
+  );
 
   const fetchFinancials = async () => {
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      const response = await axios.get(`${BASE_URL}/api/deals/app-financials`, {
-        headers: { Cookie: `access_token=Bearer ${token}` }
-      });
+      const response = await api.get('/api/deals/app-financials');
       if (response.data.status === 'success') {
         setStats(response.data.stats);
         setDeals(response.data.recent_deals);
@@ -48,13 +43,11 @@ export default function FinancialsScreen({ navigation }: any) {
     }
   };
 
-  // گرفتن لیست مشتریان و فایل‌ها برای دراپ‌داون‌های مودال
   const fetchFormOptions = async () => {
     try {
-      const token = await SecureStore.getItemAsync('userToken');
       const [clientRes, propRes] = await Promise.all([
-        axios.get(`${BASE_URL}/api/clients/app-list`, { headers: { Cookie: `access_token=Bearer ${token}` } }),
-        axios.get(`${BASE_URL}/api/properties/app-list`, { headers: { Cookie: `access_token=Bearer ${token}` } })
+        api.get('/api/clients/app-list'),
+        api.get('/api/properties/app-list')
       ]);
       setClients(clientRes.data.clients || []);
       setProperties(propRes.data.properties || []);
@@ -73,12 +66,8 @@ export default function FinancialsScreen({ navigation }: any) {
       { text: 'انصراف', style: 'cancel' },
       { text: 'بله، محاسبه کن', onPress: async () => {
           try {
-            const token = await SecureStore.getItemAsync('userToken');
-            const currentMonth = new Date().toISOString().slice(0, 7); // مثلا 2026-07
-            await axios.post(`${BASE_URL}/api/deals/calculate-monthly`, 
-              { year_month: currentMonth }, 
-              { headers: { Cookie: `access_token=Bearer ${token}` } }
-            );
+            const currentMonth = new Date().toISOString().slice(0, 7);
+            await api.post('/api/deals/calculate-monthly', { year_month: currentMonth });
             Toast.show({ type: 'success', text1: 'انجام شد', text2: 'سهم مشاورین برای این ماه بروزرسانی شد.' });
           } catch (e) {
             Toast.show({ type: 'error', text1: 'خطا', text2: 'شما دسترسی مدیریت برای این کار ندارید.' });
@@ -95,7 +84,6 @@ export default function FinancialsScreen({ navigation }: any) {
 
     setIsSubmitting(true);
     try {
-      const token = await SecureStore.getItemAsync('userToken');
       const payload = {
         client_id: selectedClient.id,
         property_id: selectedProperty ? selectedProperty.id : 0,
@@ -104,14 +92,11 @@ export default function FinancialsScreen({ navigation }: any) {
         commission_amount: parseFloat(commission.replace(/,/g, ''))
       };
 
-      await axios.post(`${BASE_URL}/api/deals/add`, payload, {
-        headers: { Cookie: `access_token=Bearer ${token}` }
-      });
+      await api.post('/api/deals/add', payload);
       
       Toast.show({ type: 'success', text1: 'ثبت شد!', text2: 'قرارداد با موفقیت در سیستم ثبت شد 🚀' });
       setDealModalVisible(false);
       
-      // Reset Form
       setSelectedClient(null); setSelectedProperty(null); setDealPrice(''); setCommission('');
       fetchFinancials();
     } catch (e) {
@@ -122,6 +107,14 @@ export default function FinancialsScreen({ navigation }: any) {
   };
 
   const formatPrice = (price: number) => price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+  // دانلود PDF قرارداد مستقیماً از بک‌اند
+  const handleDownloadPDF = (dealId: number) => {
+    const pdfUrl = `${BASE_URL}/api/deals/${dealId}/contract-pdf`;
+    Linking.openURL(pdfUrl).catch(err => {
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'باز کردن لینک دانلود با مشکل مواجه شد.' });
+    });
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -172,7 +165,9 @@ export default function FinancialsScreen({ navigation }: any) {
               keyExtractor={(item) => item.id.toString()}
               renderItem={({ item }) => (
                 <View style={styles.dealCard}>
-                  <View style={styles.dealIconBox}><Ionicons name="document-text-outline" size={24} color="#3b82f6" /></View>
+                  <View style={styles.dealIconBox}>
+                    <Ionicons name="document-text-outline" size={24} color="#3b82f6" />
+                  </View>
                   <View style={styles.dealInfo}>
                     <Text style={styles.dealType}>قرارداد {item.type}</Text>
                     <Text style={styles.dealDate}>{item.date}</Text>
@@ -181,6 +176,9 @@ export default function FinancialsScreen({ navigation }: any) {
                     <Text style={styles.dealCommission}>{formatPrice(item.commission)} <Text style={styles.currency}>تومان</Text></Text>
                     <Text style={styles.dealLabel}>کمیسیون دریافت شده</Text>
                   </View>
+                  <TouchableOpacity style={styles.downloadBtn} onPress={() => handleDownloadPDF(item.id)}>
+                    <Ionicons name="download-outline" size={20} color="#10b981" />
+                  </TouchableOpacity>
                 </View>
               )}
               contentContainerStyle={styles.listContent}
@@ -189,12 +187,10 @@ export default function FinancialsScreen({ navigation }: any) {
         </View>
       )}
 
-      {/* دکمه شناور ثبت معامله */}
       <TouchableOpacity style={styles.fab} onPress={openDealModal}>
         <Ionicons name="hand-right" size={28} color="#fff" />
       </TouchableOpacity>
 
-      {/* مودال ثبت قرارداد */}
       <Modal animationType="slide" transparent={true} visible={dealModalVisible}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalView}>
@@ -206,7 +202,6 @@ export default function FinancialsScreen({ navigation }: any) {
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>مشتری خریدار/مستاجر *</Text>
-                {/* در موبایل برای سادگی فعلا از یک دکمه برای انتخاب استفاده می‌کنیم */}
                 <TouchableOpacity style={styles.dropdownBtn} onPress={() => {
                   Alert.alert('انتخاب مشتری', 'مشتری مورد نظر را انتخاب کنید:', clients.map(c => ({ text: c.name, onPress: () => setSelectedClient(c) })).slice(0, 5));
                 }}>
@@ -250,13 +245,11 @@ export default function FinancialsScreen({ navigation }: any) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  // استایل‌های قبلی
   container: { flex: 1, backgroundColor: '#0f172a' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
   backBtn: { width: 40, height: 40, backgroundColor: '#1e293b', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
@@ -277,17 +270,18 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#f8fafc', textAlign: 'right', marginBottom: 15 },
   listContent: { paddingHorizontal: 20, paddingBottom: 100 },
   emptyText: { color: '#64748b', marginTop: 10, fontSize: 14 },
+  
   dealCard: { flexDirection: 'row-reverse', backgroundColor: '#1e293b', padding: 15, borderRadius: 20, marginBottom: 12, alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
   dealIconBox: { width: 45, height: 45, backgroundColor: 'rgba(59, 130, 246, 0.1)', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginLeft: 12 },
   dealInfo: { flex: 1, alignItems: 'flex-end' },
   dealType: { color: '#f8fafc', fontSize: 14, fontWeight: 'bold', marginBottom: 2 },
   dealDate: { color: '#64748b', fontSize: 10, fontFamily: 'System' },
-  dealAmounts: { alignItems: 'flex-start' },
+  dealAmounts: { alignItems: 'flex-start', marginLeft: 10 },
   dealCommission: { color: '#10b981', fontSize: 14, fontWeight: 'bold', fontFamily: 'System' },
   currency: { fontSize: 9, color: '#94a3b8' },
   dealLabel: { color: '#64748b', fontSize: 9, marginTop: 2 },
+  downloadBtn: { width: 36, height: 36, backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
   
-  // استایل‌های جدید
   fab: { position: 'absolute', bottom: 30, right: 20, width: 60, height: 60, borderRadius: 30, backgroundColor: '#3b82f6', justifyContent: 'center', alignItems: 'center', elevation: 10 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.8)', justifyContent: 'flex-end' },
   modalView: { backgroundColor: '#1e293b', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40, maxHeight: '90%' },

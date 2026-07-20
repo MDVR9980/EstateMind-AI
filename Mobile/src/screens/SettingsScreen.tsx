@@ -4,23 +4,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import * as ImagePicker from 'expo-image-picker';
-import axios from 'axios';
 import Toast from 'react-native-toast-message';
-
-const BASE_URL = "http://10.56.173.18:8000";
+import api, { BASE_URL } from '../services/api';
 
 export default function SettingsScreen({ navigation }: any) {
-  // استیت‌های کاربر
   const [userData, setUserData] = useState({ full_name: 'کاربر سیستم', role: '...', avatar_letter: 'U', avatar_url: null });
   const [isUploading, setIsUploading] = useState(false);
 
-  // استیت مودال تغییر رمز
   const [passModalVisible, setPassModalVisible] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [isSubmittingPass, setIsSubmittingPass] = useState(false);
 
-  // استیت مودال زونکن مدارک
   const [docsModalVisible, setDocsModalVisible] = useState(false);
   const [forms, setForms] = useState<any[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
@@ -31,16 +26,11 @@ export default function SettingsScreen({ navigation }: any) {
 
   const fetchProfile = async () => {
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      const response = await axios.get(`${BASE_URL}/api/users/dashboard-stats`, {
-        headers: { Cookie: `access_token=Bearer ${token}` }
-      });
+      const response = await api.get('/api/users/dashboard-stats');
       if (response.data.status === 'success') {
         setUserData(response.data.user);
       }
-    } catch (e) {
-      console.log("Error fetching profile");
-    }
+    } catch (e) { console.log("Error fetching profile"); }
   };
 
   const handleLogout = async () => {
@@ -53,7 +43,6 @@ export default function SettingsScreen({ navigation }: any) {
     ]);
   };
 
-  // 📸 انتخاب و آپلود عکس پروفایل
   const pickAndUploadImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -61,32 +50,24 @@ export default function SettingsScreen({ navigation }: any) {
       aspect: [1, 1],
       quality: 0.7,
     });
-
-    if (!result.canceled) {
-      uploadAvatar(result.assets[0].uri);
-    }
+    if (!result.canceled) { uploadAvatar(result.assets[0].uri); }
   };
 
   const uploadAvatar = async (uri: string) => {
     setIsUploading(true);
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      
-      // 👈 هماهنگ‌سازی مسیر فایل برای هر دو پلتفرم اندروید و آی‌او‌اس
-      const cleanUri = Platform.OS === 'android' ? uri : uri.replace('file://', '');
-      
       let formData = new FormData();
+      // حل مشکل آپلود در iOS: React Native FormData در iOS فقط فرمت file:// را می‌شناسد.
+      // چون اکسپو خودبخود uri را با file:// می‌دهد، نیازی به حذف آن نیست.
       formData.append('file', {
-        uri: cleanUri,
+        uri: uri,
         name: 'avatar.jpg',
         type: 'image/jpeg',
       } as any);
 
-      // 👈 حذف هدر Content-Type تا خود Axios باندری فرم‌دیتا را به طور استاندارد تنظیم کند
-      const response = await axios.post(`${BASE_URL}/api/users/upload-avatar`, formData, {
-        headers: { 
-          Cookie: `access_token=Bearer ${token}` 
-        },
+      // در Axios، زمانی که FormData ارسال می‌کنید، Content-Type نباید دستی ست شود (باندری لازم دارد)
+      const response = await api.post('/api/users/upload-avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       if (response.data.status === 'success') {
@@ -100,43 +81,25 @@ export default function SettingsScreen({ navigation }: any) {
     }
   };
 
-  // --- تغییر رمز عبور ---
   const handleChangePassword = async () => {
-    if (!oldPassword || !newPassword) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'تکمیل هر دو فیلد الزامی است.' });
-      return;
-    }
+    if (!oldPassword || !newPassword) { Toast.show({ type: 'error', text1: 'خطا', text2: 'تکمیل هر دو فیلد الزامی است.' }); return; }
     setIsSubmittingPass(true);
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      await axios.put(`${BASE_URL}/api/users/change-password`, 
-        { old_password: oldPassword, new_password: newPassword },
-        { headers: { Cookie: `access_token=Bearer ${token}` } }
-      );
+      await api.put('/api/users/change-password', { old_password: oldPassword, new_password: newPassword });
       Toast.show({ type: 'success', text1: 'انجام شد', text2: 'رمز عبور با موفقیت تغییر کرد.' });
-      setPassModalVisible(false);
-      setOldPassword(''); setNewPassword('');
+      setPassModalVisible(false); setOldPassword(''); setNewPassword('');
     } catch (error: any) {
       const msg = error.response?.data?.detail || 'مشکلی پیش آمد.';
       Toast.show({ type: 'error', text1: 'خطا', text2: msg });
-    } finally {
-      setIsSubmittingPass(false);
-    }
+    } finally { setIsSubmittingPass(false); }
   };
 
-  // --- زونکن مدارک ---
   const openDocsModal = async () => {
-    setDocsModalVisible(true);
-    setIsLoadingDocs(true);
+    setDocsModalVisible(true); setIsLoadingDocs(true);
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      const res = await axios.get(`${BASE_URL}/api/forms/app-list`, { headers: { Cookie: `access_token=Bearer ${token}` } });
+      const res = await api.get('/api/forms/app-list');
       setForms(res.data.forms);
-    } catch (e) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'عدم دریافت لیست مدارک.' });
-    } finally {
-      setIsLoadingDocs(false);
-    }
+    } catch (e) { Toast.show({ type: 'error', text1: 'خطا', text2: 'عدم دریافت لیست مدارک.' }); } finally { setIsLoadingDocs(false); }
   };
 
   const downloadForm = (filePath: string) => {
@@ -161,13 +124,10 @@ export default function SettingsScreen({ navigation }: any) {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20 }}>
-        {/* بخش اطلاعات و عکس پروفایل */}
         <View style={styles.profileBox}>
           <TouchableOpacity onPress={pickAndUploadImage} style={styles.avatarContainer}>
             {isUploading ? (
-              <View style={[styles.avatar, { backgroundColor: '#1e293b' }]}>
-                <ActivityIndicator color="#10b981" />
-              </View>
+              <View style={[styles.avatar, { backgroundColor: '#1e293b' }]}><ActivityIndicator color="#10b981" /></View>
             ) : userData.avatar_url ? (
               <Image source={{ uri: `${BASE_URL}${userData.avatar_url}` }} style={styles.avatarImage} />
             ) : (
@@ -194,7 +154,6 @@ export default function SettingsScreen({ navigation }: any) {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* مودال تغییر رمز عبور */}
       <Modal animationType="slide" transparent={true} visible={passModalVisible} onRequestClose={() => setPassModalVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalView}>
@@ -202,14 +161,8 @@ export default function SettingsScreen({ navigation }: any) {
               <Text style={styles.modalTitle}>تغییر رمز عبور 🔒</Text>
               <TouchableOpacity onPress={() => setPassModalVisible(false)}><Ionicons name="close" size={24} color="#94a3b8" /></TouchableOpacity>
             </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>رمز عبور فعلی</Text>
-              <TextInput style={styles.input} secureTextEntry value={oldPassword} onChangeText={setOldPassword} />
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>رمز عبور جدید</Text>
-              <TextInput style={styles.input} secureTextEntry value={newPassword} onChangeText={setNewPassword} />
-            </View>
+            <View style={styles.inputGroup}><Text style={styles.label}>رمز عبور فعلی</Text><TextInput style={styles.input} secureTextEntry value={oldPassword} onChangeText={setOldPassword} /></View>
+            <View style={styles.inputGroup}><Text style={styles.label}>رمز عبور جدید</Text><TextInput style={styles.input} secureTextEntry value={newPassword} onChangeText={setNewPassword} /></View>
             <TouchableOpacity style={styles.submitBtn} onPress={handleChangePassword} disabled={isSubmittingPass}>
               {isSubmittingPass ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>ذخیره رمز جدید</Text>}
             </TouchableOpacity>
@@ -217,7 +170,6 @@ export default function SettingsScreen({ navigation }: any) {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* مودال زونکن مدارک */}
       <Modal animationType="fade" transparent={true} visible={docsModalVisible} onRequestClose={() => setDocsModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalView, { maxHeight: '80%' }]}>
@@ -249,7 +201,6 @@ export default function SettingsScreen({ navigation }: any) {
           </View>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }
@@ -259,8 +210,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
   backBtn: { width: 40, height: 40, backgroundColor: '#1e293b', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#f8fafc' },
-  
-  // استایل‌های پروفایل و آواتار
   profileBox: { alignItems: 'center', marginBottom: 30 },
   avatarContainer: { position: 'relative', marginBottom: 10 },
   avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', borderWidth: 4, borderColor: '#1e293b' },
@@ -269,7 +218,6 @@ const styles = StyleSheet.create({
   cameraIcon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#3b82f6', width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#1e293b' },
   name: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
   role: { fontSize: 12, color: '#94a3b8' },
-  
   sectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#94a3b8', textAlign: 'right', marginBottom: 10, paddingRight: 10 },
   card: { backgroundColor: '#1e293b', borderRadius: 20, padding: 10, borderWidth: 1, borderColor: '#334155', marginBottom: 30 },
   settingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 10 },
@@ -278,8 +226,6 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: '#334155', marginHorizontal: 10 },
   logoutBtn: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)', paddingVertical: 15, borderRadius: 16, gap: 10, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' },
   logoutText: { color: '#ef4444', fontWeight: 'bold', fontSize: 14 },
-
-  // استایل‌های مودال‌ها
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.8)', justifyContent: 'flex-end' },
   modalView: { backgroundColor: '#1e293b', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40 },
   modalHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
@@ -289,8 +235,6 @@ const styles = StyleSheet.create({
   input: { backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#334155', borderRadius: 16, padding: 16, color: '#f8fafc', textAlign: 'right', fontFamily: 'System' },
   submitBtn: { backgroundColor: '#f59e0b', padding: 16, borderRadius: 16, marginTop: 10, alignItems: 'center' },
   submitText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-
-  // استایل‌های زونکن
   emptyText: { color: '#64748b', textAlign: 'center', paddingVertical: 20 },
   docRow: { flexDirection: 'row-reverse', alignItems: 'center', backgroundColor: '#0f172a', padding: 15, borderRadius: 16, marginBottom: 10, borderWidth: 1, borderColor: '#334155' },
   docIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(59, 130, 246, 0.1)', justifyContent: 'center', alignItems: 'center' },

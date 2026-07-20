@@ -184,7 +184,7 @@ def get_properties_for_app(request: Request, session: Session = Depends(get_sess
     return {"status": "success", "properties": props}
 
 @router.post("/save")
-def save_property_to_db(data: PropertyCreateRequest, session: Session = Depends(get_session)):
+def save_property_to_db(request: Request, data: PropertyCreateRequest, session: Session = Depends(get_session)):
     
     user = get_current_user_api(request, session)
     try:

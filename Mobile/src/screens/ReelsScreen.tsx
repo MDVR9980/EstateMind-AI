@@ -1,28 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, Image, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as SecureStore from 'expo-secure-store';
-import axios from 'axios';
+import { useFocusEffect } from '@react-navigation/native';
+import api, { BASE_URL } from '../services/api';
 
-const BASE_URL = "http://10.56.173.18:8000";
 const { width, height } = Dimensions.get('window');
 
 export default function ReelsScreen({ navigation }: any) {
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchProperties();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchProperties();
+    }, [])
+  );
 
   const fetchProperties = async () => {
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      const response = await axios.get(`${BASE_URL}/api/properties/app-list`, {
-        headers: { Cookie: `access_token=Bearer ${token}` }
-      });
-      // فقط فایل‌هایی که عکس دارند را برای ریلز جدا می‌کنیم
+      const response = await api.get(`/api/properties/app-list`);
       const withImages = response.data.properties.filter((p: any) => p.image_urls && p.image_urls !== "[]");
       setProperties(withImages);
     } catch (error) {
@@ -107,7 +104,7 @@ export default function ReelsScreen({ navigation }: any) {
           data={properties}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderReel}
-          pagingEnabled // جادوی تیک‌تاکی شدن اسکرول
+          pagingEnabled
           showsVerticalScrollIndicator={false}
           snapToAlignment="start"
           decelerationRate="fast"
@@ -121,23 +118,19 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   floatingBackBtn: { position: 'absolute', top: 50, right: 20, zIndex: 100, width: 45, height: 45, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
-  reelContainer: { width, height }, // دقیقا اندازه صفحه
+  reelContainer: { width, height },
   reelImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   gradientOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%' },
-  
   rightActions: { position: 'absolute', right: 15, bottom: 150, alignItems: 'center', gap: 25 },
   actionBtn: { alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.8, shadowRadius: 4, elevation: 5 },
-  
   bottomInfo: { position: 'absolute', bottom: 30, left: 15, right: 70 },
   typeBadge: { backgroundColor: 'rgba(16, 185, 129, 0.8)', alignSelf: 'flex-end', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginBottom: 8 },
   typeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
   title: { color: '#fff', fontSize: 18, fontWeight: 'bold', textAlign: 'right', marginBottom: 5, textShadowColor: 'rgba(0,0,0,0.7)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3 },
   price: { color: '#10b981', fontSize: 24, fontWeight: 'bold', textAlign: 'right', marginBottom: 10, fontFamily: 'System', textShadowColor: 'rgba(0,0,0,0.7)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3 },
-  
   featuresRow: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 10, marginBottom: 15 },
   feature: { flexDirection: 'row-reverse', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   featureText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  
   aiProsBox: { backgroundColor: 'rgba(168, 85, 247, 0.2)', borderWidth: 1, borderColor: '#a855f7', borderRadius: 12, padding: 10 },
   aiProsTitle: { color: '#e9d5ff', fontSize: 11, fontWeight: 'bold', marginBottom: 4, textAlign: 'right' },
   aiProsText: { color: '#fff', fontSize: 11, textAlign: 'right', lineHeight: 18 }

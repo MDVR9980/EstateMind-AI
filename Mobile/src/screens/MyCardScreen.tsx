@@ -3,8 +3,7 @@ import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Image } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
-
-const BASE_URL = "http://10.56.173.18:8000";
+import { BASE_URL } from '../services/api';
 
 export default function MyCardScreen({ navigation }: any) {
   const [token, setToken] = useState<string | null>(null);

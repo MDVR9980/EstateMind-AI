@@ -5,6 +5,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import MapView, { Marker } from 'react-native-maps';
+import * as ImagePicker from 'expo-image-picker';
 import api, { BASE_URL } from '../services/api';
 
 export default function PropertiesScreen({ navigation }: any) {
@@ -25,7 +26,13 @@ export default function PropertiesScreen({ navigation }: any) {
   const [optionsModalVisible, setOptionsModalVisible] = useState(false);
   const [selectedProp, setSelectedProp] = useState<any>(null);
 
-  // جایگزینی useEffect با useFocusEffect برای رفع مشکل Stale State
+  // استیت‌های مودال ویرایش
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editPrice, setEditPrice] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
   useFocusEffect(
     useCallback(() => {
       fetchAllProperties();
@@ -65,13 +72,11 @@ export default function PropertiesScreen({ navigation }: any) {
     return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' تومان';
   };
 
-  // شبیه‌ساز هوشمند مختصات بر اساس محله (تا زمانی که فیلد Lat/Lng به بک‌اند اضافه شود)
   const getCoordinates = (neighborhood: string, index: number) => {
-    let lat = 36.30; let lng = 59.58; // مرکز مشهد
+    let lat = 36.30; let lng = 59.58;
     if (neighborhood.includes('سجاد')) { lat = 36.315; lng = 59.540; }
     else if (neighborhood.includes('هاشمیه')) { lat = 36.335; lng = 59.530; }
     else if (neighborhood.includes('وکیل')) { lat = 36.330; lng = 59.510; }
-    // اضافه کردن یک پراکندگی بسیار جزئی برای جلوگیری از افتادن پین‌ها دقیقاً روی هم
     const offsetLat = (index % 5) * 0.003;
     const offsetLng = (index % 5) * 0.003;
     return { latitude: lat + offsetLat, longitude: lng + offsetLng };
@@ -197,6 +202,66 @@ export default function PropertiesScreen({ navigation }: any) {
   };
   
   const openOptions = (prop: any) => { setSelectedProp(prop); setOptionsModalVisible(true); };
+
+  // === توابع مربوط به ویرایش فایل ===
+  const openEditModal = () => {
+    setOptionsModalVisible(false);
+    setEditPrice(selectedProp.price_total ? selectedProp.price_total.toString() : '');
+    setEditPhone(selectedProp.owner_phone || '');
+    setEditModalVisible(true);
+  };
+
+  const saveEdit = async () => {
+    setIsSavingEdit(true);
+    try {
+      const payload = {
+        price_total: parseFloat(editPrice.replace(/,/g, '') || '0'),
+        owner_phone: editPhone
+      };
+      await api.put(`/api/properties/${selectedProp.id}/edit`, payload);
+      Toast.show({ type: 'success', text1: 'ذخیره شد', text2: 'اطلاعات ملک با موفقیت بروزرسانی شد.' });
+      setEditModalVisible(false);
+      fetchAllProperties();
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکل در ذخیره اطلاعات' });
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleUploadMedia = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      setIsUploadingMedia(true);
+      try {
+        // آپلود عکس‌ها یکی یکی
+        for (let asset of result.assets) {
+          const cleanUri = Platform.OS === 'android' ? asset.uri : asset.uri.replace('file://', '');
+          let formData = new FormData();
+          formData.append('file', {
+            uri: cleanUri,
+            name: 'property_image.jpg',
+            type: 'image/jpeg',
+          } as any);
+
+          await api.post(`/api/properties/${selectedProp.id}/upload-media`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+        }
+        Toast.show({ type: 'success', text1: 'موفقیت', text2: 'عکس‌ها با موفقیت به گالری اضافه شدند.' });
+        fetchAllProperties(); // رفرش لیست تا عکس در کاور نمایش داده شود
+      } catch (error) {
+        Toast.show({ type: 'error', text1: 'خطا', text2: 'آپلود تصاویر با مشکل مواجه شد.' });
+      } finally {
+        setIsUploadingMedia(false);
+      }
+    }
+  };
 
   const displayData = activeTab === 'active' ? activeProps : pendingProps;
   const filteredProperties = displayData.filter(p => p.title.includes(searchQuery) || p.neighborhood.includes(searchQuery));
@@ -346,6 +411,11 @@ export default function PropertiesScreen({ navigation }: any) {
               <Text style={styles.optionText}>چیدمان مجازی با AI</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity style={styles.optionRow} onPress={openEditModal}>
+              <Ionicons name="pencil-outline" size={22} color="#f59e0b" />
+              <Text style={styles.optionText}>ویرایش و آپلود گالری</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={[styles.optionRow, { borderBottomWidth: 0 }]} onPress={handleDelete}>
               <Ionicons name="trash-outline" size={22} color="#ef4444" />
               <Text style={[styles.optionText, { color: '#ef4444' }]}>حذف فایل</Text>
@@ -354,9 +424,61 @@ export default function PropertiesScreen({ navigation }: any) {
         </TouchableOpacity>
       </Modal>
 
+      {/* مودال ویرایش فایل و آپلود گالری */}
+      <Modal animationType="slide" transparent={true} visible={editModalVisible} onRequestClose={() => setEditModalVisible(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlayFlex}>
+          <View style={styles.editModalView}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: '#f59e0b' }]}>ویرایش و گالری ✏️</Text>
+              <TouchableOpacity onPress={() => setEditModalVisible(false)}><Ionicons name="close" size={24} color="#94a3b8" /></TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>قیمت کل (تومان)</Text>
+                <TextInput 
+                  style={[styles.input, { fontFamily: 'System', color: '#10b981', fontWeight: 'bold' }]} 
+                  keyboardType="numeric" 
+                  value={editPrice} 
+                  onChangeText={(text) => setEditPrice(text.replace(/,/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ","))} 
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>شماره موبایل مالک</Text>
+                <TextInput 
+                  style={[styles.input, { fontFamily: 'System' }]} 
+                  keyboardType="phone-pad" 
+                  value={editPhone} 
+                  onChangeText={setEditPhone} 
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>گالری تصاویر</Text>
+                <TouchableOpacity style={styles.uploadBtn} onPress={handleUploadMedia} disabled={isUploadingMedia}>
+                  {isUploadingMedia ? (
+                    <ActivityIndicator color="#3b82f6" />
+                  ) : (
+                    <>
+                      <Ionicons name="cloud-upload-outline" size={24} color="#3b82f6" />
+                      <Text style={styles.uploadBtnText}>انتخاب و آپلود عکس‌ها</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity style={styles.submitBtn} onPress={saveEdit} disabled={isSavingEdit}>
+                {isSavingEdit ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>ذخیره تغییرات</Text>}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* مودال CMA */}
       <Modal animationType="slide" transparent={true} visible={cmaModalVisible} onRequestClose={() => setCmaModalVisible(false)}>
-        <View style={styles.modalOverlay}>
+        <View style={styles.modalOverlayFlex}>
           <View style={styles.cmaModalView}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>ترازوی هوشمند (CMA) ⚖️</Text>
@@ -439,11 +561,23 @@ const styles = StyleSheet.create({
   approveBtn: { flex: 1, flexDirection: 'row-reverse', paddingVertical: 10, borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 5 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.8)', justifyContent: 'center' },
+  modalOverlayFlex: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.8)', justifyContent: 'flex-end' },
+  
   optionsModalView: { backgroundColor: '#1e293b', width: '80%', alignSelf: 'center', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#334155' },
   optionsHeader: { borderBottomWidth: 1, borderBottomColor: '#334155', paddingBottom: 10, marginBottom: 10, alignItems: 'center' },
   optionRow: { flexDirection: 'row-reverse', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)', gap: 15 },
   optionText: { color: '#f8fafc', fontSize: 14, fontWeight: 'bold' },
   
+  // استایل‌های جدید برای مودال ویرایش
+  editModalView: { backgroundColor: '#1e293b', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40, maxHeight: '90%' },
+  inputGroup: { marginBottom: 16 },
+  label: { color: '#cbd5e1', marginBottom: 8, fontSize: 13, fontWeight: 'bold', textAlign: 'right' },
+  input: { backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#334155', borderRadius: 16, padding: 16, color: '#f8fafc', textAlign: 'right' },
+  uploadBtn: { flexDirection: 'row-reverse', backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#3b82f6', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  uploadBtnText: { color: '#3b82f6', fontSize: 14, fontWeight: 'bold' },
+  submitBtn: { backgroundColor: '#f59e0b', padding: 16, borderRadius: 16, marginTop: 10, alignItems: 'center' },
+  submitText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+
   cmaModalView: { backgroundColor: '#1e293b', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40, maxHeight: '80%', marginTop: 'auto' },
   modalHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   modalTitle: { color: '#f59e0b', fontSize: 18, fontWeight: 'bold' },

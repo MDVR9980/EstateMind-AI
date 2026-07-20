@@ -1,19 +1,15 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
-import * as SecureStore from 'expo-secure-store';
-import axios from 'axios';
-
-const BASE_URL = "http://10.56.173.18:8000";
+import api from '../services/api';
 
 export default function VoiceAddScreen({ navigation }: any) {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [parsedData, setParsedData] = useState<any>(null); // دیتای استخراج شده توسط AI
+  const [parsedData, setParsedData] = useState<any>(null);
 
-  // شروع ضبط صدا
   async function startRecording() {
     try {
       const permission = await Audio.requestPermissionsAsync();
@@ -29,7 +25,6 @@ export default function VoiceAddScreen({ navigation }: any) {
     }
   }
 
-  // پایان ضبط و ارسال به هوش مصنوعی
   async function stopRecording() {
     if (!recording) return;
     setRecording(null);
@@ -38,24 +33,21 @@ export default function VoiceAddScreen({ navigation }: any) {
     if (uri) sendAudioToServer(uri);
   }
 
-  // ارسال فایل به سرور FastAPI
   const sendAudioToServer = async (uri: string) => {
     setIsProcessing(true);
     try {
-      const token = await SecureStore.getItemAsync('userToken');
+      // تضمین وجود file:// برای iOS
+      const fileUri = Platform.OS === 'ios' && !uri.startsWith('file://') ? `file://${uri}` : uri;
       
       let formData = new FormData();
       formData.append('audio', {
-        uri: uri,
+        uri: fileUri,
         name: 'voice_record.m4a',
         type: 'audio/m4a',
       } as any);
 
-      const response = await axios.post(`${BASE_URL}/api/properties/voice-parse`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Cookie: `access_token=Bearer ${token}`,
-        },
+      const response = await api.post(`/api/properties/voice-parse`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       if (response.data.status === 'success') {
@@ -69,15 +61,10 @@ export default function VoiceAddScreen({ navigation }: any) {
     }
   };
 
-  // ثبت نهایی در دیتابیس
   const saveToDatabase = async () => {
     setIsProcessing(true);
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      const response = await axios.post(`${BASE_URL}/api/properties/save`, parsedData, {
-        headers: { Cookie: `access_token=Bearer ${token}` }
-      });
-      
+      const response = await api.post(`/api/properties/save`, parsedData);
       if (response.data.status === 'success') {
         Alert.alert('ثبت شد!', 'فایل شما در سیستم قرار گرفت.');
         navigation.navigate('Properties');

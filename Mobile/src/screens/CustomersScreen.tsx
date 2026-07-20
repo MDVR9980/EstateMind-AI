@@ -1,27 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, ActivityIndicator, TextInput, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
-import * as SecureStore from 'expo-secure-store';
-import axios from 'axios';
+import { useFocusEffect } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
-
-const BASE_URL = "http://10.56.173.18:8000";
+import api from '../services/api';
 
 export default function CustomersScreen({ navigation }: any) {
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // استیت تحلیلگر تماس (AI Call Analyzer)
   const [callModalVisible, setCallModalVisible] = useState(false);
   const [activeClient, setActiveClient] = useState<any>(null);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [callResult, setCallResult] = useState<any>(null);
 
-  // استیت مودال ثبت مشتری جدید
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
@@ -29,26 +25,24 @@ export default function CustomersScreen({ navigation }: any) {
   const [newBudget, setNewBudget] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // استیت مودال پرزنتیشن
   const [reqModalVisible, setReqModalVisible] = useState(false);
   const [activeClientId, setActiveClientId] = useState(0);
   const [reqHoods, setReqHoods] = useState('');
   const [reqMinBudget, setReqMinBudget] = useState('');
   const [reqBudget, setReqBudget] = useState('');
 
-  useEffect(() => {
-    fetchClients();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchClients();
+    }, [])
+  );
 
   const fetchClients = async () => {
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      const response = await axios.get(`${BASE_URL}/api/clients/app-list`, {
-        headers: { Cookie: `access_token=Bearer ${token}` }
-      });
+      const response = await api.get('/api/clients/app-list');
       setClients(response.data.clients);
     } catch (error) {
-      console.log("Error fetching clients", error);
+      console.log("Error fetching clients");
     } finally {
       setLoading(false);
     }
@@ -59,32 +53,20 @@ export default function CustomersScreen({ navigation }: any) {
     return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' تومان';
   };
 
-  // --- افزودن مشتری جدید ---
   const handleAddClient = async () => {
     if (!newName || !newPhone) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'نام و موبایل مشتری الزامی است.' });
-      return;
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'نام و موبایل مشتری الزامی است.' }); return;
     }
     setIsSubmitting(true);
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      const payload = {
-        name: newName, phone: newPhone, deal_type_requested: newDealType,
-        budget_limit: newBudget ? parseFloat(newBudget.replace(/,/g, '')) : 0
-      };
-      await axios.post(`${BASE_URL}/api/clients/add`, payload, { headers: { Cookie: `access_token=Bearer ${token}` } });
+      const payload = { name: newName, phone: newPhone, deal_type_requested: newDealType, budget_limit: newBudget ? parseFloat(newBudget.replace(/,/g, '')) : 0 };
+      await api.post('/api/clients/add', payload);
       Toast.show({ type: 'success', text1: 'ثبت شد', text2: 'مشتری وارد قیف فروش شد.' });
-      setModalVisible(false);
-      setNewName(''); setNewPhone(''); setNewBudget('');
+      setModalVisible(false); setNewName(''); setNewPhone(''); setNewBudget('');
       fetchClients();
-    } catch (error) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'خطا در ثبت مشتری.' });
-    } finally {
-      setIsSubmitting(false);
-    }
+    } catch (error) { Toast.show({ type: 'error', text1: 'خطا', text2: 'خطا در ثبت مشتری.' }); } finally { setIsSubmitting(false); }
   };
 
-  // --- تغییر وضعیت (رنگ) مشتری ---
   const handleChangeCategory = async (clientId: number) => {
     Alert.alert('تغییر وضعیت لید', 'دسته بندی این مشتری را انتخاب کنید:', [
       { text: 'مشتری عادی (سبز)', onPress: () => updateCategoryApi(clientId, 'normal') },
@@ -97,16 +79,12 @@ export default function CustomersScreen({ navigation }: any) {
 
   const updateCategoryApi = async (clientId: number, category: string) => {
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      await axios.put(`${BASE_URL}/api/clients/update-category`, { client_id: clientId, category }, { headers: { Cookie: `access_token=Bearer ${token}` } });
+      await api.put('/api/clients/update-category', { client_id: clientId, category });
       Toast.show({ type: 'success', text1: 'بروزرسانی شد', text2: 'وضعیت مشتری تغییر کرد.' });
       fetchClients();
-    } catch (e) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'ارتباط با سرور قطع است.' });
-    }
+    } catch (e) { Toast.show({ type: 'error', text1: 'خطا', text2: 'ارتباط با سرور قطع است.' }); }
   };
 
-  // --- تحلیلگر تماس صوتی ---
   async function startRecording() {
     try {
       const permission = await Audio.requestPermissionsAsync();
@@ -128,43 +106,26 @@ export default function CustomersScreen({ navigation }: any) {
   const analyzeCallAudio = async (uri: string) => {
     setIsAnalyzing(true);
     try {
-      const token = await SecureStore.getItemAsync('userToken');
       let formData = new FormData();
       formData.append('audio', { uri: uri, name: 'call.m4a', type: 'audio/m4a' } as any);
-
-      const response = await axios.post(`${BASE_URL}/api/clients/${activeClient.id}/analyze-call`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data', Cookie: `access_token=Bearer ${token}` },
+      const response = await api.post(`/api/clients/${activeClient.id}/analyze-call`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-
       if (response.data.status === 'success') {
         setCallResult(response.data.analysis);
         Toast.show({ type: 'success', text1: 'تحلیل انجام شد', text2: 'خلاصه مکالمه در پرونده مشتری ذخیره شد.' });
       }
-    } catch (error) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکلی در تحلیل صدا پیش آمد.' });
-    } finally {
-      setIsAnalyzing(false);
-    }
+    } catch (error) { Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکلی در تحلیل صدا پیش آمد.' }); } finally { setIsAnalyzing(false); }
   };
   
-  // --- ثبت پرزنتیشن ---
   const submitRequirement = async () => {
     if (!reqHoods) { Toast.show({ type: 'error', text1: 'خطا', text2: 'ثبت محله الزامی است.' }); return; }
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      const payload = {
-        client_id: activeClientId, deal_type: 'sale', property_type: 'apartment',
-        preferred_neighborhoods: reqHoods,
-        min_budget: reqMinBudget ? parseFloat(reqMinBudget.replace(/,/g, '')) : 0,
-        max_budget: reqBudget ? parseFloat(reqBudget.replace(/,/g, '')) : 0
-      };
-      await axios.post(`${BASE_URL}/api/clients/add-requirement`, payload, { headers: { Cookie: `access_token=Bearer ${token}` } });
+      const payload = { client_id: activeClientId, deal_type: 'sale', property_type: 'apartment', preferred_neighborhoods: reqHoods, min_budget: reqMinBudget ? parseFloat(reqMinBudget.replace(/,/g, '')) : 0, max_budget: reqBudget ? parseFloat(reqBudget.replace(/,/g, '')) : 0 };
+      await api.post('/api/clients/add-requirement', payload);
       Toast.show({ type: 'success', text1: 'پرزنتیشن ثبت شد 🎯', text2: 'اکنون می‌توانید فایل‌ها را برای این مشتری ببینید.' });
-      setReqModalVisible(false);
-      setReqHoods(''); setReqBudget(''); setReqMinBudget('');
-    } catch (e) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکل در ثبت پرزنتیشن' });
-    }
+      setReqModalVisible(false); setReqHoods(''); setReqBudget(''); setReqMinBudget('');
+    } catch (e) { Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکل در ثبت پرزنتیشن' }); }
   };
 
   const filteredClients = clients.filter(c => c.name.includes(searchQuery) || c.phone.includes(searchQuery));
@@ -180,29 +141,22 @@ export default function CustomersScreen({ navigation }: any) {
         <View style={styles.cardHeader}>
           <View style={styles.clientInfo}>
             <View style={[styles.avatar, { borderColor: catColor }]}><Text style={styles.avatarText}>{item.name.charAt(0)}</Text></View>
-            <View>
-              <Text style={styles.clientName}>{item.name}</Text>
-              <Text style={styles.clientPhone}>{item.phone}</Text>
-            </View>
+            <View><Text style={styles.clientName}>{item.name}</Text><Text style={styles.clientPhone}>{item.phone}</Text></View>
           </View>
           <TouchableOpacity style={[styles.categoryBadge, { backgroundColor: `${catColor}20` }]} onPress={() => handleChangeCategory(item.id)}>
             <Ionicons name={catIcon as any} size={16} color={catColor} />
           </TouchableOpacity>
         </View>
-
         <View style={styles.detailsRow}>
           <View style={styles.detailBox}><Text style={styles.detailLabel}>مرحله قیف</Text><Text style={styles.detailValue}>{item.funnel_stage}</Text></View>
           <View style={styles.detailBox}><Text style={styles.detailLabel}>سقف بودجه</Text><Text style={[styles.detailValue, { color: '#3b82f6', fontFamily: 'System' }]}>{formatPrice(item.budget_limit)}</Text></View>
         </View>
-
         <View style={styles.actionsRow}>
           <TouchableOpacity style={styles.reqBtn} onPress={() => { setActiveClientId(item.id); setReqModalVisible(true); }}>
-            <Ionicons name="easel-outline" size={18} color="#fff" />
-            <Text style={styles.btnText}>ساخت پرزنتیشن</Text>
+            <Ionicons name="easel-outline" size={18} color="#fff" /><Text style={styles.btnText}>ساخت پرزنتیشن</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.reqBtn, { backgroundColor: '#3b82f6' }]} onPress={() => { setActiveClient(item); setCallResult(null); setCallModalVisible(true); }}>
-            <Ionicons name="call-outline" size={18} color="#fff" />
-            <Text style={styles.btnText}>تحلیل تماس</Text>
+            <Ionicons name="call-outline" size={18} color="#fff" /><Text style={styles.btnText}>تحلیل تماس</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -216,24 +170,16 @@ export default function CustomersScreen({ navigation }: any) {
         <Text style={styles.headerTitle}>دفترچه مشتریان</Text>
         <View style={{ width: 40 }} />
       </View>
-
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#94a3b8" style={styles.searchIcon} />
         <TextInput style={styles.searchInput} placeholder="جستجوی نام یا موبایل..." placeholderTextColor="#64748b" value={searchQuery} onChangeText={setSearchQuery} />
       </View>
 
-      {loading ? (
-        <View style={styles.centerContainer}><ActivityIndicator size="large" color="#10b981" /></View>
-      ) : filteredClients.length === 0 ? (
+      {loading ? ( <View style={styles.centerContainer}><ActivityIndicator size="large" color="#10b981" /></View> ) : filteredClients.length === 0 ? (
         <View style={styles.centerContainer}><Ionicons name="people-outline" size={60} color="#334155" /><Text style={styles.emptyText}>مشتری یافت نشد!</Text></View>
-      ) : (
-        <FlatList data={filteredClients} keyExtractor={(item) => item.id.toString()} renderItem={renderClientCard} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false} />
-      )}
+      ) : ( <FlatList data={filteredClients} keyExtractor={(item) => item.id.toString()} renderItem={renderClientCard} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false} /> )}
 
-      {/* FAB افزودن مشتری */}
-      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
-        <Ionicons name="person-add" size={28} color="#fff" />
-      </TouchableOpacity>
+      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}><Ionicons name="person-add" size={28} color="#fff" /></TouchableOpacity>
 
       {/* مودال ثبت مشتری */}
       <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
@@ -243,7 +189,6 @@ export default function CustomersScreen({ navigation }: any) {
               <Text style={styles.modalTitle}>ثبت مشتری جدید 👤</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}><Ionicons name="close" size={24} color="#94a3b8" /></TouchableOpacity>
             </View>
-
             <View style={styles.inputGroup}><Text style={styles.label}>نام و نام خانوادگی *</Text><TextInput style={styles.input} placeholder="مثال: سارا محمدی" placeholderTextColor="#64748b" value={newName} onChangeText={setNewName} /></View>
             <View style={styles.inputGroup}><Text style={styles.label}>شماره موبایل *</Text><TextInput style={[styles.input, { fontFamily: 'System' }]} placeholder="0912..." placeholderTextColor="#64748b" keyboardType="phone-pad" value={newPhone} onChangeText={setNewPhone} /></View>
             <View style={styles.inputGroup}>
@@ -254,7 +199,6 @@ export default function CustomersScreen({ navigation }: any) {
               </View>
             </View>
             <View style={styles.inputGroup}><Text style={styles.label}>سقف بودجه (تومان)</Text><TextInput style={[styles.input, { fontFamily: 'System', color: '#10b981', fontWeight: 'bold' }]} placeholder="5,000,000,000" placeholderTextColor="#64748b" keyboardType="numeric" value={newBudget} onChangeText={(text) => setNewBudget(text.replace(/,/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ","))} /></View>
-
             <TouchableOpacity style={styles.submitBtn} onPress={handleAddClient} disabled={isSubmitting}>
               {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>ذخیره در قیف فروش</Text>}
             </TouchableOpacity>
@@ -266,75 +210,36 @@ export default function CustomersScreen({ navigation }: any) {
       <Modal animationType="fade" transparent={true} visible={reqModalVisible} onRequestClose={() => setReqModalVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalView}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>تنظیمات پرزنتیشن 🎯</Text>
-              <TouchableOpacity onPress={() => setReqModalVisible(false)}><Ionicons name="close" size={24} color="#94a3b8" /></TouchableOpacity>
-            </View>
-            <Text style={{ color: '#94a3b8', fontSize: 12, textAlign: 'right', marginBottom: 20 }}>
-              با تنظیم حداقل و حداکثر بودجه، فقط فایل‌های مرتبط به این مشتری نمایش داده می‌شود.
-            </Text>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>محله‌های درخواستی (با ویرگول جدا کنید) *</Text>
-              <TextInput style={styles.input} placeholder="مثال: سجاد، هاشمیه" placeholderTextColor="#64748b" value={reqHoods} onChangeText={setReqHoods} />
-            </View>
-            
+            <View style={styles.modalHeader}><Text style={styles.modalTitle}>تنظیمات پرزنتیشن 🎯</Text><TouchableOpacity onPress={() => setReqModalVisible(false)}><Ionicons name="close" size={24} color="#94a3b8" /></TouchableOpacity></View>
+            <Text style={{ color: '#94a3b8', fontSize: 12, textAlign: 'right', marginBottom: 20 }}>با تنظیم حداقل و حداکثر بودجه، فقط فایل‌های مرتبط به این مشتری نمایش داده می‌شود.</Text>
+            <View style={styles.inputGroup}><Text style={styles.label}>محله‌های درخواستی (با ویرگول جدا کنید) *</Text><TextInput style={styles.input} placeholder="مثال: سجاد، هاشمیه" placeholderTextColor="#64748b" value={reqHoods} onChangeText={setReqHoods} /></View>
             <View style={{ flexDirection: 'row-reverse', gap: 10 }}>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.label}>حداقل بودجه</Text>
-                <TextInput style={[styles.input, { fontFamily: 'System' }]} placeholder="مثال: 5,000,000,000" placeholderTextColor="#64748b" keyboardType="numeric" value={reqMinBudget} onChangeText={(text) => setReqMinBudget(text.replace(/,/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ","))} />
-              </View>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.label}>حداکثر بودجه</Text>
-                <TextInput style={[styles.input, { fontFamily: 'System' }]} placeholder="مثال: 10,000,000,000" placeholderTextColor="#64748b" keyboardType="numeric" value={reqBudget} onChangeText={(text) => setReqBudget(text.replace(/,/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ","))} />
-              </View>
+              <View style={[styles.inputGroup, { flex: 1 }]}><Text style={styles.label}>حداقل بودجه</Text><TextInput style={[styles.input, { fontFamily: 'System' }]} placeholder="مثال: 5,000,000,000" placeholderTextColor="#64748b" keyboardType="numeric" value={reqMinBudget} onChangeText={(text) => setReqMinBudget(text.replace(/,/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ","))} /></View>
+              <View style={[styles.inputGroup, { flex: 1 }]}><Text style={styles.label}>حداکثر بودجه</Text><TextInput style={[styles.input, { fontFamily: 'System' }]} placeholder="مثال: 10,000,000,000" placeholderTextColor="#64748b" keyboardType="numeric" value={reqBudget} onChangeText={(text) => setReqBudget(text.replace(/,/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ","))} /></View>
             </View>
-
-            <TouchableOpacity style={[styles.submitBtn, { backgroundColor: '#8b5cf6' }]} onPress={submitRequirement}>
-              <Text style={styles.submitText}>ثبت پرزنتیشن</Text>
-            </TouchableOpacity>
+            <TouchableOpacity style={[styles.submitBtn, { backgroundColor: '#8b5cf6' }]} onPress={submitRequirement}><Text style={styles.submitText}>ثبت پرزنتیشن</Text></TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* مودال تحلیلگر تماس (AI Call Analyzer) */}
+      {/* مودال تحلیلگر تماس */}
       <Modal animationType="slide" transparent={true} visible={callModalVisible} onRequestClose={() => setCallModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalView}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: '#3b82f6' }]}>تحلیلگر تماس 📞</Text>
-              <TouchableOpacity onPress={() => setCallModalVisible(false)}><Ionicons name="close" size={24} color="#94a3b8" /></TouchableOpacity>
-            </View>
-            
-            <Text style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', marginBottom: 30, lineHeight: 22 }}>
-              مکالمه خود با <Text style={{fontWeight: 'bold', color: '#fff'}}>{activeClient?.name}</Text> را ضبط کنید تا هوش مصنوعی آن را خلاصه کرده و احساسات مشتری را بسنجد.
-            </Text>
-
+            <View style={styles.modalHeader}><Text style={[styles.modalTitle, { color: '#3b82f6' }]}>تحلیلگر تماس 📞</Text><TouchableOpacity onPress={() => setCallModalVisible(false)}><Ionicons name="close" size={24} color="#94a3b8" /></TouchableOpacity></View>
+            <Text style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', marginBottom: 30, lineHeight: 22 }}>مکالمه خود با <Text style={{fontWeight: 'bold', color: '#fff'}}>{activeClient?.name}</Text> را ضبط کنید تا هوش مصنوعی آن را خلاصه کرده و احساسات مشتری را بسنجد.</Text>
             <View style={{ alignItems: 'center', marginBottom: 30 }}>
               {isAnalyzing ? (
-                <View style={{ alignItems: 'center' }}>
-                  <ActivityIndicator size="large" color="#3b82f6" />
-                  <Text style={{ color: '#3b82f6', marginTop: 15, fontWeight: 'bold' }}>در حال پردازش صدا...</Text>
-                </View>
+                <View style={{ alignItems: 'center' }}><ActivityIndicator size="large" color="#3b82f6" /><Text style={{ color: '#3b82f6', marginTop: 15, fontWeight: 'bold' }}>در حال پردازش صدا...</Text></View>
               ) : (
-                <TouchableOpacity 
-                  style={[styles.micButton, recording ? { backgroundColor: '#ef4444', transform: [{ scale: 1.1 }] } : null]}
-                  onPressIn={startRecording}
-                  onPressOut={stopRecording}
-                >
-                  <Ionicons name="mic" size={50} color="#fff" />
-                </TouchableOpacity>
+                <TouchableOpacity style={[styles.micButton, recording ? { backgroundColor: '#ef4444', transform: [{ scale: 1.1 }] } : null]} onPressIn={startRecording} onPressOut={stopRecording}><Ionicons name="mic" size={50} color="#fff" /></TouchableOpacity>
               )}
-              <Text style={{ color: '#cbd5e1', marginTop: 15, fontSize: 12 }}>
-                {recording ? "در حال ضبط... رها کنید تا تحلیل شود" : "دکمه را نگه دارید و صحبت کنید"}
-              </Text>
+              <Text style={{ color: '#cbd5e1', marginTop: 15, fontSize: 12 }}>{recording ? "در حال ضبط... رها کنید تا تحلیل شود" : "دکمه را نگه دارید و صحبت کنید"}</Text>
             </View>
-
             {callResult && (
               <View style={{ backgroundColor: '#0f172a', padding: 15, borderRadius: 16, borderWidth: 1, borderColor: '#334155' }}>
                 <Text style={{ color: '#3b82f6', fontWeight: 'bold', marginBottom: 10, textAlign: 'right' }}>📝 خلاصه مکالمه:</Text>
                 <Text style={{ color: '#f8fafc', fontSize: 13, lineHeight: 22, textAlign: 'right', marginBottom: 15 }}>{callResult.summary}</Text>
-                
                 <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 10 }}>
                   <Text style={{ color: '#94a3b8', fontSize: 12 }}>حالت مشتری (Sentiment):</Text>
                   <Text style={{ color: callResult.sentiment === 'positive' ? '#10b981' : callResult.sentiment === 'negative' ? '#ef4444' : '#f59e0b', fontWeight: 'bold' }}>
@@ -361,7 +266,6 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: 20, paddingBottom: 100 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyText: { color: '#64748b', marginTop: 10, fontSize: 16 },
-  
   card: { backgroundColor: '#1e293b', borderRadius: 24, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#334155' },
   cardHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottomWidth: 1, borderBottomColor: '#334155', paddingBottom: 12 },
   clientInfo: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12 },
@@ -374,11 +278,9 @@ const styles = StyleSheet.create({
   detailBox: { flex: 1, alignItems: 'center', backgroundColor: '#0f172a', padding: 10, borderRadius: 16, marginHorizontal: 4 },
   detailLabel: { color: '#64748b', fontSize: 10, marginBottom: 4 },
   detailValue: { color: '#f8fafc', fontWeight: 'bold', fontSize: 12 },
-  
   actionsRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 10 },
   reqBtn: { flex: 1, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', backgroundColor: '#8b5cf6', padding: 12, borderRadius: 14, gap: 8 },
   btnText: { color: '#fff', fontWeight: 'bold', fontSize: 12 },
-  
   fab: { position: 'absolute', bottom: 30, right: 20, width: 60, height: 60, borderRadius: 30, backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', elevation: 10 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.8)', justifyContent: 'flex-end' },
   modalView: { backgroundColor: '#1e293b', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40, maxHeight: '90%' },

@@ -1,18 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
-import axios from 'axios';
+import { useFocusEffect } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
-
-const BASE_URL = "http://10.56.173.18:8000";
+import api from '../services/api';
 
 export default function TicketsScreen({ navigation }: any) {
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // استیت‌های مودال تیکت جدید (مثل قبل)
   const [newModalVisible, setNewModalVisible] = useState(false);
   const [colleagues, setColleagues] = useState<any[]>([]);
   const [receiverId, setReceiverId] = useState<number>(0);
@@ -21,72 +18,105 @@ export default function TicketsScreen({ navigation }: any) {
   const [priority, setPriority] = useState('عادی');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // استیت‌های مودال پاسخ به تیکت
   const [replyModalVisible, setReplyModalVisible] = useState(false);
   const [activeTicket, setActiveTicket] = useState<any>(null);
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
 
-  useEffect(() => { fetchTickets(); }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchTickets();
+    }, [])
+  );
 
   const fetchTickets = async () => {
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      const response = await axios.get(`${BASE_URL}/api/tickets/app-list`, { headers: { Cookie: `access_token=Bearer ${token}` } });
+      const response = await api.get('/api/tickets/app-list');
       setTickets(response.data.tickets);
-    } catch (error) { console.log("Error fetching tickets"); } finally { setLoading(false); }
+    } catch (error) {
+      console.log("Error fetching tickets");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openNewTicketModal = async () => {
     setNewModalVisible(true);
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      const res = await axios.get(`${BASE_URL}/api/tickets/colleagues`, { headers: { Cookie: `access_token=Bearer ${token}` } });
+      const res = await api.get('/api/tickets/colleagues');
       setColleagues(res.data);
       if(res.data.length > 0) setReceiverId(res.data[0].id);
-    } catch (e) { Toast.show({ type: 'error', text1: 'خطا', text2: 'لیست همکاران دریافت نشد.' }); }
+    } catch (e) {
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'لیست همکاران دریافت نشد.' });
+    }
   };
 
   const submitTicket = async () => {
-    if (!receiverId || !subject || !message) { Toast.show({ type: 'error', text1: 'خطا', text2: 'فیلدهای الزامی را پر کنید.' }); return; }
+    if (!receiverId || !subject || !message) {
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'فیلدهای الزامی را پر کنید.' });
+      return;
+    }
     setIsSubmitting(true);
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      await axios.post(`${BASE_URL}/api/tickets/add`, { receiver_id: receiverId, subject, message, priority }, { headers: { Cookie: `access_token=Bearer ${token}` } });
+      await api.post('/api/tickets/add', { receiver_id: receiverId, subject, message, priority });
       Toast.show({ type: 'success', text1: 'ثبت شد', text2: 'تیکت ارسال شد.' });
       setNewModalVisible(false); setSubject(''); setMessage('');
       fetchTickets();
-    } catch (error) { Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکل در ارسال تیکت.' }); } finally { setIsSubmitting(false); }
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکل در ارسال تیکت.' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const submitReply = async () => {
     if (!replyText) return;
     setIsReplying(true);
     try {
-      const token = await SecureStore.getItemAsync('userToken');
       let formData = new FormData();
       formData.append("message", replyText);
       
-      await axios.post(`${BASE_URL}/api/tickets/${activeTicket.id}/reply`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data', Cookie: `access_token=Bearer ${token}` }
+      await api.post(`/api/tickets/${activeTicket.id}/reply`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       Toast.show({ type: 'success', text1: 'ارسال شد', text2: 'پاسخ شما روی این تیکت ثبت شد.' });
       setReplyModalVisible(false); setReplyText('');
-      fetchTickets(); // برای آپدیت شدن وضعیت به "پاسخ داده شده"
-    } catch(e) { Toast.show({ type: 'error', text1: 'خطا', text2: 'ارسال پاسخ با مشکل مواجه شد.' }); } finally { setIsReplying(false); }
+      fetchTickets();
+    } catch(e) {
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'ارسال پاسخ با مشکل مواجه شد.' });
+    } finally {
+      setIsReplying(false);
+    }
+  };
+
+  // قابلیت تغییر وضعیت تیکت
+  const handleChangeStatus = () => {
+    Alert.alert('تغییر وضعیت تیکت', 'وضعیت جدید را انتخاب کنید:', [
+      { text: 'در حال بررسی', onPress: () => updateStatusApi('در حال بررسی') },
+      { text: 'حل شده (بسته)', onPress: () => updateStatusApi('حل شده') },
+      { text: 'انصراف', style: 'cancel' }
+    ]);
+  };
+
+  const updateStatusApi = async (newStatus: string) => {
+    try {
+      await api.put(`/api/tickets/${activeTicket.id}/status`, { status: newStatus });
+      Toast.show({ type: 'success', text1: 'آپدیت شد', text2: `تیکت با وضعیت "${newStatus}" ثبت شد.` });
+      setReplyModalVisible(false);
+      fetchTickets();
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکل در تغییر وضعیت تیکت.' });
+    }
   };
 
   const renderTicket = ({ item }: { item: any }) => {
     let statusColor = '#64748b'; 
     if (item.status === 'باز') statusColor = '#3b82f6';
-    else if (item.status === 'در انتظار پاسخ') statusColor = '#f59e0b';
+    else if (item.status === 'در انتظار پاسخ' || item.status === 'در حال بررسی') statusColor = '#f59e0b';
     else if (item.status === 'پاسخ داده شده' || item.status === 'حل شده') statusColor = '#10b981';
     
     return (
-      <TouchableOpacity 
-        style={styles.card} 
-        onPress={() => { setActiveTicket(item); setReplyModalVisible(true); }}
-      >
+      <TouchableOpacity style={styles.card} onPress={() => { setActiveTicket(item); setReplyModalVisible(true); }}>
         <View style={styles.cardHeader}>
           <Text style={styles.subject}>{item.subject}</Text>
           <View style={[styles.badge, { backgroundColor: `${statusColor}20`, borderColor: statusColor }]}>
@@ -114,6 +144,7 @@ export default function TicketsScreen({ navigation }: any) {
 
       <TouchableOpacity style={styles.fab} onPress={openNewTicketModal}><Ionicons name="add" size={30} color="#fff" /></TouchableOpacity>
 
+      {/* مودال ایجاد تیکت جدید */}
       <Modal animationType="slide" transparent={true} visible={newModalVisible} onRequestClose={() => setNewModalVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalView}>
@@ -149,12 +180,22 @@ export default function TicketsScreen({ navigation }: any) {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* مودال چت و تغییر وضعیت */}
       <Modal animationType="slide" transparent={true} visible={replyModalVisible} onRequestClose={() => setReplyModalVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={[styles.modalView, { height: '80%' }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { fontSize: 16 }]}>{activeTicket?.subject}</Text>
-              <TouchableOpacity onPress={() => setReplyModalVisible(false)}><Ionicons name="close" size={24} color="#94a3b8" /></TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modalTitle, { fontSize: 16 }]} numberOfLines={1}>{activeTicket?.subject}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 15, alignItems: 'center' }}>
+                <TouchableOpacity onPress={handleChangeStatus}>
+                  <Ionicons name="build-outline" size={24} color="#10b981" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setReplyModalVisible(false)}>
+                  <Ionicons name="close" size={24} color="#94a3b8" />
+                </TouchableOpacity>
+              </View>
             </View>
             
             <View style={styles.chatArea}>
@@ -173,13 +214,11 @@ export default function TicketsScreen({ navigation }: any) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  // استایل‌های قبلی...
   container: { flex: 1, backgroundColor: '#0f172a' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
   backBtn: { width: 40, height: 40, backgroundColor: '#1e293b', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
@@ -197,7 +236,7 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.8)', justifyContent: 'flex-end' },
   modalView: { backgroundColor: '#1e293b', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40, maxHeight: '90%' },
   modalHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { color: '#ec4899', fontSize: 18, fontWeight: 'bold' },
+  modalTitle: { color: '#ec4899', fontSize: 18, fontWeight: 'bold', textAlign: 'right' },
   inputGroup: { marginBottom: 16 },
   label: { color: '#cbd5e1', marginBottom: 8, fontSize: 13, fontWeight: 'bold', textAlign: 'right' },
   input: { backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#334155', borderRadius: 16, padding: 16, color: '#f8fafc', textAlign: 'right' },
@@ -212,7 +251,6 @@ const styles = StyleSheet.create({
   submitBtn: { backgroundColor: '#ec4899', padding: 16, borderRadius: 16, marginTop: 10, alignItems: 'center' },
   submitText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 
-  // استایل‌های چت داخل تیکت
   chatArea: { flex: 1, justifyContent: 'center' },
   infoBox: { flexDirection: 'row-reverse', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 1, borderColor: '#3b82f6', padding: 15, borderRadius: 16, alignItems: 'center', gap: 10 },
   infoText: { flex: 1, color: '#93c5fd', fontSize: 12, textAlign: 'right', lineHeight: 20 },

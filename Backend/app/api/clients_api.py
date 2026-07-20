@@ -147,15 +147,12 @@ async def analyze_call_audio(client_id: int, request: Request, audio: UploadFile
         shutil.copyfileobj(audio.file, f)
         
     try:
-        # 1. تبدیل صوت به متن (Whisper)
-        from app.properties_api import nvidia_client
+        from app.api.properties_api import nvidia_client
         with open(temp_path, "rb") as af:
             transcription = nvidia_client.audio.transcriptions.create(model="openai/whisper-large-v3", file=af, language="fa")
         
-        # 2. تحلیل متن با Llama
         analysis = analyze_client_call(transcription.text)
         
-        # 3. ذخیره در دیتابیس
         interaction = ClientInteraction(client_id=client_id, summary=analysis["summary"], sentiment=analysis["sentiment"])
         session.add(interaction)
         session.commit()

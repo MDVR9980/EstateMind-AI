@@ -1,33 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
-import axios from 'axios';
-import Toast from 'react-native-toast-message';
-
-const BASE_URL = "http://10.56.173.18:8000";
+import { useFocusEffect } from '@react-navigation/native';
+import api from '../services/api';
 
 export default function PartnershipScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<'lands' | 'builders'>('lands');
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchData(activeTab);
-  }, [activeTab]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchData(activeTab);
+    }, [activeTab])
+  );
 
   const fetchData = async (tab: string) => {
     setLoading(true);
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      // برای سادگی، شما در بک‌اند می‌توانید یک API یکپارچه برای این بخش بسازید، 
-      // فعلا از همان APIهای کلاینت و املاک با فیلتر استفاده می‌کنیم
       if (tab === 'lands') {
-        const res = await axios.get(`${BASE_URL}/api/properties/app-list`, { headers: { Cookie: `access_token=Bearer ${token}` } });
+        const res = await api.get(`/api/properties/app-list`);
         setData(res.data.properties.filter((p: any) => p.deal_type === 'مشارکت در ساخت' || p.property_type === 'زمین و کلنگی'));
       } else {
-        const res = await axios.get(`${BASE_URL}/api/clients/app-list`, { headers: { Cookie: `access_token=Bearer ${token}` } });
+        const res = await api.get(`/api/clients/app-list`);
         setData(res.data.clients.filter((c: any) => c.deal_type_requested === 'مشارکت در ساخت' || c.deal_type_requested === 'PARTNERSHIP'));
       }
     } catch (error) {

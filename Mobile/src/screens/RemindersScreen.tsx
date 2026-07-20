@@ -1,33 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
-import axios from 'axios';
+import { useFocusEffect } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
-
-const BASE_URL = "http://10.56.173.18:8000";
+import api from '../services/api';
 
 export default function RemindersScreen({ navigation }: any) {
   const [reminders, setReminders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // استیت‌های مودال
   const [modalVisible, setModalVisible] = useState(false);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [desc, setDesc] = useState('');
 
-  useEffect(() => {
-    fetchReminders();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchReminders();
+    }, [])
+  );
 
   const fetchReminders = async () => {
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      const response = await axios.get(`${BASE_URL}/api/reminders/app-list`, {
-        headers: { Cookie: `access_token=Bearer ${token}` }
-      });
+      const response = await api.get(`/api/reminders/app-list`);
       setReminders(response.data.reminders);
     } catch (error) {
       console.log("Error fetching reminders", error);
@@ -38,10 +34,7 @@ export default function RemindersScreen({ navigation }: any) {
 
   const handleComplete = async (id: number) => {
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      await axios.put(`${BASE_URL}/api/reminders/${id}/complete`, {}, {
-        headers: { Cookie: `access_token=Bearer ${token}` }
-      });
+      await api.put(`/api/reminders/${id}/complete`);
       Toast.show({ type: 'success', text1: 'انجام شد', text2: 'یادآور به تاریخچه منتقل شد.' });
       fetchReminders();
     } catch (error) {
@@ -54,15 +47,10 @@ export default function RemindersScreen({ navigation }: any) {
       Toast.show({ type: 'error', text1: 'خطا', text2: 'عنوان و تاریخ الزامی است.' });
       return;
     }
-
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      await axios.post(`${BASE_URL}/api/reminders/add`, {
+      await api.post(`/api/reminders/add`, {
         title, remind_date: date, description: desc, client_id: 0
-      }, {
-        headers: { Cookie: `access_token=Bearer ${token}` }
       });
-      
       Toast.show({ type: 'success', text1: 'ثبت شد', text2: 'یادآور در تقویم قرار گرفت.' });
       setModalVisible(false);
       setTitle(''); setDate(''); setDesc('');
@@ -111,12 +99,10 @@ export default function RemindersScreen({ navigation }: any) {
         />
       )}
 
-      {/* دکمه شناور */}
       <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
         <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
 
-      {/* مودال ثبت یادآور */}
       <Modal animationType="slide" transparent={true} visible={modalVisible}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalView}>
@@ -145,7 +131,6 @@ const styles = StyleSheet.create({
   backBtn: { width: 40, height: 40, backgroundColor: '#1e293b', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#f8fafc' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  
   card: { flexDirection: 'row-reverse', backgroundColor: '#1e293b', padding: 16, borderRadius: 20, marginBottom: 12, alignItems: 'center', borderLeftWidth: 4, borderLeftColor: '#f59e0b' },
   cardCompleted: { opacity: 0.6, borderLeftColor: '#10b981' },
   cardInfo: { flex: 1, alignItems: 'flex-end', paddingLeft: 15 },
@@ -153,11 +138,8 @@ const styles = StyleSheet.create({
   textCompleted: { textDecorationLine: 'line-through', color: '#94a3b8' },
   date: { color: '#f59e0b', fontSize: 11, fontFamily: 'System', marginBottom: 4 },
   desc: { color: '#cbd5e1', fontSize: 12, textAlign: 'right' },
-  
   checkBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(16, 185, 129, 0.1)', borderWidth: 1, borderColor: '#10b981', justifyContent: 'center', alignItems: 'center' },
-  
   fab: { position: 'absolute', bottom: 30, right: 20, width: 60, height: 60, borderRadius: 30, backgroundColor: '#f59e0b', justifyContent: 'center', alignItems: 'center', elevation: 10 },
-  
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.8)', justifyContent: 'flex-end' },
   modalView: { backgroundColor: '#1e293b', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40 },
   modalHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
