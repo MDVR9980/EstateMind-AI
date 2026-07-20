@@ -19,6 +19,7 @@ def start_crawler_bot(request: Request, session: Session = Depends(get_session))
     # استفاده از محله هدف مشاور (یا پیش‌فرض "سجاد")
     # ما در اینجا اگر مشاور چند محله داشت (با کاما جدا شده)، فعلاً اولی را برمی‌داریم
     target_hood = "سجاد"
+    target_hoods = "سجاد"
     if user.target_neighborhoods:
         target_hoods = user.target_neighborhoods.strip()
     

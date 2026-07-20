@@ -7,8 +7,15 @@
     <div class="lg:col-span-1">
         <div class="bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden sticky top-8">
             <div class="p-6 text-center border-b border-gray-100 dark:border-slate-700">
-                <!-- تغییر رنگ بکگراند آواتار به 10b981 (سبز) -->
-                <img src="https://ui-avatars.com/api/?name={{ user.full_name.replace(' ', '+') if user else 'Admin' }}&background=10b981&color=fff&size=128" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-primary-50 dark:border-slate-800 shadow-sm">
+                <!-- 👈 المان آپلود تعاملی عکس پروفایل -->
+                <div class="relative w-24 h-24 mx-auto mb-4 group cursor-pointer" onclick="document.getElementById('web-avatar-upload').click()" title="تغییر عکس پروفایل">
+                    <img id="web-avatar-img" src="{% if user.avatar_url %}{{ user.avatar_url }}{% else %}https://ui-avatars.com/api/?name={{ user.full_name.replace(' ', '+') if user else 'Admin' }}&background=10b981&color=fff&size=128{% endif %}" class="w-24 h-24 rounded-full border-4 border-primary-50 dark:border-slate-800 shadow-sm object-cover transition duration-300 group-hover:opacity-75">
+                    <div class="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition duration-300">
+                        <i class="ph-bold ph-camera text-white text-xl"></i>
+                    </div>
+                    <input type="file" id="web-avatar-upload" class="hidden" accept="image/*" onchange="uploadWebAvatar(this)">
+                </div>
+                
                 <h3 class="font-bold text-slate-800 dark:text-white text-lg">{{ user.full_name if user else 'مدیر' }}</h3>
                 <p class="text-sm text-slate-500 dark:text-slate-400">
                     {% if user and (user.role == 'MANAGER' or user.role == 'SUPER_ADMIN') %}مدیر شعبه{% else %}مشاور املاک{% endif %}
@@ -146,6 +153,45 @@
             `,
             showConfirmButton: false, showCloseButton: true
         });
+    }
+    
+    async function uploadWebAvatar(input) {
+        if (input.files.length === 0) return;
+        
+        const file = input.files[0];
+        const formData = new FormData();
+        formData.append("file", file);
+
+        Swal.fire({
+            title: 'در حال آپلود تصویر...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading() }
+        });
+
+        try {
+            const res = await fetch("/api/users/upload-avatar", {
+                method: "POST",
+                body: formData
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                // بروزرسانی آنی عکس در صفحه بدون نیاز به ریلود کامل
+                document.getElementById('web-avatar-img').src = data.avatar_url;
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'بروزرسانی شد!',
+                    text: 'عکس پروفایل شما با موفقیت تغییر کرد.',
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => window.location.reload());
+            } else {
+                Swal.fire('خطا', 'مشکلی در آپلود عکس به وجود آمد.', 'error');
+            }
+        } catch (e) {
+            Swal.fire('خطای ارتباطی', 'اتصال با سرور برقرار نشد.', 'error');
+        }
     }
 </script>
 {% endblock %}

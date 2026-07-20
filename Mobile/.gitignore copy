@@ -1,0 +1,27 @@
+# Environments
+.env
+venv/
+env/
+.venv/
+
+# Database & Storage
+*.db
+*.sqlite3
+chroma_db/
+uploads/
+local_ai_model/
+
+# Playwright & Browsers
+.playwright/
+divar_profile/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# IDEs & OS
+.vscode/
+.idea/
+.DS_Store

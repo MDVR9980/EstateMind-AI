@@ -185,19 +185,29 @@ def get_financials_for_app(request: Request, session: Session = Depends(get_sess
     user = get_current_user_api(request, session)
     if not user: raise HTTPException(status_code=401)
     
-    # فیلتر بر اساس نقش (مدیر همه را می‌بیند، مشاور فقط قراردادهای خودش را)
     if user.role in ["SUPER_ADMIN", "MANAGER"]:
         deals = session.exec(select(Deal).where(Deal.agency_id == user.agency_id).order_by(Deal.id.desc())).all()
     else:
         deals = session.exec(select(Deal).where(Deal.user_id == user.id).order_by(Deal.id.desc())).all()
         
     total_revenue = sum(d.commission_amount for d in deals) if deals else 0
-    # محاسبه ساده سهم (شما می‌توانید نرخ دقیق را از دیتابیس بگیرید)
-    agent_share = total_revenue * user.commission_rate
+    
+    # 👈 محاسبه پویای سهم مشاور بر اساس نوع هر قرارداد جهت جلوگیری از ارور
+    agent_share = 0
+    for d in deals:
+        rate = 0.5  # مقدار پیش‌فرض ۵۰ درصد
+        if "فروش" in d.deal_type:
+            rate = getattr(user, 'commission_sale', 0.5)
+        elif "اجاره" in d.deal_type:
+            rate = getattr(user, 'commission_rent', 0.5)
+        elif "مشارکت" in d.deal_type:
+            rate = getattr(user, 'commission_partnership', 0.5)
+        agent_share += d.commission_amount * rate
+
     office_share = total_revenue - agent_share
     
     deals_data = []
-    for d in deals[:10]: # ارسال 10 قرارداد آخر
+    for d in deals[:10]:
         deals_data.append({
             "id": d.id,
             "type": d.deal_type,
