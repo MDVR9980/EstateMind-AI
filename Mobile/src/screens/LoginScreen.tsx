@@ -8,7 +8,6 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BASE_URL } from '../services/api';
-
 export default function LoginScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<'otp' | 'password'>('otp');
   

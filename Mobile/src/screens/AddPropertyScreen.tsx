@@ -6,7 +6,6 @@ import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
 import * as Haptics from 'expo-haptics';
 import api from '../services/api';
-
 const { width } = Dimensions.get('window');
 
 export default function AddPropertyScreen({ navigation }: any) {

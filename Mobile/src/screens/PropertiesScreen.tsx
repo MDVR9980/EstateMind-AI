@@ -8,7 +8,6 @@ import MapView, { Marker } from 'react-native-maps';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import api, { BASE_URL } from '../services/api';
-
 const { width } = Dimensions.get('window');
 
 export default function PropertiesScreen({ navigation }: any) {

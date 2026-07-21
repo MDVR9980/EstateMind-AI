@@ -1,3 +1,4 @@
+import 'react-native-url-polyfill/auto';
 import 'react-native-gesture-handler';
 import React, { useEffect, useCallback } from 'react';
 import { View } from 'react-native';
@@ -33,7 +34,7 @@ import SuperAdminScreen from './src/screens/SuperAdminScreen';
 const Stack = createNativeStackNavigator();
 
 // جلوگیری از مخفی شدن اتوماتیک اسپلش اسکرین تا زمانی که فونت‌ها لود شوند
-SplashScreen.preventAutoHideAsync();
+// SplashScreen.preventAutoHideAsync();
 
 // ==========================================
 // 🎨 طراحی اختصاصی (Custom) برای Toast Message
@@ -84,12 +85,13 @@ export default function App() {
     }
   }, [fontsLoaded]);
 
-  if (!fontsLoaded) {
-    return null; // تا زمانی که فونت لود نشده چیزی رندر نشود
-  }
+  // if (!fontsLoaded) {
+  //   return null; // تا زمانی که فونت لود نشده چیزی رندر نشود
+  // }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
+    // <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <NavigationContainer ref={navigationRef}>
           <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }} initialRouteName="Login">
