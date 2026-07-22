@@ -1,27 +1,43 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+// src/screens/DashboardScreen.tsx
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { jwtDecode } from 'jwt-decode';
 import Toast from 'react-native-toast-message';
 import BottomSheet, { BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 import moment from 'moment-jalaali';
 import api, { BASE_URL } from '../services/api';
+import { useAuthStore } from '../store/useAuthStore';
+import * as SecureStore from 'expo-secure-store';
+import { jwtDecode } from 'jwt-decode';
 
-const { width } = Dimensions.get('window');
 moment.loadPersian({ usePersianDigits: true, dialect: 'persian-modern' });
 
 export default function DashboardScreen({ navigation }: any) {
-  const [userData, setUserData] = useState({ full_name: 'همکار عزیز', role: '...', avatar_letter: 'A' });
+  const { user, setUser, logout } = useAuthStore();
   const [stats, setStats] = useState({ properties: 0, clients: 0, ai_matches: 0 });
   const [loading, setLoading] = useState(true);
+  const [realRole, setRealRole] = useState('AGENT'); // 🌟 استیت جدید برای نقش واقعی
 
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['45%'], []);
+
+  // خواندن نقش واقعی از توکن امنیتی (برای رفع باگ منوها)
+  useEffect(() => {
+    const getRoleFromToken = async () => {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (token) {
+        try {
+          const decoded: any = jwtDecode(token);
+          setRealRole(decoded.role || 'AGENT');
+        } catch (e) {}
+      }
+    };
+    getRoleFromToken();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -29,43 +45,18 @@ export default function DashboardScreen({ navigation }: any) {
     }, [])
   );
 
-  useEffect(() => {
-    let ws: WebSocket | null = null;
-    const connectWebSocket = async () => {
-      try {
-        const token = await SecureStore.getItemAsync('userToken');
-        if (token) {
-          const decoded: any = jwtDecode(token);
-          const userId = decoded.user_id || decoded.id || 1; 
-          ws = new WebSocket(`${BASE_URL.replace('http', 'ws')}/ws/${userId}`);
-          ws.onmessage = (event) => {
-            try {
-              const data = JSON.parse(event.data);
-              if (data) {
-                Toast.show({
-                  type: data.type === 'success' ? 'success' : 'info',
-                  text1: data?.title || 'پیام سیستم 🔔',
-                  text2: data?.message || '',
-                  position: 'top',
-                });
-              }
-            } catch (err) {}
-          };
-        }
-      } catch (e) {}
-    };
-    connectWebSocket();
-    return () => { if (ws) ws.close(); };
-  }, []);
-
   const fetchDashboardData = async () => {
     try {
       const response = await api.get('/api/users/dashboard-stats');
       if (response.data.status === 'success') {
-        setUserData(response.data.user);
+        setUser(response.data.user);
         setStats(response.data.stats);
       }
-    } catch (error) {} finally { setLoading(false); }
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'دریافت اطلاعات داشبورد شکست خورد.' });
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleLogout = async () => {
@@ -73,18 +64,29 @@ export default function DashboardScreen({ navigation }: any) {
     Alert.alert("خروج از حساب", "آیا مطمئن هستید که می‌خواهید خارج شوید؟", [
       { text: "انصراف", style: "cancel" },
       { text: "خروج", style: "destructive", onPress: async () => {
-          await SecureStore.deleteItemAsync('userToken');
-          navigation.replace('Login');
-        }
-      }
+          await logout();
+      }}
     ]);
   };
 
   const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.7} />
-    ), []
+    (props: any) => <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.7} />, 
+    []
   );
+
+  const menuItems = [
+    { id: 1, title: 'بانک املاک', sub: 'مدیریت فایل‌ها', icon: 'business-outline', color: '#3b82f6', route: 'Properties', roles: ['SUPER_ADMIN', 'MANAGER', 'AGENT'] },
+    { id: 2, title: 'قیف فروش', sub: 'Kanban Board', icon: 'funnel-outline', color: '#f59e0b', route: 'Funnel', roles: ['SUPER_ADMIN', 'MANAGER', 'AGENT'] }, 
+    { id: 3, title: 'امور مالی', sub: 'کمیسیون‌ها', icon: 'wallet-outline', color: '#10b981', route: 'Financials', roles: ['SUPER_ADMIN', 'MANAGER', 'AGENT'] },
+    { id: 4, title: 'مشتریان', sub: 'ارزیابی تماس', icon: 'people-outline', color: '#14b8a6', route: 'Customers', roles: ['SUPER_ADMIN', 'MANAGER', 'AGENT'] },
+    { id: 5, title: 'مدیریت کل', sub: 'ویژه مدیران', icon: 'shield-checkmark-outline', color: '#ef4444', route: 'SuperAdmin', roles: ['SUPER_ADMIN'] },
+    { id: 6, title: 'پرزنت نمایشگاهی', sub: 'Showcase', icon: 'easel-outline', color: '#ec4899', route: 'Reels', roles: ['SUPER_ADMIN', 'MANAGER', 'AGENT'] },
+    { id: 7, title: 'مشارکت', sub: 'کلنگی و سازنده', icon: 'hand-right-outline', color: '#0ea5e9', route: 'Partnership', roles: ['SUPER_ADMIN', 'MANAGER', 'AGENT'] },
+    { id: 8, title: 'پروفایل', sub: 'تنظیمات حساب', icon: 'settings-outline', color: '#a855f7', route: 'Settings', roles: ['SUPER_ADMIN', 'MANAGER', 'AGENT'] },
+  ];
+
+  // 🌟 حالا دکمه‌ها بر اساس نقش واقعی فیلتر می‌شوند 🌟
+  const filteredMenuItems = menuItems.filter(item => item.roles.includes(realRole));
 
   return (
     <SafeAreaView style={styles.container}>
@@ -103,14 +105,14 @@ export default function DashboardScreen({ navigation }: any) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           bottomSheetRef.current?.expand();
         }} style={styles.avatarContainer}>
-          <Text style={styles.avatarText}>{userData.avatar_letter}</Text>
+          <Text style={styles.avatarText}>{user?.avatar_letter || 'U'}</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.welcomeSection}>
           <Text style={styles.dateText}>{moment().format('jD jMMMM jYYYY')}</Text>
-          <Text style={styles.greeting}>روز بخیر، {userData.full_name} 👋</Text>
+          <Text style={styles.greeting}>روز بخیر، {user?.full_name || 'همکار عزیز'} 👋</Text>
         </View>
 
         <LinearGradient colors={['#1e293b', '#0f172a']} style={styles.heroCard}>
@@ -129,16 +131,7 @@ export default function DashboardScreen({ navigation }: any) {
 
         <Text style={styles.sectionTitle}>دسترسی سریع</Text>
         <View style={styles.grid}>
-          {[
-            { id: 1, title: 'بانک املاک', sub: 'مدیریت فایل‌ها', icon: 'business-outline', color: '#3b82f6', route: 'Properties' },
-            { id: 2, title: 'قیف فروش', sub: 'Kanban Board', icon: 'funnel-outline', color: '#f59e0b', route: 'Funnel' }, 
-            { id: 3, title: 'امور مالی', sub: 'کمیسیون‌ها', icon: 'wallet-outline', color: '#10b981', route: 'Financials' },
-            { id: 4, title: 'مشتریان', sub: 'ارزیابی تماس', icon: 'people-outline', color: '#14b8a6', route: 'Customers' },
-            { id: 5, title: 'مدیریت کل', sub: 'ویژه مدیران', icon: 'shield-checkmark-outline', color: '#ef4444', route: 'SuperAdmin' }, 
-            { id: 6, title: 'پرزنت نمایشگاهی', sub: 'Showcase', icon: 'easel-outline', color: '#ec4899', route: 'Reels' },
-            { id: 7, title: 'مشارکت', sub: 'کلنگی و سازنده', icon: 'hand-right-outline', color: '#0ea5e9', route: 'Partnership' },
-            { id: 8, title: 'پروفایل', sub: 'تنظیمات حساب', icon: 'settings-outline', color: '#a855f7', route: 'Settings' },
-          ].map((item) => (
+          {filteredMenuItems.map((item) => (
             <TouchableOpacity key={item.id} style={styles.gridItem} onPress={() => navigation.navigate(item.route)}>
               <View style={[styles.iconContainer, { backgroundColor: `${item.color}15`, borderColor: `${item.color}50` }]}>
                 <Ionicons name={item.icon as any} size={28} color={item.color} />
@@ -160,11 +153,11 @@ export default function DashboardScreen({ navigation }: any) {
         <View style={styles.sheetContent}>
           <View style={styles.sheetHeader}>
             <View style={[styles.avatarContainer, { width: 60, height: 60, borderRadius: 30 }]}>
-              <Text style={[styles.avatarText, { fontSize: 24 }]}>{userData.avatar_letter}</Text>
+              <Text style={[styles.avatarText, { fontSize: 24 }]}>{user?.avatar_letter || 'U'}</Text>
             </View>
             <View style={{ marginRight: 15 }}>
-              <Text style={styles.sheetName}>{userData.full_name}</Text>
-              <Text style={styles.sheetRole}>{userData.role}</Text>
+              <Text style={styles.sheetName}>{user?.full_name || 'کاربر سیستم'}</Text>
+              <Text style={styles.sheetRole}>{realRole === 'SUPER_ADMIN' ? 'مدیر کل پلتفرم' : realRole === 'MANAGER' ? 'مدیر آژانس' : 'مشاور املاک'}</Text>
             </View>
           </View>
           

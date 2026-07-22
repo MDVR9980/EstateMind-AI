@@ -1,14 +1,15 @@
+// src/services/api.ts
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { navigate } from '../navigation/NavigationService';
 import Toast from 'react-native-toast-message';
+import { useAuthStore } from '../store/useAuthStore';
 
-// لطفاً در صورت نیاز IP سیستم خود را جایگزین کنید
-export const BASE_URL = "http://10.77.241.18:8000";
+// آی‌پی دقیق شبکه وای‌فای شما قرار داده شد:
+export const BASE_URL = "http://10.219.99.18:8000";
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 15000,
+  timeout: 10000, 
 });
 
 api.interceptors.request.use(

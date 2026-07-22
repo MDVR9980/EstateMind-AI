@@ -1,7 +1,7 @@
+import { useAuthStore } from '../store/useAuthStore';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 import Toast from 'react-native-toast-message';
 import * as Haptics from 'expo-haptics';
@@ -10,6 +10,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { BASE_URL } from '../services/api';
 
 export default function LoginScreen({ navigation }: any) {
+  // ۱. فراخوانی تابع ورود از Zustand در ابتدای کامپوننت
+  const login = useAuthStore((state) => state.login);
+
   const [activeTab, setActiveTab] = useState<'otp' | 'password'>('otp');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -34,11 +37,12 @@ export default function LoginScreen({ navigation }: any) {
     setIsLoading(true);
     try {
       const response = await axios.post(`${BASE_URL}/api/auth/login`, { username, password });
+      
+      // ۲. ویرایش بخش ورود با نام کاربری و رمز عبور
       if (response.data.access_token) {
-        await SecureStore.setItemAsync('userToken', response.data.access_token);
+        await login(response.data.access_token);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Toast.show({ type: 'success', text1: 'خوش آمدید', text2: response.data.message });
-        navigation.replace('Dashboard');
       }
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -81,11 +85,12 @@ export default function LoginScreen({ navigation }: any) {
     setIsLoading(true);
     try {
       const response = await axios.post(`${BASE_URL}/api/auth/verify-otp`, { phone, code: otpCode });
+      
+      // ۳. ویرایش بخش ورود با رمز یکبار مصرف (OTP)
       if (response.data.access_token) {
-        await SecureStore.setItemAsync('userToken', response.data.access_token);
+        await login(response.data.access_token);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Toast.show({ type: 'success', text1: 'خوش آمدید', text2: 'ورود موفقیت‌آمیز بود.' });
-        navigation.replace('Dashboard');
       }
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

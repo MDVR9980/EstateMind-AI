@@ -1,7 +1,8 @@
+// src/screens/AddPropertyScreen.tsx
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Image, Dimensions, Alert } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
@@ -9,20 +10,10 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../services/api';
 
-const { width } = Dimensions.get('window');
+// وارد کردن ابزارهای فرمت عدد که در گام قبل ساختیم
+import { numberToPersianWords, formatPrice, formatInputToNumber } from '../utils/numberFormat';
 
-// تابع تبدیل عدد به حروف فارسی (ویژه املاک)
-const numberToPersianWords = (num: number) => {
-  if (!num || isNaN(num)) return '';
-  let b = Math.floor(num / 1000000000);
-  let m = Math.floor((num % 1000000000) / 1000000);
-  let k = Math.floor((num % 1000000) / 1000);
-  let parts = [];
-  if (b > 0) parts.push(`${b} میلیارد`);
-  if (m > 0) parts.push(`${m} میلیون`);
-  if (k > 0) parts.push(`${k} هزار`);
-  return parts.length > 0 ? parts.join(' و ') + ' تومان' : '';
-};
+const { width } = Dimensions.get('window');
 
 export default function AddPropertyScreen({ navigation }: any) {
   const [step, setStep] = useState(1);
@@ -38,7 +29,7 @@ export default function AddPropertyScreen({ navigation }: any) {
     has_elevator: false, has_parking: false, has_store_room: false, has_master_room: false,
     price_total: '', price_mortgage: '', price_rent: '', 
     owner_phone: '', owner_name: '', description: '',
-    images: [] as string[]
+    images: [] as string[] // در اینجا URI های لوکال گوشی ذخیره می‌شود
   });
 
   // ==========================================
@@ -47,16 +38,20 @@ export default function AddPropertyScreen({ navigation }: any) {
   async function startRecording() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     try {
-      const permission = await Audio.requestPermissionsAsync();
-      if (permission.status !== 'granted') {
-        Toast.show({ type: 'error', text1: 'خطا', text2: 'لطفاً دسترسی میکروفون را مجاز کنید.' });
-        return;
+      // 🌟 فیکس باگ: خالی کردن حافظه میکروفون قبل از شروع مجدد
+      if (recording) {
+        await recording.stopAndUnloadAsync();
+        setRecording(null);
       }
+      
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== 'granted') return;
+      
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      setRecording(recording);
+      const { recording: newRecording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      setRecording(newRecording);
     } catch (err) {
-      console.error('Failed to start recording', err);
+      console.log('Recording error:', err);
     }
   }
 
@@ -83,14 +78,13 @@ export default function AddPropertyScreen({ navigation }: any) {
 
       if (response.data.status === 'success') {
         const aiData = response.data.data;
-        // ادغام هوشمند دیتای استخراج شده با فیلدهای فرم
         setFormData(prev => ({
           ...prev,
           title: aiData.title || prev.title,
           neighborhood: aiData.real_neighborhood || aiData.neighborhood || prev.neighborhood,
           built_area: aiData.built_area ? aiData.built_area.toString() : prev.built_area,
           rooms: aiData.rooms ? aiData.rooms.toString() : prev.rooms,
-          price_total: aiData.price_total ? aiData.price_total.toString() : prev.price_total,
+          price_total: aiData.price_total ? formatPrice(aiData.price_total) : prev.price_total,
           property_type: aiData.property_type === 'ویلایی' ? 'villa' : aiData.property_type === 'زمین و کلنگی' ? 'land' : 'apartment',
           has_elevator: aiData.has_elevator || prev.has_elevator,
           has_parking: aiData.has_parking || prev.has_parking,
@@ -107,7 +101,7 @@ export default function AddPropertyScreen({ navigation }: any) {
   };
 
   // ==========================================
-  // توابع فرم و پیمایش
+  // توابع فرم و آپلود عکس
   // ==========================================
   const nextStep = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -126,7 +120,7 @@ export default function AddPropertyScreen({ navigation }: any) {
   const pickImages = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images, // فقط عکس برای جلوگیری از باگ
       allowsMultipleSelection: true,
       quality: 0.7,
     });
@@ -140,17 +134,52 @@ export default function AddPropertyScreen({ navigation }: any) {
     setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
   };
 
+  // آپلود موازی عکس‌ها به سرور قبل از ثبت فرم نهایی
+  const uploadTempImages = async (localUris: string[]) => {
+    const uploadedUrls: string[] = [];
+    for (const uri of localUris) {
+      try {
+        const fileUri = Platform.OS === 'ios' && !uri.startsWith('file://') ? `file://${uri}` : uri;
+        const fileExt = uri.split('.').pop() || 'jpg';
+        const imgFormData = new FormData();
+        imgFormData.append('file', {
+          uri: fileUri,
+          name: `temp_image.${fileExt}`,
+          type: `image/${fileExt === 'png' ? 'png' : 'jpeg'}`
+        } as any);
+
+        const response = await api.post('/api/properties/upload-temp', imgFormData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+
+        if (response.data.status === 'success') {
+          uploadedUrls.push(response.data.url);
+        }
+      } catch (e) {
+        console.log('Upload error', e);
+      }
+    }
+    return uploadedUrls;
+  };
+
   const submitProperty = async () => {
     if (formData.deal_type === 'sale' && !formData.price_total) {
       Toast.show({ type: 'error', text1: 'خطا', text2: 'مبلغ کل فروش الزامی است.' }); return;
     }
     
     setIsLoading(true);
-    try {
-      let finalPrice = 0;
-      if (formData.deal_type === 'sale') finalPrice = parseFloat(formData.price_total.replace(/,/g, '') || '0');
-      else finalPrice = parseFloat(formData.price_mortgage.replace(/,/g, '') || '0'); // رهن در توتال ذخیره میشود
+    Toast.show({ type: 'info', text1: 'درحال ثبت...', text2: 'آپلود تصاویر و ذخیره در دیتابیس' });
 
+    try {
+      // ۱. آپلود عکس‌های لوکال به سرور و دریافت لینک‌ها
+      const serverImageUrls = await uploadTempImages(formData.images);
+
+      // ۲. محاسبه قیمت نهایی
+      let finalPrice = 0;
+      if (formData.deal_type === 'sale') finalPrice = formatInputToNumber(formData.price_total);
+      else finalPrice = formatInputToNumber(formData.price_mortgage); // مبلغ رهن را در فیلد قیمت کل می‌گذاریم
+
+      // ۳. ساخت Payload برای ارسال به بک‌اند
       const payload = {
         title: formData.title,
         deal_type: formData.deal_type,
@@ -172,6 +201,7 @@ export default function AddPropertyScreen({ navigation }: any) {
         description: formData.description,
         document_type: "SINGLE",
         is_exclusive: true,
+        image_urls: serverImageUrls // <--- ارسال لیست URL های سرور
       };
 
       const res = await api.post(`/api/properties/save`, payload);
@@ -181,14 +211,11 @@ export default function AddPropertyScreen({ navigation }: any) {
         Toast.show({ type: 'success', text1: 'موفقیت', text2: 'فایل شما با موفقیت در سیستم ثبت شد.' });
         navigation.navigate('Properties');
       }
-    } catch (e) { Toast.show({ type: 'error', text1: 'خطا در ثبت', text2: 'مشکلی در ارتباط با سرور رخ داد.' }); } 
-    finally { setIsLoading(false); }
-  };
-
-  const formatPriceInput = (value: string) => {
-    const numericValue = value.replace(/,/g, '').replace(/[^0-9]/g, '');
-    if (!numericValue) return '';
-    return parseInt(numericValue).toLocaleString('en-US');
+    } catch (e) { 
+      Toast.show({ type: 'error', text1: 'خطا در ثبت', text2: 'مشکلی در ارتباط با سرور رخ داد.' }); 
+    } finally { 
+      setIsLoading(false); 
+    }
   };
 
   const renderStepIndicator = () => (
@@ -333,7 +360,7 @@ export default function AddPropertyScreen({ navigation }: any) {
               <Text style={styles.label}>گالری عکس و فیلم (آپلود همزمان)</Text>
               <TouchableOpacity style={styles.uploadBtn} onPress={pickImages}>
                 <Ionicons name="cloud-upload-outline" size={32} color="#10b981" />
-                <Text style={styles.uploadBtnText}>برای آپلود عکس کلیک کنید</Text>
+                <Text style={styles.uploadBtnText}>برای انتخاب عکس کلیک کنید</Text>
               </TouchableOpacity>
               
               {formData.images.length > 0 && (
@@ -364,9 +391,9 @@ export default function AddPropertyScreen({ navigation }: any) {
                     keyboardType="numeric" 
                     placeholderTextColor="#64748b" 
                     value={formData.price_total} 
-                    onChangeText={(t) => setFormData({...formData, price_total: formatPriceInput(t)})} 
+                    onChangeText={(t) => setFormData({...formData, price_total: formatPrice(formatInputToNumber(t))})} 
                   />
-                  {formData.price_total ? <Text style={styles.persianNumberText}>{numberToPersianWords(parseInt(formData.price_total.replace(/,/g, '')))}</Text> : null}
+                  {formData.price_total ? <Text style={styles.persianNumberText}>{numberToPersianWords(formatInputToNumber(formData.price_total))}</Text> : null}
                 </>
               ) : (
                 <>
@@ -377,9 +404,9 @@ export default function AddPropertyScreen({ navigation }: any) {
                     keyboardType="numeric" 
                     placeholderTextColor="#64748b" 
                     value={formData.price_mortgage} 
-                    onChangeText={(t) => setFormData({...formData, price_mortgage: formatPriceInput(t)})} 
+                    onChangeText={(t) => setFormData({...formData, price_mortgage: formatPrice(formatInputToNumber(t))})} 
                   />
-                  {formData.price_mortgage ? <Text style={styles.persianNumberText}>{numberToPersianWords(parseInt(formData.price_mortgage.replace(/,/g, '')))}</Text> : null}
+                  {formData.price_mortgage ? <Text style={styles.persianNumberText}>{numberToPersianWords(formatInputToNumber(formData.price_mortgage))}</Text> : null}
 
                   <Text style={[styles.label, {marginTop: 10}]}>مبلغ اجاره ماهانه (تومان) *</Text>
                   <TextInput 
@@ -388,9 +415,9 @@ export default function AddPropertyScreen({ navigation }: any) {
                     keyboardType="numeric" 
                     placeholderTextColor="#64748b" 
                     value={formData.price_rent} 
-                    onChangeText={(t) => setFormData({...formData, price_rent: formatPriceInput(t)})} 
+                    onChangeText={(t) => setFormData({...formData, price_rent: formatPrice(formatInputToNumber(t))})} 
                   />
-                  {formData.price_rent ? <Text style={[styles.persianNumberText, {color: '#60a5fa'}]}>{numberToPersianWords(parseInt(formData.price_rent.replace(/,/g, '')))}</Text> : null}
+                  {formData.price_rent ? <Text style={[styles.persianNumberText, {color: '#60a5fa'}]}>{numberToPersianWords(formatInputToNumber(formData.price_rent))}</Text> : null}
                 </>
               )}
               

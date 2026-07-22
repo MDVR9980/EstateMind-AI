@@ -1,3 +1,4 @@
+// src/screens/RemindersScreen.tsx
 import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -51,6 +52,21 @@ export default function RemindersScreen({ navigation }: any) {
     }
   };
 
+  // 🌟 تابع تولید تاریخ هوشمند (Quick Dates) 🌟
+  const setQuickDate = (type: 'today_eve' | 'tomorrow_morn' | 'tomorrow_eve') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    let newDate = moment();
+    if (type === 'today_eve') {
+      newDate.hours(17).minutes(0);
+    } else if (type === 'tomorrow_morn') {
+      newDate.add(1, 'day').hours(10).minutes(0);
+    } else if (type === 'tomorrow_eve') {
+      newDate.add(1, 'day').hours(17).minutes(0);
+    }
+    setDate(newDate.format('YYYY-MM-DDTHH:mm'));
+    Toast.show({ type: 'info', text1: 'زمان تنظیم شد', text2: newDate.format('dddd jD jMMMM ساعت HH:mm') });
+  };
+
   const handleAddReminder = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!title || !date) {
@@ -69,7 +85,7 @@ export default function RemindersScreen({ navigation }: any) {
   };
 
   const renderItem = ({ item }: { item: any }) => {
-    const formattedDate = moment(item.remind_date).format('dddd jD jMMMM - HH:mm');
+    const formattedDate = moment(item.remind_date).format('dddd jD jMMMM - ساعت HH:mm');
 
     return (
       <View style={[styles.card, item.is_completed && styles.cardCompleted]}>
@@ -126,6 +142,13 @@ export default function RemindersScreen({ navigation }: any) {
             </View>
 
             <TextInput style={styles.input} placeholder="عنوان (مثال: تماس با مالک)" placeholderTextColor="#64748b" value={title} onChangeText={setTitle} />
+            
+            <View style={styles.quickDateRow}>
+              <TouchableOpacity style={styles.quickDateBtn} onPress={() => setQuickDate('tomorrow_eve')}><Text style={styles.quickDateText}>فردا عصر</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.quickDateBtn} onPress={() => setQuickDate('tomorrow_morn')}><Text style={styles.quickDateText}>فردا صبح</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.quickDateBtn} onPress={() => setQuickDate('today_eve')}><Text style={styles.quickDateText}>امروز عصر</Text></TouchableOpacity>
+            </View>
+            
             <TextInput style={[styles.input, { fontFamily: 'System', textAlign: 'right' }]} placeholder="فرمت تاریخ: 2026-07-20T14:30" placeholderTextColor="#64748b" value={date} onChangeText={setDate} />
             <TextInput style={[styles.input, { height: 100, textAlignVertical: 'top' }]} placeholder="توضیحات (اختیاری)" placeholderTextColor="#64748b" value={desc} onChangeText={setDesc} multiline />
 
@@ -153,7 +176,6 @@ const styles = StyleSheet.create({
   textCompleted: { textDecorationLine: 'line-through', color: '#94a3b8' },
   date: { color: '#f59e0b', fontSize: 12, fontFamily: 'Vazir-Regular', marginBottom: 6, textAlign: 'right' },
   desc: { color: '#cbd5e1', fontSize: 12, textAlign: 'right', fontFamily: 'Vazir-Regular', lineHeight: 20 },
-  
   checkBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(245, 158, 11, 0.1)', borderWidth: 1, borderColor: '#f59e0b', justifyContent: 'center', alignItems: 'center' },
   
   fab: { position: 'absolute', bottom: 30, left: 24, elevation: 10, shadowColor: '#f59e0b', shadowOpacity: 0.4, shadowRadius: 15 },
@@ -164,6 +186,10 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   modalTitle: { color: '#f59e0b', fontSize: 18, fontFamily: 'Vazir-Bold' },
   
+  quickDateRow: { flexDirection: 'row-reverse', gap: 10, marginBottom: 15 },
+  quickDateBtn: { flex: 1, backgroundColor: 'rgba(245, 158, 11, 0.1)', paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#f59e0b', alignItems: 'center' },
+  quickDateText: { color: '#f59e0b', fontFamily: 'Vazir-Bold', fontSize: 12 },
+
   input: { backgroundColor: '#0B0F19', borderWidth: 1, borderColor: '#334155', borderRadius: 16, padding: 16, color: '#f8fafc', textAlign: 'right', marginBottom: 15, fontFamily: 'Vazir-Regular' },
   submitBtn: { backgroundColor: '#f59e0b', padding: 18, borderRadius: 16, alignItems: 'center', marginTop: 10 },
   submitBtnText: { color: '#fff', fontFamily: 'Vazir-Bold', fontSize: 16 }

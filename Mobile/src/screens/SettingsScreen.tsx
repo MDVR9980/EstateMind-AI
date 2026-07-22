@@ -42,14 +42,19 @@ export default function SettingsScreen({ navigation }: any) {
     } catch (e) {}
   };
 
+  // جایگزین کردن تابع قبلی با این:
   const handleLogout = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    Alert.alert("خروج", "آیا مطمئن هستید که می‌خواهید از سیستم خارج شوید؟", [
+    Alert.alert("خروج از حساب", "آیا مطمئن هستید که می‌خواهید خارج شوید؟", [
       { text: "انصراف", style: "cancel" },
-      { text: "خروج", style: "destructive", onPress: async () => {
-          await SecureStore.deleteItemAsync('userToken');
-          navigation.replace('Login');
-      }}
+      { 
+        text: "خروج", 
+        style: "destructive", 
+        onPress: async () => {
+          // اینجا فقط کافیست این یک خط را صدا بزنیم!
+          await useAuthStore.getState().logout();
+        }
+      }
     ]);
   };
 

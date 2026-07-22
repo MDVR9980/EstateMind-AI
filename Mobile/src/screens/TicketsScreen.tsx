@@ -116,15 +116,17 @@ export default function TicketsScreen({ navigation }: any) {
     try {
       let formData = new FormData();
       if (replyText) formData.append("message", replyText);
-      else formData.append("message", "فایل پیوست شد"); // رفع باگ خالی بودن متن
+      else formData.append("message", "فایل پیوست شد"); 
 
       if (attachment) {
         const fileExt = attachment.split('.').pop() || 'jpg';
         const mimeType = fileExt === 'mp4' ? 'video/mp4' : 'image/jpeg';
-        const cleanUri = Platform.OS === 'android' ? attachment : attachment.replace('file://', '');
+        
+        // 🌟 تغییر طلایی: فرمت کردن ایمن URI فایل برای ارسال به سرور 🌟
+        const fileUri = Platform.OS === 'ios' && !attachment.startsWith('file://') ? `file://${attachment}` : attachment;
         
         formData.append("file", {
-          uri: cleanUri,
+          uri: fileUri,
           name: `attachment.${fileExt}`,
           type: mimeType
         } as any);

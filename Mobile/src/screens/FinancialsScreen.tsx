@@ -1,3 +1,4 @@
+// src/screens/FinancialsScreen.tsx
 import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,9 +10,14 @@ import * as Haptics from 'expo-haptics';
 import moment from 'moment-jalaali';
 import api, { BASE_URL } from '../services/api';
 
+// ایمپورت استیت سراسری و ابزارهای فرمت عدد
+import { useAuthStore } from '../store/useAuthStore';
+import { numberToPersianWords, formatPrice, formatInputToNumber } from '../utils/numberFormat';
+
 moment.loadPersian({ usePersianDigits: true, dialect: 'persian-modern' });
 
 export default function FinancialsScreen({ navigation }: any) {
+  const { user } = useAuthStore(); // گرفتن اطلاعات کاربر برای سطح دسترسی
   const [stats, setStats] = useState({ total_revenue: 0, agent_share: 0, office_share: 0 });
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +79,9 @@ export default function FinancialsScreen({ navigation }: any) {
             await api.post('/api/deals/calculate-monthly', { year_month: currentMonth });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Toast.show({ type: 'success', text1: 'انجام شد', text2: 'سهم مشاورین برای این ماه بروزرسانی شد.' });
-          } catch (e) { Toast.show({ type: 'error', text1: 'عدم دسترسی', text2: 'فقط مدیر شعبه دسترسی دارد.' }); }
+          } catch (e) { 
+            Toast.show({ type: 'error', text1: 'عدم دسترسی', text2: 'فقط مدیر شعبه دسترسی دارد.' }); 
+          }
       }}
     ]);
   };
@@ -89,8 +97,8 @@ export default function FinancialsScreen({ navigation }: any) {
         client_id: selectedClient.id,
         property_id: selectedProperty ? selectedProperty.id : 0,
         deal_type: dealType,
-        deal_price: parseFloat(dealPrice.replace(/,/g, '')),
-        commission_amount: parseFloat(commission.replace(/,/g, ''))
+        deal_price: formatInputToNumber(dealPrice),
+        commission_amount: formatInputToNumber(commission)
       };
       await api.post('/api/deals/add', payload);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -98,11 +106,12 @@ export default function FinancialsScreen({ navigation }: any) {
       setDealModalVisible(false);
       setSelectedClient(null); setSelectedProperty(null); setDealPrice(''); setCommission('');
       fetchFinancials();
-    } catch (e) { Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکلی در ثبت قرارداد پیش آمد.' }); } 
-    finally { setIsSubmitting(false); }
+    } catch (e) { 
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکلی در ثبت قرارداد پیش آمد.' }); 
+    } finally { 
+      setIsSubmitting(false); 
+    }
   };
-
-  const formatPrice = (price: number) => price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
   const handleDownloadPDF = (dealId: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -137,6 +146,9 @@ export default function FinancialsScreen({ navigation }: any) {
     );
   };
 
+  // فقط مدیر شعبه و سوپر ادمین حق محاسبه حقوق را دارند
+  const isManager = user?.role === 'MANAGER' || user?.role === 'SUPER_ADMIN';
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -144,9 +156,15 @@ export default function FinancialsScreen({ navigation }: any) {
           <Ionicons name="arrow-forward" size={24} color="#f8fafc" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>گزارشات مالی و عملکرد</Text>
-        <TouchableOpacity onPress={calculateCommission} style={styles.calcBtn}>
-          <Ionicons name="calculator-outline" size={22} color="#f59e0b" />
-        </TouchableOpacity>
+        
+        {/* مخفی کردن دکمه محاسبه حقوق برای مشاوران ساده */}
+        {isManager ? (
+          <TouchableOpacity onPress={calculateCommission} style={styles.calcBtn}>
+            <Ionicons name="calculator-outline" size={22} color="#f59e0b" />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
       </View>
 
       {loading ? ( <View style={styles.centerContainer}><ActivityIndicator size="large" color="#10b981" /></View> ) : (
@@ -235,12 +253,30 @@ export default function FinancialsScreen({ navigation }: any) {
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>مبلغ کل معامله (تومان) *</Text>
-                <TextInput style={styles.input} keyboardType="numeric" value={dealPrice} onChangeText={(text) => setDealPrice(formatPrice(parseFloat(text.replace(/,/g, '') || '0')))} placeholder="مثال: 5,000,000,000" placeholderTextColor="#64748b" />
+                <TextInput 
+                  style={styles.input} 
+                  keyboardType="numeric" 
+                  value={dealPrice} 
+                  onChangeText={(text) => setDealPrice(formatPrice(formatInputToNumber(text)))} 
+                  placeholder="مثال: 5,000,000,000" 
+                  placeholderTextColor="#64748b" 
+                />
+                {/* اضافه شدن تبدیل عدد به حروف */}
+                {dealPrice ? <Text style={styles.persianNumberText}>{numberToPersianWords(formatInputToNumber(dealPrice))}</Text> : null}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>کمیسیون کل دریافتی (تومان) *</Text>
-                <TextInput style={[styles.input, { color: '#10b981', borderColor: '#10b981', fontSize: 18 }]} keyboardType="numeric" value={commission} onChangeText={(text) => setCommission(formatPrice(parseFloat(text.replace(/,/g, '') || '0')))} placeholder="مجموع دریافتی از طرفین" placeholderTextColor="#64748b" />
+                <TextInput 
+                  style={[styles.input, { color: '#10b981', borderColor: '#10b981', fontSize: 18 }]} 
+                  keyboardType="numeric" 
+                  value={commission} 
+                  onChangeText={(text) => setCommission(formatPrice(formatInputToNumber(text)))} 
+                  placeholder="مجموع دریافتی از طرفین" 
+                  placeholderTextColor="#64748b" 
+                />
+                {/* اضافه شدن تبدیل عدد به حروف */}
+                {commission ? <Text style={[styles.persianNumberText, {color: '#10b981'}]}>{numberToPersianWords(formatInputToNumber(commission))}</Text> : null}
               </View>
 
               <TouchableOpacity style={styles.submitBtn} onPress={submitDeal} disabled={isSubmitting}>
@@ -307,5 +343,7 @@ const styles = StyleSheet.create({
   radioText: { color: '#64748b', fontSize: 13, fontFamily: 'Vazir-Bold' },
   radioTextActive: { color: '#10b981' },
   submitBtn: { backgroundColor: '#10b981', padding: 18, borderRadius: 16, marginTop: 15, alignItems: 'center' },
-  submitText: { color: '#fff', fontSize: 16, fontFamily: 'Vazir-Bold' }
+  submitText: { color: '#fff', fontSize: 16, fontFamily: 'Vazir-Bold' },
+  
+  persianNumberText: { color: '#3b82f6', fontSize: 12, fontFamily: 'Vazir-Bold', textAlign: 'right', marginTop: 8, paddingRight: 5 },
 });
