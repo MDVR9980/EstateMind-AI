@@ -21,19 +21,12 @@ export default function PropertiesScreen({ navigation }: any) {
   const [semanticQuery, setSemanticQuery] = useState('');
   const [isMapView, setIsMapView] = useState(false);
   
-  // Modals States
   const [cmaModalVisible, setCmaModalVisible] = useState(false);
   const [cmaData, setCmaData] = useState<any>(null);
   const [isCmaLoading, setIsCmaLoading] = useState(false);
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedProp, setSelectedProp] = useState<any>(null);
-  const [editPrice, setEditPrice] = useState('');
-  const [editPhone, setEditPhone] = useState('');
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
-
-  // Social Share Modal
   const [shareModalVisible, setShareModalVisible] = useState(false);
 
   useFocusEffect(
@@ -54,9 +47,7 @@ export default function PropertiesScreen({ navigation }: any) {
       setPendingProps(pendingRes.data.properties || []);
     } catch (error) {
       Toast.show({ type: 'error', text1: 'خطا', text2: 'دریافت اطلاعات با مشکل مواجه شد.' });
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const fetchMapData = async () => {
@@ -75,22 +66,16 @@ export default function PropertiesScreen({ navigation }: any) {
     let lat = 36.30; let lng = 59.58;
     if (neighborhood?.includes('سجاد')) { lat = 36.315; lng = 59.540; }
     else if (neighborhood?.includes('هاشمیه')) { lat = 36.335; lng = 59.530; }
-    else if (neighborhood?.includes('وکیل')) { lat = 36.330; lng = 59.510; }
     return { latitude: lat + ((index % 5) * 0.003), longitude: lng + ((index % 5) * 0.003) };
   };
 
-  // ==========================================
-  // دکمه‌های هدر (ربات و دیوار)
-  // ==========================================
   const handleWakeCrawler = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     Toast.show({ type: 'info', text1: 'درحال بیدارسازی...', text2: 'ربات خزنده در حال راه‌اندازی است.' });
     try {
       const res = await api.post('/api/crawler/start');
       Alert.alert('وضعیت ربات 🕷️', res.data.message);
-    } catch (e) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'ارتباط با ربات برقرار نشد.' });
-    }
+    } catch (e) { Toast.show({ type: 'error', text1: 'خطا', text2: 'ارتباط با ربات برقرار نشد.' }); }
   };
 
   const handleDivarLogin = async () => {
@@ -98,23 +83,16 @@ export default function PropertiesScreen({ navigation }: any) {
     try {
       const res = await api.post('/api/crawler/divar-login');
       Toast.show({ type: 'success', text1: 'درخواست ارسال شد', text2: res.data.message });
-    } catch (e) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکل در باز کردن مرورگر دیوار.' });
-    }
+    } catch (e) { Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکل در باز کردن مرورگر دیوار.' }); }
   };
 
-  // ==========================================
-  // دکمه‌های روی کارت املاک
-  // ==========================================
   const handleDivarPublish = async (propId: number) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Toast.show({ type: 'info', text1: 'ارسال به دیوار...', text2: 'ربات در حال درج آگهی شماست.' });
     try {
       const res = await api.post(`/api/crawler/publish-to-divar/${propId}`);
       Alert.alert('انتشار موفق', res.data.message);
-    } catch (error) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'ارتباط با ربات دیوار برقرار نشد.' });
-    }
+    } catch (error) { Toast.show({ type: 'error', text1: 'خطا', text2: 'ارتباط با ربات دیوار برقرار نشد.' }); }
   };
 
   const handleCMA = async (propId: number) => {
@@ -125,16 +103,13 @@ export default function PropertiesScreen({ navigation }: any) {
       setCmaData(response.data);
     } catch (error) {
       setCmaModalVisible(false); 
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'اطلاعات کافی برای تحلیل این فایل وجود ندارد.' });
-    } finally {
-      setIsCmaLoading(false);
-    }
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'اطلاعات کافی برای تحلیل وجود ندارد.' });
+    } finally { setIsCmaLoading(false); }
   };
 
   const handleCatalog = (propId: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const catalogUrl = `${BASE_URL}/catalog/property/${propId}`;
-    Linking.openURL(catalogUrl).catch(() => Toast.show({ type: 'error', text1: 'خطا در باز کردن لینک' }));
+    Linking.openURL(`${BASE_URL}/catalog/property/${propId}`).catch(() => {});
   };
 
   const handleSmartEval = async (prop: any) => {
@@ -143,9 +118,7 @@ export default function PropertiesScreen({ navigation }: any) {
     try {
       const res = await api.post(`/api/properties/${prop.id}/generate-ai-details`);
       Alert.alert('ارزیابی هوشمند ✨', `نقاط قوت:\n${res.data.pros}\n\nنقاط ضعف:\n${res.data.cons}`);
-    } catch (e) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'موتور ارزیابی در دسترس نیست.' });
-    }
+    } catch (e) { Toast.show({ type: 'error', text1: 'خطا', text2: 'موتور ارزیابی در دسترس نیست.' }); }
   };
 
   const handleAIMatchBuyers = async (propId: number) => {
@@ -156,18 +129,13 @@ export default function PropertiesScreen({ navigation }: any) {
       if (response.data.matches && response.data.matches.length > 0) {
         const matchText = response.data.matches.map((m: any) => `- ${m.name} (${m.phone})\nبودجه: ${m.budget > 0 ? formatPrice(m.budget) : 'نامحدود'}`).join('\n\n');
         Alert.alert('🎯 خریداران یافت شدند!', matchText);
-      } else {
-        Alert.alert('نتیجه‌ای نداشت', 'مشتری با بودجه مناسب این فایل در سیستم ندارید.');
-      }
+      } else { Alert.alert('نتیجه‌ای نداشت', 'خریدار مناسبی در سیستم ندارید.'); }
     } catch(e) { Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکل ارتباطی' }); }
   };
 
   const openEditModal = (prop: any) => {
-    setSelectedProp(prop);
-    setEditPrice(prop.price_total ? prop.price_total.toString() : '');
-    setEditPhone(prop.owner_phone || '');
-    setEditModalVisible(true); // TODO: In future, integrate with a real edit screen if needed
-    Toast.show({ type: 'info', text1: 'ویرایش', text2: 'برای ویرایش کامل از نسخه وب استفاده کنید.' });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Toast.show({ type: 'info', text1: 'ویرایش', text2: 'برای ویرایش کامل و آپلود فایل، از نسخه وب استفاده کنید.' });
   };
 
   const handleDelete = (id: number, isPending: boolean = false) => {
@@ -178,11 +146,9 @@ export default function PropertiesScreen({ navigation }: any) {
         try {
           const endpoint = isPending ? `/api/properties/pending/${id}` : `/api/properties/${id}`;
           await api.delete(endpoint);
-          Toast.show({ type: 'success', text1: 'حذف شد', text2: 'فایل با موفقیت حذف شد.' });
+          Toast.show({ type: 'success', text1: 'حذف شد', text2: 'فایل حذف شد.' });
           fetchAllProperties();
-        } catch(e) { 
-          Toast.show({ type: 'error', text1: 'خطا', text2: 'شما دسترسی حذف ندارید یا خطایی رخ داده است.' }); 
-        }
+        } catch(e) { Toast.show({ type: 'error', text1: 'خطا', text2: 'شما دسترسی حذف ندارید.' }); }
       }}
     ]);
   };
@@ -191,18 +157,12 @@ export default function PropertiesScreen({ navigation }: any) {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     try {
       await api.put(`/api/properties/${id}/approve`, { is_exclusive: isExclusive });
-      Toast.show({ type: 'success', text1: 'تایید شد', text2: 'فایل با موفقیت به بانک اطلاعات اضافه شد.' });
+      Toast.show({ type: 'success', text1: 'تایید شد', text2: 'به بانک اطلاعات اضافه شد.' });
       fetchAllProperties();
-    } catch (error) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکل در ثبت و تایید فایل رخ داد.' });
-    }
+    } catch (error) { Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکل در تایید فایل.' }); }
   };
 
-  // انتشار در شبکه‌های اجتماعی
-  const openSocialShare = (prop: any) => {
-    setSelectedProp(prop);
-    setShareModalVisible(true);
-  };
+  const openSocialShare = (prop: any) => { setSelectedProp(prop); setShareModalVisible(true); };
 
   const shareToApp = async (platform: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -211,34 +171,21 @@ export default function PropertiesScreen({ navigation }: any) {
     
     let url = '';
     if (platform === 'whatsapp') url = `whatsapp://send?text=${encodeURIComponent(text)}`;
-    else if (platform === 'telegram') url = `tg://msg?text=${encodeURIComponent(text)}`;
+    else if (platform === 'telegram') url = `tg://msg?text=${encodeURIComponent(text)}`; // اصلاح آیکون و لینک
     else if (platform === 'instagram') url = `instagram://story-camera`;
-    else {
-      Share.share({ message: text, title: selectedProp.title });
-      return;
-    }
+    else { Share.share({ message: text, title: selectedProp.title }); return; }
 
-    try {
-      await Linking.openURL(url);
-    } catch (e) {
-      Share.share({ message: text, title: selectedProp.title });
-    }
+    try { await Linking.openURL(url); } catch (e) { Share.share({ message: text, title: selectedProp.title }); }
     setShareModalVisible(false);
   };
 
-  // ==========================================
-  // رندر کارت‌های املاک
-  // ==========================================
   const renderActiveCard = ({ item }: { item: any }) => {
     let imageUrl = null;
     try { const images = JSON.parse(item.image_urls || "[]"); if (images.length > 0) imageUrl = `${BASE_URL}${images[0]}`; } catch (e) {}
-
     return (
       <View style={styles.card}>
         <View style={styles.cardTopActions}>
-          <Text style={item.is_exclusive ? styles.cardExclusive : styles.cardPublic}>
-            {item.is_exclusive ? 'شخصی 🔒' : 'عمومی 👁️'}
-          </Text>
+          <Text style={item.is_exclusive ? styles.cardExclusive : styles.cardPublic}>{item.is_exclusive ? 'شخصی 🔒' : 'عمومی 👁️'}</Text>
           <Text style={styles.cardType}>{item.deal_type}</Text>
         </View>
 
@@ -246,11 +193,9 @@ export default function PropertiesScreen({ navigation }: any) {
         
         <View style={styles.cardContent}>
           <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-          
           <View style={styles.cardDetails}>
             <View style={styles.detailItem}><Ionicons name="location-outline" size={14} color="#94a3b8" /><Text style={styles.detailText}>{item.neighborhood}</Text></View>
           </View>
-          
           <Text style={styles.cardPrice}>مبلغ کل: {formatPrice(item.price_total)}</Text>
 
           <TouchableOpacity style={[styles.gridBtn, styles.btnDivar]} onPress={() => handleDivarPublish(item.id)}>
@@ -294,7 +239,6 @@ export default function PropertiesScreen({ navigation }: any) {
               <Text style={styles.gridBtnTextWhite}>حذف</Text>
             </TouchableOpacity>
           </View>
-
         </View>
       </View>
     );
@@ -302,56 +246,28 @@ export default function PropertiesScreen({ navigation }: any) {
 
   const renderPendingCard = ({ item }: { item: any }) => {
     let imageUrl = null;
-    try { 
-      const images = JSON.parse(item.image_urls || "[]"); 
-      if (images.length > 0) imageUrl = `${BASE_URL}${images[0]}`; 
-    } catch (e) {}
-
+    try { const images = JSON.parse(item.image_urls || "[]"); if (images.length > 0) imageUrl = `${BASE_URL}${images[0]}`; } catch (e) {}
     return (
       <View style={[styles.card, { borderColor: '#f59e0b', borderWidth: 1 }]}>
-        <View style={styles.pendingBadge}>
-          <Text style={styles.pendingBadgeText}>شکار ربات 🕷️</Text>
-        </View>
-        
-        {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.cardImage} />
-        ) : (
-          <View style={styles.cardImagePlaceholder}>
-            <Ionicons name="home-outline" size={40} color="#334155" />
-          </View>
-        )}
-        
+        <View style={styles.pendingBadge}><Text style={styles.pendingBadgeText}>شکار ربات 🕷️</Text></View>
+        {imageUrl ? (<Image source={{ uri: imageUrl }} style={styles.cardImage} />) : (<View style={styles.cardImagePlaceholder}><Ionicons name="home-outline" size={40} color="#334155" /></View>)}
         <View style={styles.cardContent}>
           <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
           <Text style={[styles.cardPrice, { color: '#f59e0b' }]}>{formatPrice(item.price_total)}</Text>
-          
           <View style={styles.cardDetails}>
-            <View style={styles.detailItem}>
-              <Ionicons name="location-outline" size={14} color="#f43f5e" />
-              <Text style={styles.detailText}>{item.neighborhood}</Text>
-            </View>
-            <View style={styles.detailItem}>
-              <Ionicons name="resize-outline" size={14} color="#3b82f6" />
-              <Text style={styles.detailText}>{item.built_area ? `${item.built_area} متر` : 'نامشخص'}</Text>
-            </View>
+            <View style={styles.detailItem}><Ionicons name="location-outline" size={14} color="#f43f5e" /><Text style={styles.detailText}>{item.neighborhood}</Text></View>
+            <View style={styles.detailItem}><Ionicons name="resize-outline" size={14} color="#3b82f6" /><Text style={styles.detailText}>{item.built_area ? `${item.built_area} متر` : 'نامشخص'}</Text></View>
           </View>
-          
-          <Text style={{ color: '#94a3b8', fontSize: 11, textAlign: 'right', marginBottom: 15, lineHeight: 18, fontFamily: 'Vazir-Regular' }} numberOfLines={2}>
-            {item.description || 'توضیحاتی برای این فایل ثبت نشده است.'}
-          </Text>
-
+          <Text style={{ color: '#94a3b8', fontSize: 11, textAlign: 'right', marginBottom: 15, lineHeight: 18, fontFamily: 'Vazir-Regular' }} numberOfLines={2}>{item.description || 'توضیحاتی برای این فایل ثبت نشده است.'}</Text>
           <View style={styles.approveActions}>
             <TouchableOpacity style={[styles.approveBtn, { backgroundColor: 'rgba(16, 185, 129, 0.1)', borderColor: '#10b981' }]} onPress={() => handleApprove(item.id, true)}>
-              <Ionicons name="lock-closed" size={16} color="#10b981" />
-              <Text style={[styles.actionBtnText, {color: '#10b981'}]}>ثبت شخصی</Text>
+              <Ionicons name="lock-closed" size={16} color="#10b981" /><Text style={[styles.actionBtnText, {color: '#10b981'}]}>ثبت شخصی</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.approveBtn, { backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: '#3b82f6' }]} onPress={() => handleApprove(item.id, false)}>
-              <Ionicons name="globe" size={16} color="#3b82f6" />
-              <Text style={[styles.actionBtnText, {color: '#3b82f6'}]}>ثبت عمومی</Text>
+              <Ionicons name="globe" size={16} color="#3b82f6" /><Text style={[styles.actionBtnText, {color: '#3b82f6'}]}>ثبت عمومی</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.approveBtn, { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: '#ef4444' }]} onPress={() => handleDelete(item.id, true)}>
-              <Ionicons name="trash" size={16} color="#ef4444" />
-              <Text style={[styles.actionBtnText, {color: '#ef4444'}]}>حذف</Text>
+              <Ionicons name="trash" size={16} color="#ef4444" /><Text style={[styles.actionBtnText, {color: '#ef4444'}]}>حذف</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -368,12 +284,8 @@ export default function PropertiesScreen({ navigation }: any) {
       if (response.data.status === 'success' && response.data.matches.length > 0) {
         const matchText = response.data.matches.map((m: any) => `- ${m.title}\n(${formatPrice(m.price)}) 🎯 ${m.score}%`).join('\n\n');
         Alert.alert('✨ یافت شد!', matchText);
-      } else {
-        Alert.alert('نتیجه‌ای نداشت', 'فایلی که از لحاظ مفهومی با نیاز شما همخوانی داشته باشد یافت نشد.');
-      }
-    } catch (error) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکل در موتور جستجو.' });
-    }
+      } else { Alert.alert('نتیجه‌ای نداشت', 'فایلی یافت نشد.'); }
+    } catch (error) { Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکل در موتور جستجو.' }); }
   };
 
   const displayData = activeTab === 'active' ? activeProps : pendingProps;
@@ -381,10 +293,8 @@ export default function PropertiesScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with back button on the right for standard alignment */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}><Ionicons name="arrow-forward" size={24} color="#f8fafc" /></TouchableOpacity>
-        
         <View style={styles.headerCenter}>
           <Text style={styles.mainTitle}>بانک اطلاعات املاک 🏢</Text>
           <Text style={styles.subTitle}>مدیریت فایل‌ها، فیلتر پیشرفته</Text>
@@ -392,24 +302,20 @@ export default function PropertiesScreen({ navigation }: any) {
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Horizontal Scroll for top action buttons to prevent overflow on small screens */}
       <View style={styles.topActionsScrollContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topActionsScroll}>
           <TouchableOpacity onPress={() => navigation.navigate('AddProperty')} style={[styles.headerTopBtn, {backgroundColor: '#10b981', borderColor: '#10b981'}]}>
             <Ionicons name="add" size={20} color="#fff" />
             <Text style={[styles.headerTopBtnText, {color: '#fff'}]}>ثبت فایل جدید</Text>
           </TouchableOpacity>
-
           <TouchableOpacity onPress={handleWakeCrawler} style={[styles.headerTopBtn, {backgroundColor: '#1E293B', borderColor: '#334155'}]}>
              <Ionicons name="bug-outline" size={20} color="#94a3b8" />
              <Text style={[styles.headerTopBtnText, {color: '#94a3b8'}]}>بیدار کردن ربات</Text>
           </TouchableOpacity>
-
           <TouchableOpacity onPress={handleDivarLogin} style={[styles.headerTopBtn, {borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)'}]}>
             <Ionicons name="log-in-outline" size={20} color="#ef4444" />
             <Text style={[styles.headerTopBtnText, {color: '#ef4444'}]}>لاگین دیوار</Text>
           </TouchableOpacity>
-
           <TouchableOpacity onPress={() => setIsMapView(!isMapView)} style={styles.headerTopBtn}>
             <Ionicons name={isMapView ? "list" : "map"} size={20} color="#c084fc" />
             <Text style={[styles.headerTopBtnText, {color: '#c084fc'}]}>{isMapView ? 'لیست' : 'نمایش نقشه'}</Text>
@@ -418,16 +324,10 @@ export default function PropertiesScreen({ navigation }: any) {
       </View>
 
       <View style={styles.tabContainer}>
-        <TouchableOpacity 
-          style={[styles.tabBtn, activeTab === 'active' && styles.tabBtnActive]} 
-          onPress={() => setActiveTab('active')}
-        >
+        <TouchableOpacity style={[styles.tabBtn, activeTab === 'active' && styles.tabBtnActive]} onPress={() => setActiveTab('active')}>
           <Text style={[styles.tabText, activeTab === 'active' && styles.tabTextActive]}>فایل‌های فعال ({activeProps.length})</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tabBtn, activeTab === 'pending' && styles.tabBtnActivePending]} 
-          onPress={() => setActiveTab('pending')}
-        >
+        <TouchableOpacity style={[styles.tabBtn, activeTab === 'pending' && styles.tabBtnActivePending]} onPress={() => setActiveTab('pending')}>
           <Text style={[styles.tabText, activeTab === 'pending' && styles.tabTextActive]}>صندوق ربات ({pendingProps.length})</Text>
         </TouchableOpacity>
       </View>
@@ -436,7 +336,7 @@ export default function PropertiesScreen({ navigation }: any) {
         <View style={{paddingHorizontal: 20}}>
           <View style={styles.aiSearchContainer}>
             <TouchableOpacity style={styles.aiSearchBtn} onPress={handleSemanticSearch}><Text style={styles.aiSearchBtnText}>بگرد</Text></TouchableOpacity>
-            <TextInput style={styles.aiSearchInput} placeholder="جستجوی عامیانه با هوش مصنوعی (مثال: یه خونه نورگیر برای زوج)..." placeholderTextColor="#a855f7" value={semanticQuery} onChangeText={setSemanticQuery} />
+            <TextInput style={styles.aiSearchInput} placeholder="جستجوی عامیانه (مثال: یه خونه نورگیر)..." placeholderTextColor="#a855f7" value={semanticQuery} onChangeText={setSemanticQuery} />
             <MaterialCommunityIcons name="magic-staff" size={20} color="#a855f7" style={styles.aiSearchIcon} />
           </View>
           <View style={styles.searchContainer}>
@@ -467,6 +367,11 @@ export default function PropertiesScreen({ navigation }: any) {
         />
       )}
 
+      {/* FAB (دکمه شناور ثبت فایل) کاملا در جای درست */}
+      <TouchableOpacity style={styles.fabAddProp} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); navigation.navigate('AddProperty'); }}>
+        <Ionicons name="add" size={32} color="#fff" />
+      </TouchableOpacity>
+
       {/* مودال شبکه‌های اجتماعی */}
       <Modal animationType="slide" transparent={true} visible={shareModalVisible} onRequestClose={() => setShareModalVisible(false)}>
         <View style={styles.modalOverlayFlex}>
@@ -486,8 +391,9 @@ export default function PropertiesScreen({ navigation }: any) {
                 <Ionicons name="logo-instagram" size={24} color="#fff" />
                 <Text style={styles.socialBtnText}>استوری اینستاگرام</Text>
               </TouchableOpacity>
+              {/* استفاده از paper-plane برای رفع ارور لوگوی تلگرام */}
               <TouchableOpacity style={[styles.socialBtn, {backgroundColor: '#0088cc'}]} onPress={() => shareToApp('telegram')}>
-                <Ionicons name="logo-telegram" size={24} color="#fff" />
+                <Ionicons name="paper-plane" size={24} color="#fff" /> 
                 <Text style={styles.socialBtnText}>تلگرام</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.socialBtn, {backgroundColor: '#3b82f6'}]} onPress={() => shareToApp('system')}>
@@ -539,9 +445,6 @@ export default function PropertiesScreen({ navigation }: any) {
           </View>
         </View>
       </Modal>
-      <TouchableOpacity style={styles.fabAddProp} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); navigation.navigate('AddProperty'); }}>
-        <Ionicons name="add" size={32} color="#fff" />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -554,15 +457,13 @@ const styles = StyleSheet.create({
   mainTitle: { fontSize: 18, fontFamily: 'Vazir-Bold', color: '#f8fafc', textAlign: 'center' },
   subTitle: { fontSize: 11, fontFamily: 'Vazir-Regular', color: '#94a3b8', textAlign: 'center', marginTop: 2 },
 
-  // Horizontal Scroll for Top Actions
   topActionsScrollContainer: { paddingHorizontal: 20, marginBottom: 15 },
   topActionsScroll: { flexDirection: 'row-reverse', gap: 10, alignItems: 'center' },
-  headerTopBtn: { flexDirection: 'row-reverse', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.05)', gap: 6 },
+  headerTopBtn: { flexDirection: 'row-reverse', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: '#334155', backgroundColor: 'rgba(255,255,255,0.05)', gap: 6 },
   headerTopBtnText: { fontFamily: 'Vazir-Bold', fontSize: 12 },
   headerTopBtnTextOnly: { paddingHorizontal: 10 },
   headerTopBtnTextPlain: { color: '#94a3b8', fontFamily: 'Vazir-Regular', fontSize: 13 },
 
-  // Tab Styles
   tabContainer: { flexDirection: 'row-reverse', marginHorizontal: 20, backgroundColor: '#1E293B', borderRadius: 16, padding: 4, marginBottom: 15, borderWidth: 1, borderColor: '#334155' },
   tabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12 },
   tabBtnActive: { backgroundColor: '#3b82f6' },
@@ -580,7 +481,7 @@ const styles = StyleSheet.create({
   aiSearchBtn: { backgroundColor: '#a855f7', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 10, marginLeft: 5 },
   aiSearchBtnText: { color: '#fff', fontSize: 12, fontFamily: 'Vazir-Bold' },
 
-  listContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 100 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyText: { color: '#64748b', marginTop: 10, fontSize: 14, fontFamily: 'Vazir-Regular' },
   mapContainer: { flex: 1, margin: 20, borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: '#334155' },
@@ -606,7 +507,6 @@ const styles = StyleSheet.create({
   approveBtn: { flex: 1, flexDirection: 'row-reverse', paddingVertical: 10, borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1 },
   actionBtnText: { fontSize: 12, fontFamily: 'Vazir-Bold' },
 
-  // Grid Buttons
   btnGridRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
   gridBtn: { width: '100%', flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 10, marginBottom: 8, gap: 5 },
   gridBtnHalf: { flex: 1, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 10, gap: 5 },
@@ -622,6 +522,8 @@ const styles = StyleSheet.create({
   btnEdit: { backgroundColor: '#a855f7' },
   btnDelete: { backgroundColor: '#f43f5e' },
 
+  fabAddProp: { position: 'absolute', bottom: 30, left: 24, width: 60, height: 60, borderRadius: 30, backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', elevation: 10, shadowColor: '#10b981', shadowOpacity: 0.4, shadowRadius: 15, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' },
+
   socialBtn: { width: '48%', flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', paddingVertical: 15, borderRadius: 12, gap: 8, marginBottom: 10 },
   socialBtnText: { color: '#fff', fontFamily: 'Vazir-Bold', fontSize: 13 },
 
@@ -635,6 +537,5 @@ const styles = StyleSheet.create({
   cmaSubTitle: { color: '#94a3b8', textAlign: 'right', marginBottom: 10, fontFamily: 'Vazir-Bold' },
   cmaCard: { backgroundColor: '#0B0F19', padding: 20, borderRadius: 20, borderWidth: 1, marginBottom: 20 },
   cmaTitle: { color: '#fff', fontSize: 15, fontFamily: 'Vazir-Bold', textAlign: 'right', marginBottom: 10 },
-  cmaPrice: { fontSize: 20, fontWeight: 'bold', textAlign: 'right', fontFamily: 'System', marginBottom: 15 },
-  fabAddProp: { position: 'absolute', bottom: 30, left: 24, width: 60, height: 60, borderRadius: 30, backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', elevation: 10, shadowColor: '#10b981', shadowOpacity: 0.4, shadowRadius: 15, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' },
+  cmaPrice: { fontSize: 20, fontWeight: 'bold', textAlign: 'right', fontFamily: 'System', marginBottom: 15 }
 });
