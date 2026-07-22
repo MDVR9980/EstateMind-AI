@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
@@ -8,18 +8,14 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BASE_URL } from '../services/api';
+
 export default function LoginScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<'otp' | 'password'>('otp');
-  
-  // استیت‌های ورود با رمز عبور
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  
-  // استیت‌های ورود با پیامک
   const [phone, setPhone] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [isOtpSent, setIsOtpSent] = useState(false);
-  
   const [isLoading, setIsLoading] = useState(false);
 
   const switchTab = (tab: 'otp' | 'password') => {
@@ -35,7 +31,6 @@ export default function LoginScreen({ navigation }: any) {
       Toast.show({ type: 'error', text1: 'خطا', text2: 'لطفاً نام کاربری و رمز عبور را وارد کنید.' });
       return;
     }
-
     setIsLoading(true);
     try {
       const response = await axios.post(`${BASE_URL}/api/auth/login`, { username, password });
@@ -47,8 +42,7 @@ export default function LoginScreen({ navigation }: any) {
       }
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const errorMsg = error.response?.data?.detail || "خطا در ارتباط با سرور";
-      Toast.show({ type: 'error', text1: 'خطای ورود', text2: errorMsg });
+      Toast.show({ type: 'error', text1: 'خطای ورود', text2: error.response?.data?.detail || "خطا در ارتباط با سرور" });
     } finally {
       setIsLoading(false);
     }
@@ -61,7 +55,6 @@ export default function LoginScreen({ navigation }: any) {
       Toast.show({ type: 'error', text1: 'خطا', text2: 'لطفاً شماره موبایل را وارد کنید.' });
       return;
     }
-
     setIsLoading(true);
     try {
       const response = await axios.post(`${BASE_URL}/api/auth/send-otp`, { phone });
@@ -72,8 +65,7 @@ export default function LoginScreen({ navigation }: any) {
       }
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const errorMsg = error.response?.data?.detail || "مشکلی در ارسال کد پیش آمد.";
-      Toast.show({ type: 'error', text1: 'خطا', text2: errorMsg });
+      Toast.show({ type: 'error', text1: 'خطا', text2: error.response?.data?.detail || "مشکلی در ارسال کد پیش آمد." });
     } finally {
       setIsLoading(false);
     }
@@ -86,7 +78,6 @@ export default function LoginScreen({ navigation }: any) {
       Toast.show({ type: 'error', text1: 'خطا', text2: 'لطفاً کد ۵ رقمی را وارد کنید.' });
       return;
     }
-
     setIsLoading(true);
     try {
       const response = await axios.post(`${BASE_URL}/api/auth/verify-otp`, { phone, code: otpCode });
@@ -98,8 +89,7 @@ export default function LoginScreen({ navigation }: any) {
       }
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const errorMsg = error.response?.data?.detail || "کد وارد شده اشتباه است.";
-      Toast.show({ type: 'error', text1: 'خطا', text2: errorMsg });
+      Toast.show({ type: 'error', text1: 'خطا', text2: error.response?.data?.detail || "کد وارد شده اشتباه است." });
     } finally {
       setIsLoading(false);
     }
@@ -107,7 +97,6 @@ export default function LoginScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Background Decorators */}
       <View style={styles.bgCircleTop} />
       <View style={styles.bgCircleBottom} />
 
@@ -119,7 +108,6 @@ export default function LoginScreen({ navigation }: any) {
         </View>
 
         <View style={styles.card}>
-          {/* تب‌بندی */}
           <View style={styles.tabContainer}>
             <TouchableOpacity style={[styles.tabBtn, activeTab === 'otp' && styles.tabBtnActive]} onPress={() => switchTab('otp')}>
               <Text style={[styles.tabText, activeTab === 'otp' && styles.tabTextActive]}>رمز یکبار مصرف</Text>
@@ -130,7 +118,6 @@ export default function LoginScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
 
-          {/* فرم ورود با پیامک */}
           {activeTab === 'otp' && (
             <View>
               {!isOtpSent ? (
@@ -164,7 +151,6 @@ export default function LoginScreen({ navigation }: any) {
             </View>
           )}
 
-          {/* فرم ورود با رمز عبور */}
           {activeTab === 'password' && (
             <View>
               <View style={styles.inputContainer}>
@@ -198,36 +184,36 @@ export default function LoginScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0B0F19', padding: 20 },
-  bgCircleTop: { position: 'absolute', top: -100, left: -50, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(16, 185, 129, 0.1)', blurRadius: 50 },
-  bgCircleBottom: { position: 'absolute', bottom: -100, right: -50, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(59, 130, 246, 0.1)', blurRadius: 50 },
+  bgCircleTop: { position: 'absolute', top: -100, left: -50, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(16, 185, 129, 0.1)' },
+  bgCircleBottom: { position: 'absolute', bottom: -100, right: -50, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(59, 130, 246, 0.1)' },
   
   logoContainer: { alignItems: 'center', marginBottom: 40 },
-  title: { fontSize: 32, fontFamily: 'Vazir-Bold', color: '#f8fafc', textAlign: 'center', marginTop: 10 },
+  title: { fontSize: 32, fontWeight: 'bold', color: '#f8fafc', textAlign: 'center', marginTop: 10 },
   titleHighlight: { color: '#10b981' },
-  subtitle: { fontSize: 13, fontFamily: 'Vazir-Regular', color: '#94a3b8', textAlign: 'center', marginTop: 5 },
+  subtitle: { fontSize: 13, color: '#94a3b8', textAlign: 'center', marginTop: 5 },
   
-  card: { backgroundColor: '#1E293B', padding: 24, borderRadius: 32, borderWidth: 1, borderColor: '#334155', elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 },
+  card: { backgroundColor: '#1E293B', padding: 24, borderRadius: 32, borderWidth: 1, borderColor: '#334155', elevation: 10 },
   
   tabContainer: { flexDirection: 'row-reverse', backgroundColor: '#0B0F19', padding: 5, borderRadius: 20, marginBottom: 24, borderWidth: 1, borderColor: '#334155' },
   tabBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, alignItems: 'center' },
   tabBtnActive: { backgroundColor: '#10b981', shadowColor: '#10b981', shadowOpacity: 0.4, shadowRadius: 10, elevation: 5 },
-  tabText: { color: '#64748b', fontSize: 13, fontFamily: 'Vazir-Bold' },
+  tabText: { color: '#64748b', fontSize: 13, fontWeight: 'bold' },
   tabTextActive: { color: '#fff' },
 
   inputContainer: { marginBottom: 16 },
-  label: { color: '#cbd5e1', marginBottom: 8, fontSize: 13, fontFamily: 'Vazir-Bold', textAlign: 'right' },
-  input: { backgroundColor: '#0B0F19', borderWidth: 1, borderColor: '#334155', borderRadius: 16, padding: 16, color: '#f8fafc', textAlign: 'left', fontFamily: 'System', fontSize: 16 },
+  label: { color: '#cbd5e1', marginBottom: 8, fontSize: 13, fontWeight: 'bold', textAlign: 'right' },
+  input: { backgroundColor: '#0B0F19', borderWidth: 1, borderColor: '#334155', borderRadius: 16, padding: 16, color: '#f8fafc', textAlign: 'left', fontSize: 16 },
   
   inputWrapper: { flexDirection: 'row-reverse', alignItems: 'center', backgroundColor: '#0B0F19', borderWidth: 1, borderColor: '#334155', borderRadius: 16, paddingHorizontal: 16 },
   inputIcon: { marginLeft: 10 },
-  inputWithIcon: { flex: 1, paddingVertical: 16, color: '#f8fafc', textAlign: 'left', fontFamily: 'System', fontSize: 16 },
+  inputWithIcon: { flex: 1, paddingVertical: 16, color: '#f8fafc', textAlign: 'left', fontSize: 16 },
   
-  otpInput: { textAlign: 'center', fontSize: 24, letterSpacing: 10, fontFamily: 'System', fontWeight: 'bold', color: '#10b981', borderColor: '#10b981' },
+  otpInput: { textAlign: 'center', fontSize: 24, letterSpacing: 10, fontWeight: 'bold', color: '#10b981', borderColor: '#10b981' },
   
   button: { marginTop: 15, borderRadius: 16, overflow: 'hidden' },
   btnGradient: { padding: 18, alignItems: 'center', justifyContent: 'center' },
-  buttonText: { color: '#fff', fontSize: 16, fontFamily: 'Vazir-Bold' },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   
   resetBtn: { marginTop: 20, alignItems: 'center' },
-  resetBtnText: { color: '#64748b', fontSize: 13, fontFamily: 'Vazir-Regular', textDecorationLine: 'underline' }
+  resetBtnText: { color: '#64748b', fontSize: 13, textDecorationLine: 'underline' }
 });

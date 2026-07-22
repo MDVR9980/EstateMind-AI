@@ -1,6 +1,5 @@
-import 'react-native-url-polyfill/auto';
 import 'react-native-gesture-handler';
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
@@ -9,7 +8,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import { Ionicons } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
-import { useFonts } from 'expo-font';
 
 import { navigationRef } from './src/navigation/NavigationService';
 
@@ -33,20 +31,17 @@ import SuperAdminScreen from './src/screens/SuperAdminScreen';
 
 const Stack = createNativeStackNavigator();
 
-// جلوگیری از مخفی شدن اتوماتیک اسپلش اسکرین تا زمانی که فونت‌ها لود شوند
-// SplashScreen.preventAutoHideAsync();
+// مخفی کردن اسپلش اسکرین بعد از لود شدن
+SplashScreen.preventAutoHideAsync();
 
-// ==========================================
-// 🎨 طراحی اختصاصی (Custom) برای Toast Message
-// ==========================================
 const toastConfig = {
   success: (props: any) => (
     <BaseToast
       {...props}
       style={{ borderLeftColor: '#10b981', backgroundColor: '#1E293B', borderRadius: 16, height: 'auto', paddingVertical: 10, borderWidth: 1, borderColor: '#334155' }}
       contentContainerStyle={{ paddingHorizontal: 15 }}
-      text1Style={{ fontSize: 14, fontFamily: 'Vazir-Bold', color: '#f8fafc', textAlign: 'right' }}
-      text2Style={{ fontSize: 12, fontFamily: 'Vazir-Regular', color: '#94a3b8', textAlign: 'right', marginTop: 4 }}
+      text1Style={{ fontSize: 14, fontWeight: 'bold', color: '#f8fafc', textAlign: 'right' }}
+      text2Style={{ fontSize: 12, color: '#94a3b8', textAlign: 'right', marginTop: 4 }}
       renderLeadingIcon={() => <View style={{justifyContent: 'center', paddingLeft: 15}}><Ionicons name="checkmark-circle" size={28} color="#10b981" /></View>}
     />
   ),
@@ -55,8 +50,8 @@ const toastConfig = {
       {...props}
       style={{ borderLeftColor: '#ef4444', backgroundColor: '#1E293B', borderRadius: 16, height: 'auto', paddingVertical: 10, borderWidth: 1, borderColor: '#334155' }}
       contentContainerStyle={{ paddingHorizontal: 15 }}
-      text1Style={{ fontSize: 14, fontFamily: 'Vazir-Bold', color: '#f8fafc', textAlign: 'right' }}
-      text2Style={{ fontSize: 12, fontFamily: 'Vazir-Regular', color: '#94a3b8', textAlign: 'right', marginTop: 4 }}
+      text1Style={{ fontSize: 14, fontWeight: 'bold', color: '#f8fafc', textAlign: 'right' }}
+      text2Style={{ fontSize: 12, color: '#94a3b8', textAlign: 'right', marginTop: 4 }}
       renderLeadingIcon={() => <View style={{justifyContent: 'center', paddingLeft: 15}}><Ionicons name="alert-circle" size={28} color="#ef4444" /></View>}
     />
   ),
@@ -65,32 +60,20 @@ const toastConfig = {
       {...props}
       style={{ borderLeftColor: '#3b82f6', backgroundColor: '#1E293B', borderRadius: 16, height: 'auto', paddingVertical: 10, borderWidth: 1, borderColor: '#334155' }}
       contentContainerStyle={{ paddingHorizontal: 15 }}
-      text1Style={{ fontSize: 14, fontFamily: 'Vazir-Bold', color: '#f8fafc', textAlign: 'right' }}
-      text2Style={{ fontSize: 12, fontFamily: 'Vazir-Regular', color: '#94a3b8', textAlign: 'right', marginTop: 4 }}
+      text1Style={{ fontSize: 14, fontWeight: 'bold', color: '#f8fafc', textAlign: 'right' }}
+      text2Style={{ fontSize: 12, color: '#94a3b8', textAlign: 'right', marginTop: 4 }}
       renderLeadingIcon={() => <View style={{justifyContent: 'center', paddingLeft: 15}}><Ionicons name="information-circle" size={28} color="#3b82f6" /></View>}
     />
   )
 };
 
 export default function App() {
-  // 🔤 لود کردن فونت‌ها
-  const [fontsLoaded] = useFonts({
-    'Vazir-Regular': require('./assets/fonts/Vazirmatn-Regular.ttf'), // مسیر دقیق فونت خود را چک کنید
-    'Vazir-Bold': require('./assets/fonts/Vazirmatn-Bold.ttf'),
-  });
-
-  const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded) {
-      await SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
-
-  // if (!fontsLoaded) {
-  //   return null; // تا زمانی که فونت لود نشده چیزی رندر نشود
-  // }
+  useEffect(() => {
+    // از آنجایی که فعلاً فونت کاستوم را حذف کردیم، بلافاصله اسپلش را مخفی می‌کنیم
+    SplashScreen.hideAsync();
+  }, []);
 
   return (
-    // <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <NavigationContainer ref={navigationRef}>

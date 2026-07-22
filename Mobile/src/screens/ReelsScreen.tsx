@@ -40,7 +40,7 @@ export default function ReelsScreen({ navigation }: any) {
     let imageUrl = '';
     try {
       const images = JSON.parse(item.image_urls);
-      imageUrl = `${BASE_URL}${images[0]}`;
+      imageUrl = `${BASE_URL}${images[0]}`; // در نسخه واقعی می‌توان قابلیت نمایش ویدیوی MP4 هم گذاشت
     } catch (e) {}
 
     return (
@@ -52,6 +52,7 @@ export default function ReelsScreen({ navigation }: any) {
           style={styles.gradientOverlay}
         />
 
+        {/* دکمه‌های کناری (شبیه لایک و کامنت اینستاگرام) */}
         <View style={styles.rightActions}>
           <TouchableOpacity style={styles.actionBtn} onPress={() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)}>
             <Ionicons name="heart" size={36} color="#f43f5e" />
@@ -64,6 +65,7 @@ export default function ReelsScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
+        {/* اطلاعات پایین صفحه */}
         <View style={styles.bottomInfo}>
           <View style={styles.typeBadge}>
             <Text style={styles.typeText}>{item.property_type}</Text>
@@ -77,9 +79,10 @@ export default function ReelsScreen({ navigation }: any) {
             <View style={styles.feature}><Ionicons name="bed" size={14} color="#a855f7" /><Text style={styles.featureText}>{item.rooms} خواب</Text></View>
           </View>
 
+          {/* نمایش خودکار مزایای کشف شده توسط هوش مصنوعی در زیر ریلز */}
           {item.ai_pros ? (
             <View style={styles.aiProsBox}>
-              <Text style={styles.aiProsTitle}><MaterialCommunityIcons name="magic-staff" size={16} /> مزایای هوش مصنوعی:</Text>
+              <Text style={styles.aiProsTitle}><MaterialCommunityIcons name="magic-staff" size={16} /> مزایای این ملک (هوش مصنوعی):</Text>
               <Text style={styles.aiProsText} numberOfLines={2}>{item.ai_pros}</Text>
             </View>
           ) : null}
@@ -90,6 +93,7 @@ export default function ReelsScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
+      {/* دکمه بازگشت شناور */}
       <TouchableOpacity onPress={() => { Haptics.selectionAsync(); navigation.goBack(); }} style={styles.floatingBackBtn}>
         <Ionicons name="close" size={28} color="#fff" />
       </TouchableOpacity>
@@ -99,7 +103,7 @@ export default function ReelsScreen({ navigation }: any) {
       ) : properties.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="images-outline" size={60} color="#334155" />
-          <Text style={{ color: '#94a3b8', marginTop: 10, fontFamily: 'Vazir-Regular' }}>فایلی با عکس موجود نیست.</Text>
+          <Text style={{ color: '#94a3b8', marginTop: 10 }}>فایلی با عکس موجود نیست.</Text>
         </View>
       ) : (
         <FlatList
@@ -110,7 +114,7 @@ export default function ReelsScreen({ navigation }: any) {
           showsVerticalScrollIndicator={false}
           snapToAlignment="start"
           decelerationRate="fast"
-          onMomentumScrollEnd={() => Haptics.selectionAsync()} // ویبره ملایم هنگام تغییر اسلاید
+          onMomentumScrollEnd={() => Haptics.selectionAsync()} // ویبره ملایم هنگام تغییر اسلاید (حس ریلز)
         />
       )}
     </View>
@@ -131,15 +135,15 @@ const styles = StyleSheet.create({
   
   bottomInfo: { position: 'absolute', bottom: 40, left: 15, right: 70 },
   typeBadge: { backgroundColor: 'rgba(16, 185, 129, 0.2)', borderWidth: 1, borderColor: '#10b981', alignSelf: 'flex-end', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8, marginBottom: 10 },
-  typeText: { color: '#10b981', fontSize: 11, fontFamily: 'Vazir-Bold' },
-  title: { color: '#fff', fontSize: 18, fontFamily: 'Vazir-Bold', textAlign: 'right', marginBottom: 5, textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 5 },
-  price: { color: '#10b981', fontSize: 24, fontWeight: 'bold', textAlign: 'right', marginBottom: 15, fontFamily: 'System', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 5 },
+  typeText: { color: '#10b981', fontSize: 11, fontWeight: 'bold' },
+  title: { color: '#fff', fontSize: 18, fontWeight: 'bold', textAlign: 'right', marginBottom: 5, textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 5 },
+  price: { color: '#10b981', fontSize: 24, fontWeight: 'bold', textAlign: 'right', marginBottom: 15, textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 5 },
   
   featuresRow: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 10, marginBottom: 15 },
   feature: { flexDirection: 'row-reverse', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
-  featureText: { color: '#fff', fontSize: 12, fontFamily: 'Vazir-Bold' },
+  featureText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
   
   aiProsBox: { backgroundColor: 'rgba(168, 85, 247, 0.15)', borderWidth: 1, borderColor: '#a855f7', borderRadius: 16, padding: 12 },
-  aiProsTitle: { color: '#e9d5ff', fontSize: 12, fontFamily: 'Vazir-Bold', marginBottom: 4, textAlign: 'right' },
-  aiProsText: { color: '#fff', fontSize: 12, textAlign: 'right', lineHeight: 20, fontFamily: 'Vazir-Regular' }
+  aiProsTitle: { color: '#e9d5ff', fontSize: 12, fontWeight: 'bold', marginBottom: 4, textAlign: 'right' },
+  aiProsText: { color: '#fff', fontSize: 12, textAlign: 'right', lineHeight: 20 }
 });

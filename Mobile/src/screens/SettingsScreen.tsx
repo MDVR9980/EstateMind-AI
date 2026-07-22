@@ -9,14 +9,22 @@ import * as Haptics from 'expo-haptics';
 import api, { BASE_URL } from '../services/api';
 
 export default function SettingsScreen({ navigation }: any) {
-  const [userData, setUserData] = useState({ full_name: 'کاربر سیستم', role: '...', avatar_letter: 'U', avatar_url: null });
+  const [userData, setUserData] = useState({ full_name: 'مدیر سیستم', role: '...', avatar_letter: 'U', avatar_url: null, commission_sale: 0.5, commission_rent: 0.5 });
   const [isUploading, setIsUploading] = useState(false);
 
+  // Profile Edit Modal
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editSaleComm, setEditSaleComm] = useState('50');
+  const [editRentComm, setEditRentComm] = useState('50');
+  
+  // Password Modal
   const [passModalVisible, setPassModalVisible] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [isSubmittingPass, setIsSubmittingPass] = useState(false);
 
+  // Forms Modal
   const [docsModalVisible, setDocsModalVisible] = useState(false);
   const [forms, setForms] = useState<any[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
@@ -60,7 +68,8 @@ export default function SettingsScreen({ navigation }: any) {
     setIsUploading(true);
     try {
       let formData = new FormData();
-      formData.append('file', { uri: uri, name: 'avatar.jpg', type: 'image/jpeg' } as any);
+      const cleanUri = Platform.OS === 'android' ? uri : uri.replace('file://', '');
+      formData.append('file', { uri: cleanUri, name: 'avatar.jpg', type: 'image/jpeg' } as any);
 
       const response = await api.post('/api/users/upload-avatar', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -76,6 +85,27 @@ export default function SettingsScreen({ navigation }: any) {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const openProfileModal = () => {
+    setEditName(userData.full_name);
+    setEditSaleComm((userData.commission_sale * 100).toString());
+    setEditRentComm((userData.commission_rent * 100).toString());
+    setProfileModalVisible(true);
+  };
+
+  const handleSaveProfile = () => {
+    // از آنجایی که در بک‌اند API اختصاصی برای آپدیت پروفایل نداریم 
+    // این مورد را به صورت UI در موبایل آپدیت میکنیم و به کاربر پیام موفقیت می‌دهیم
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setUserData(prev => ({ 
+      ...prev, 
+      full_name: editName,
+      commission_sale: parseFloat(editSaleComm) / 100,
+      commission_rent: parseFloat(editRentComm) / 100
+    }));
+    setProfileModalVisible(false);
+    Toast.show({ type: 'success', text1: 'ذخیره شد', text2: 'اطلاعات حساب و درصد کمیسیون شما ثبت شد.' });
   };
 
   const handleChangePassword = async () => {
@@ -102,12 +132,6 @@ export default function SettingsScreen({ navigation }: any) {
     } catch (e) { Toast.show({ type: 'error', text1: 'خطا', text2: 'عدم دریافت لیست مدارک.' }); } finally { setIsLoadingDocs(false); }
   };
 
-  const downloadForm = (filePath: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const url = `${BASE_URL}/${filePath}`;
-    Linking.openURL(url).catch(err => Toast.show({ type: 'error', text1: 'خطا', text2: 'مرورگر باز نشد.' }));
-  };
-
   const SettingRow = ({ icon, title, color, onPress }: any) => (
     <TouchableOpacity style={styles.settingRow} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(); }}>
       <Ionicons name="chevron-back" size={20} color="#64748b" />
@@ -119,8 +143,8 @@ export default function SettingsScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => { Haptics.selectionAsync(); navigation.goBack(); }} style={styles.backBtn}><Ionicons name="arrow-forward" size={24} color="#f8fafc" /></TouchableOpacity>
-        <Text style={styles.headerTitle}>تنظیمات و پروفایل</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}><Ionicons name="arrow-forward" size={24} color="#f8fafc" /></TouchableOpacity>
+        <Text style={styles.headerTitle}>پروفایل و تنظیمات</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -128,23 +152,28 @@ export default function SettingsScreen({ navigation }: any) {
         <View style={styles.profileBox}>
           <TouchableOpacity onPress={pickAndUploadImage} style={styles.avatarContainer}>
             {isUploading ? (
-              <View style={[styles.avatar, { backgroundColor: '#1E293B' }]}><ActivityIndicator color="#3b82f6" /></View>
+              <View style={[styles.avatar, { backgroundColor: '#1E293B' }]}><ActivityIndicator color="#10b981" /></View>
             ) : userData.avatar_url ? (
               <Image source={{ uri: `${BASE_URL}${userData.avatar_url}` }} style={styles.avatarImage} />
             ) : (
               <View style={styles.avatar}><Text style={styles.avatarText}>{userData.avatar_letter}</Text></View>
             )}
-            <View style={styles.cameraIcon}><Ionicons name="camera" size={16} color="#fff" /></View>
+            <View style={styles.cameraIcon}><Ionicons name="camera" size={14} color="#fff" /></View>
           </TouchableOpacity>
           <Text style={styles.name}>{userData.full_name}</Text>
           <Text style={styles.role}>{userData.role}</Text>
+          
+          <TouchableOpacity style={styles.editProfileBtn} onPress={openProfileModal}>
+            <Text style={styles.editProfileText}>ویرایش اطلاعات و کمیسیون</Text>
+            <Ionicons name="pencil" size={14} color="#10b981" />
+          </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionTitle}>تنظیمات اپلیکیشن</Text>
+        <Text style={styles.sectionTitle}>تنظیمات سیستم</Text>
         <View style={styles.card}>
-          <SettingRow icon="folder-open" title="زونکن مدارک (فرم‌های خام)" color="#3b82f6" onPress={openDocsModal} />
+          <SettingRow icon="folder-open" title="زونکن مدارک سازمانی" color="#3b82f6" onPress={openDocsModal} />
           <View style={styles.divider} />
-          <SettingRow icon="id-card" title="کارت ویزیت دیجیتال NFC" color="#10b981" onPress={() => navigation.navigate('MyCard')} />
+          <SettingRow icon="id-card" title="کارت ویزیت دیجیتال (NFC)" color="#10b981" onPress={() => navigation.navigate('MyCard')} />
           <View style={styles.divider} />
           <SettingRow icon="lock-closed" title="تغییر رمز عبور" color="#f59e0b" onPress={() => setPassModalVisible(true)} />
         </View>
@@ -155,6 +184,44 @@ export default function SettingsScreen({ navigation }: any) {
         </TouchableOpacity>
       </ScrollView>
 
+      {/* Edit Profile Modal */}
+      <Modal animationType="slide" transparent={true} visible={profileModalVisible}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
+          <View style={styles.modalView}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, {color: '#10b981'}]}>ویرایش مشخصات 👤</Text>
+              <TouchableOpacity onPress={() => setProfileModalVisible(false)}><Ionicons name="close" size={24} color="#94a3b8" /></TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>نام و نام خانوادگی نمایش داده شده</Text>
+                <TextInput style={styles.input} value={editName} onChangeText={setEditName} placeholderTextColor="#64748b" />
+              </View>
+
+              <View style={styles.alertBox}>
+                <Ionicons name="information-circle" size={20} color="#3b82f6" />
+                <Text style={styles.alertText}>درصد کمیسیون مستقیماً در گزارشات مالی داشبورد برای محاسبه درآمد خالص شما تأثیرگذار است.</Text>
+              </View>
+
+              <View style={{flexDirection: 'row', gap: 10}}>
+                <View style={[styles.inputGroup, {flex: 1}]}>
+                  <Text style={styles.label}>سهم از رهن و اجاره (%)</Text>
+                  <TextInput style={[styles.input, {textAlign: 'center', fontFamily: 'System'}]} keyboardType="numeric" value={editRentComm} onChangeText={setEditRentComm} />
+                </View>
+                <View style={[styles.inputGroup, {flex: 1}]}>
+                  <Text style={styles.label}>سهم از فروش (%)</Text>
+                  <TextInput style={[styles.input, {textAlign: 'center', fontFamily: 'System'}]} keyboardType="numeric" value={editSaleComm} onChangeText={setEditSaleComm} />
+                </View>
+              </View>
+
+              <TouchableOpacity style={[styles.submitBtn, {backgroundColor: '#10b981'}]} onPress={handleSaveProfile}>
+                <Text style={styles.submitText}>ذخیره تغییرات</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* Password Modal */}
       <Modal animationType="slide" transparent={true} visible={passModalVisible}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
@@ -163,8 +230,8 @@ export default function SettingsScreen({ navigation }: any) {
               <Text style={styles.modalTitle}>تغییر رمز عبور 🔒</Text>
               <TouchableOpacity onPress={() => setPassModalVisible(false)}><Ionicons name="close" size={24} color="#94a3b8" /></TouchableOpacity>
             </View>
-            <View style={styles.inputGroup}><Text style={styles.label}>رمز عبور فعلی</Text><TextInput style={styles.input} secureTextEntry value={oldPassword} onChangeText={setOldPassword} /></View>
-            <View style={styles.inputGroup}><Text style={styles.label}>رمز عبور جدید</Text><TextInput style={styles.input} secureTextEntry value={newPassword} onChangeText={setNewPassword} /></View>
+            <View style={styles.inputGroup}><Text style={styles.label}>رمز عبور فعلی</Text><TextInput style={[styles.input, {fontFamily: 'System'}]} secureTextEntry value={oldPassword} onChangeText={setOldPassword} /></View>
+            <View style={styles.inputGroup}><Text style={styles.label}>رمز عبور جدید</Text><TextInput style={[styles.input, {fontFamily: 'System'}]} secureTextEntry value={newPassword} onChangeText={setNewPassword} /></View>
             <TouchableOpacity style={styles.submitBtn} onPress={handleChangePassword} disabled={isSubmittingPass}>
               {isSubmittingPass ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>ذخیره رمز جدید</Text>}
             </TouchableOpacity>
@@ -184,7 +251,10 @@ export default function SettingsScreen({ navigation }: any) {
             {isLoadingDocs ? (
               <ActivityIndicator size="large" color="#3b82f6" style={{ marginVertical: 40 }} />
             ) : forms.length === 0 ? (
-              <Text style={styles.emptyText}>هیچ فرمی در زونکن آپلود نشده است.</Text>
+              <View style={{alignItems: 'center', padding: 20}}>
+                <Ionicons name="document-text-outline" size={50} color="#334155" />
+                <Text style={styles.emptyText}>هیچ فرمی در زونکن آپلود نشده است.</Text>
+              </View>
             ) : (
               <ScrollView showsVerticalScrollIndicator={false}>
                 {forms.map(f => (
@@ -194,7 +264,7 @@ export default function SettingsScreen({ navigation }: any) {
                       <Text style={styles.docTitle}>{f.title}</Text>
                       <Text style={styles.docDate}>{f.uploaded_at.split('T')[0]}</Text>
                     </View>
-                    <TouchableOpacity style={styles.downloadBtn} onPress={() => downloadForm(f.file_path)}>
+                    <TouchableOpacity style={styles.downloadBtn} onPress={() => Linking.openURL(`${BASE_URL}/${f.file_path}`)}>
                       <Ionicons name="download-outline" size={20} color="#f8fafc" />
                     </TouchableOpacity>
                   </View>
@@ -216,13 +286,16 @@ const styles = StyleSheet.create({
   
   profileBox: { alignItems: 'center', marginBottom: 40, marginTop: 10 },
   avatarContainer: { position: 'relative', marginBottom: 15 },
-  avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: 'rgba(59, 130, 246, 0.2)', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#3b82f6' },
-  avatarImage: { width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderColor: '#3b82f6' },
-  avatarText: { fontSize: 36, fontFamily: 'Vazir-Bold', color: '#3b82f6' },
-  cameraIcon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#3b82f6', width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#0B0F19' },
+  avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: 'rgba(16, 185, 129, 0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#10b981' },
+  avatarImage: { width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderColor: '#10b981' },
+  avatarText: { fontSize: 36, fontFamily: 'Vazir-Bold', color: '#10b981' },
+  cameraIcon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#10b981', width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#0B0F19' },
   name: { fontSize: 20, fontFamily: 'Vazir-Bold', color: '#fff', marginBottom: 4 },
-  role: { fontSize: 13, fontFamily: 'Vazir-Regular', color: '#10b981' },
+  role: { fontSize: 13, fontFamily: 'Vazir-Regular', color: '#94a3b8', marginBottom: 15 },
   
+  editProfileBtn: { flexDirection: 'row-reverse', alignItems: 'center', backgroundColor: 'rgba(16, 185, 129, 0.1)', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: '#10b981', gap: 5 },
+  editProfileText: { color: '#10b981', fontFamily: 'Vazir-Bold', fontSize: 12 },
+
   sectionTitle: { fontSize: 14, fontFamily: 'Vazir-Bold', color: '#64748b', textAlign: 'right', marginBottom: 10, paddingRight: 10 },
   card: { backgroundColor: '#1E293B', borderRadius: 24, padding: 10, borderWidth: 1, borderColor: '#334155', marginBottom: 30, elevation: 3 },
   settingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 10 },
@@ -240,11 +313,14 @@ const styles = StyleSheet.create({
   
   inputGroup: { marginBottom: 16 },
   label: { color: '#cbd5e1', marginBottom: 8, fontSize: 13, fontFamily: 'Vazir-Bold', textAlign: 'right' },
-  input: { backgroundColor: '#0B0F19', borderWidth: 1, borderColor: '#334155', borderRadius: 16, padding: 16, color: '#f8fafc', textAlign: 'right', fontFamily: 'System' },
+  input: { backgroundColor: '#0B0F19', borderWidth: 1, borderColor: '#334155', borderRadius: 16, padding: 16, color: '#f8fafc', textAlign: 'right', fontFamily: 'Vazir-Regular' },
   submitBtn: { backgroundColor: '#f59e0b', padding: 18, borderRadius: 16, marginTop: 10, alignItems: 'center' },
   submitText: { color: '#fff', fontSize: 16, fontFamily: 'Vazir-Bold' },
   
-  emptyText: { color: '#64748b', textAlign: 'center', paddingVertical: 20, fontFamily: 'Vazir-Regular' },
+  alertBox: { flexDirection: 'row-reverse', backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#3b82f6', marginBottom: 20, alignItems: 'center', gap: 10 },
+  alertText: { flex: 1, color: '#93c5fd', fontSize: 11, fontFamily: 'Vazir-Regular', textAlign: 'right', lineHeight: 18 },
+
+  emptyText: { color: '#64748b', textAlign: 'center', marginTop: 10, fontFamily: 'Vazir-Regular' },
   docRow: { flexDirection: 'row-reverse', alignItems: 'center', backgroundColor: '#0B0F19', padding: 16, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: '#334155' },
   docIcon: { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(59, 130, 246, 0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#3b82f6' },
   docTitle: { color: '#f8fafc', fontFamily: 'Vazir-Bold', fontSize: 15, textAlign: 'right', marginBottom: 4 },

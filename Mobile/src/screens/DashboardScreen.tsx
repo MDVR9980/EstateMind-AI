@@ -43,13 +43,20 @@ export default function DashboardScreen({ navigation }: any) {
           const userId = decoded.user_id || decoded.id || 1; 
           ws = new WebSocket(`${BASE_URL.replace('http', 'ws')}/ws/${userId}`);
           ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            Toast.show({
-              type: data.type === 'success' ? 'success' : 'info',
-              text1: data.title || 'پیام سیستم 🔔',
-              text2: data.message,
-              position: 'top',
-            });
+            try {
+              const data = JSON.parse(event.data);
+              if (data) {
+                // 🌟 حل مشکل کرش کردن در صورت undefined بودن title
+                Toast.show({
+                  type: data.type === 'success' ? 'success' : 'info',
+                  text1: data?.title || 'پیام سیستم 🔔',
+                  text2: data?.message || '',
+                  position: 'top',
+                });
+              }
+            } catch (err) {
+              console.log("WebSocket parse error", err);
+            }
           };
         }
       } catch (e) {}
@@ -141,10 +148,12 @@ export default function DashboardScreen({ navigation }: any) {
           {[
             { id: 1, title: 'بانک املاک', sub: 'مدیریت فایل‌ها', icon: 'business-outline', color: '#3b82f6', route: 'Properties' },
             { id: 2, title: 'ثبت صوتی', sub: 'دستیار هوشمند', icon: 'mic-outline', color: '#10b981', route: 'VoiceAdd' },
-            { id: 3, title: 'قیف فروش', sub: 'Kanban Board', icon: 'funnel-outline', color: '#f59e0b', route: 'Funnel' }, // روتر جدید قیف فروش
+            { id: 3, title: 'قیف فروش', sub: 'Kanban Board', icon: 'funnel-outline', color: '#f59e0b', route: 'Funnel' }, 
             { id: 4, title: 'امور مالی', sub: 'کمیسیون‌ها', icon: 'wallet-outline', color: '#a855f7', route: 'Financials' },
-            { id: 5, title: 'مدیریت کل', sub: 'ویژه مدیران', icon: 'shield-checkmark-outline', color: '#ef4444', route: 'SuperAdmin' }, // روتر جدید سوپر ادمین
-            { id: 6, title: 'کاتالوگ Reels', sub: 'پرزنت حضوری', icon: 'play-circle-outline', color: '#ec4899', route: 'Reels' },
+            { id: 5, title: 'مشتریان', sub: 'ارزیابی تماس', icon: 'people-outline', color: '#14b8a6', route: 'Customers' },
+            { id: 6, title: 'مدیریت کل', sub: 'ویژه مدیران', icon: 'shield-checkmark-outline', color: '#ef4444', route: 'SuperAdmin' }, 
+            { id: 7, title: 'پرزنت نمایشگاهی', sub: 'Showcase', icon: 'easel-outline', color: '#ec4899', route: 'Reels' },
+            { id: 8, title: 'مشارکت', sub: 'کلنگی و سازنده', icon: 'hand-right-outline', color: '#0ea5e9', route: 'Partnership' },
           ].map((item) => (
             <TouchableOpacity key={item.id} style={styles.gridItem} onPress={() => navigation.navigate(item.route)}>
               <View style={[styles.iconContainer, { backgroundColor: `${item.color}15`, borderColor: `${item.color}50` }]}>
@@ -194,6 +203,10 @@ export default function DashboardScreen({ navigation }: any) {
               <Ionicons name="id-card-outline" size={22} color="#10b981" />
               <Text style={styles.sheetBtnText}>کارت ویزیت دیجیتال</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.sheetBtn} onPress={() => { bottomSheetRef.current?.close(); navigation.navigate('Reminders'); }}>
+              <Ionicons name="calendar-outline" size={22} color="#f59e0b" />
+              <Text style={styles.sheetBtnText}>تقویم و یادآورها</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={[styles.sheetBtn, { borderBottomWidth: 0 }]} onPress={() => { bottomSheetRef.current?.close(); handleLogout(); }}>
               <Ionicons name="log-out-outline" size={22} color="#ef4444" />
               <Text style={[styles.sheetBtnText, { color: '#ef4444' }]}>خروج از حساب</Text>
@@ -206,7 +219,7 @@ export default function DashboardScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B0F19' }, // Very dark navy (BluBank style)
+  container: { flex: 1, backgroundColor: '#0B0F19' }, 
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 15, paddingBottom: 10 },
   headerLeft: { flexDirection: 'row', gap: 15 },
   iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#1E293B', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
@@ -234,7 +247,6 @@ const styles = StyleSheet.create({
   fab: { position: 'absolute', bottom: 30, left: 24, elevation: 10, shadowColor: '#10b981', shadowOpacity: 0.4, shadowRadius: 15 },
   fabGradient: { width: 65, height: 65, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
   
-  // Bottom Sheet Styles
   sheetContent: { padding: 24, flex: 1 },
   sheetHeader: { flexDirection: 'row-reverse', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#334155', paddingBottom: 20, marginBottom: 20 },
   sheetName: { color: '#fff', fontSize: 18, fontWeight: 'bold', textAlign: 'right' },

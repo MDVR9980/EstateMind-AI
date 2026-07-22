@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, Switch, Dimensions, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, Switch, Dimensions, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
@@ -14,7 +14,6 @@ export default function SuperAdminScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
 
-  // فرم ثبت آژانس جدید
   const [newAgency, setNewAgency] = useState({
     agency_name: '', owner_name: '', phone: '', city: 'تهران', admin_username: '', admin_password: ''
   });
@@ -27,38 +26,27 @@ export default function SuperAdminScreen({ navigation }: any) {
     setLoading(true);
     try {
       const res = await api.get('/api/super-admin/agencies');
-      // اگر دیتا بود اعمال کن، وگرنه دیتای تستی نشان بده
       if(res.data && res.data.length > 0) {
         setAgencies(res.data);
       } else {
-        setDummyData();
+        setAgencies([]);
       }
     } catch (e) {
-      setDummyData();
+      setAgencies([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const setDummyData = () => {
-    setAgencies([
-      { id: 1, name: 'آژانس مدرن الهیه', owner_name: 'مهندس رضایی', phone: '09120000001', subscription_active: true },
-      { id: 2, name: 'املاک سناتور', owner_name: 'علی کریمی', phone: '09120000002', subscription_active: false },
-      { id: 3, name: 'مسکن فردا', owner_name: 'آقای حسینی', phone: '09120000003', subscription_active: true }
-    ]);
-  };
-
   const toggleLicense = async (id: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Optimistic Update
     setAgencies(prev => prev.map(a => a.id === id ? { ...a, subscription_active: !a.subscription_active } : a));
     
     try {
       await api.put(`/api/super-admin/agencies/${id}/toggle`);
       Toast.show({ type: 'success', text1: 'بروزرسانی شد', text2: 'وضعیت لایسنس آژانس تغییر کرد.' });
     } catch (e) {
-      // Revert on fail
-      fetchAgencies();
+      fetchAgencies(); 
       Toast.show({ type: 'error', text1: 'خطا', text2: 'تغییر لایسنس اعمال نشد.' });
     }
   };
@@ -75,14 +63,34 @@ export default function SuperAdminScreen({ navigation }: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({ type: 'success', text1: 'ثبت شد!', text2: 'آژانس جدید با موفقیت راه‌اندازی شد.' });
       setModalVisible(false);
-      fetchAgencies();
+      
+      setNewAgency({ agency_name: '', owner_name: '', phone: '', city: 'تهران', admin_username: '', admin_password: '' });
+      fetchAgencies(); 
     } catch (e) {
       Toast.show({ type: 'error', text1: 'خطا', text2: 'در ساخت آژانس مشکلی پیش آمد.' });
     }
   };
 
+  const handleDeleteAgency = (id: number, name: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert('حذف دائم آژانس', `آیا از حذف کامل ${name} و تمام اطلاعات آن مطمئن هستید؟`, [
+      { text: 'انصراف', style: 'cancel' },
+      { text: 'حذف شود', style: 'destructive', onPress: async () => {
+        // حذف لایو از UI
+        setAgencies(prev => prev.filter(a => a.id !== id));
+        try {
+          await api.delete(`/api/super-admin/agencies/${id}`);
+          Toast.show({ type: 'success', text1: 'حذف شد', text2: 'آژانس به طور کامل از دیتابیس پاک شد.' });
+        } catch (e) {
+          fetchAgencies(); // بازگشت در صورت خطا
+          Toast.show({ type: 'error', text1: 'خطا در حذف' });
+        }
+      }}
+    ]);
+  };
+
   const renderAgency = ({ item }: any) => (
-    <View style={[styles.agencyCard, !item.subscription_active && { borderColor: '#ef4444', opacity: 0.8 }]}>
+    <View style={[styles.agencyCard, !item.subscription_active && { borderColor: 'rgba(239, 68, 68, 0.5)', opacity: 0.8 }]}>
       <View style={styles.cardHeader}>
         <View style={styles.titleBox}>
           <Text style={styles.agencyName}>{item.name}</Text>
@@ -96,18 +104,19 @@ export default function SuperAdminScreen({ navigation }: any) {
         />
       </View>
       <View style={styles.infoRow}>
-        <Text style={styles.infoText}><Ionicons name="person-outline" /> مدیر: {item.owner_name}</Text>
-        <Text style={[styles.infoText, {fontFamily: 'System'}]}><Ionicons name="call-outline" /> {item.phone}</Text>
+        <Text style={styles.infoText}><Ionicons name="person-outline" size={14} /> {item.owner_name}</Text>
+        <Text style={[styles.infoText, {fontFamily: 'System'}]}><Ionicons name="call-outline" size={14} /> {item.phone}</Text>
       </View>
       
       <View style={styles.actions}>
         <TouchableOpacity style={styles.actionBtn} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}>
           <Ionicons name="pencil" size={16} color="#3b82f6" />
-          <Text style={{color: '#3b82f6', fontSize: 12, fontWeight: 'bold'}}>ویرایش</Text>
+          <Text style={{color: '#3b82f6', fontSize: 13, fontFamily: 'Vazir-Bold'}}>ویرایش</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)}>
+        
+        <TouchableOpacity style={styles.actionBtn} onPress={() => handleDeleteAgency(item.id, item.name)}>
           <Ionicons name="trash" size={16} color="#ef4444" />
-          <Text style={{color: '#ef4444', fontSize: 12, fontWeight: 'bold'}}>حذف دائم</Text>
+          <Text style={{color: '#ef4444', fontSize: 13, fontFamily: 'Vazir-Bold'}}>حذف دائم</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -134,17 +143,23 @@ export default function SuperAdminScreen({ navigation }: any) {
           renderItem={renderAgency}
           contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={{ alignItems: 'center', marginTop: 50 }}>
+              <Ionicons name="business-outline" size={60} color="#334155" />
+              <Text style={{ color: '#64748b', fontFamily: 'Vazir-Regular', marginTop: 10 }}>آژانسی ثبت نشده است.</Text>
+            </View>
+          }
           ListHeaderComponent={
             <View style={{ marginBottom: 30 }}>
               <Text style={styles.sectionTitle}>گزارش فروش لایسنس (میلیون تومان)</Text>
               <View style={styles.chartBox}>
                 <LineChart
                   data={{
-                    labels: ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور"],
+                    labels: ["فروردین", "اردیب.", "خرداد", "تیر", "مرداد", "شهریور"],
                     datasets: [{ data: [15, 28, 34, 45, 60, 85] }]
                   }}
                   width={width - 40}
-                  height={220}
+                  height={250}
                   yAxisLabel=""
                   yAxisSuffix="m"
                   chartConfig={{
@@ -152,17 +167,17 @@ export default function SuperAdminScreen({ navigation }: any) {
                     backgroundGradientFrom: "#1E293B",
                     backgroundGradientTo: "#0B0F19",
                     decimalPlaces: 0,
-                    color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`, // تم قرمز/نئونی برای سوپرادمین
+                    color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
                     labelColor: (opacity = 1) => `rgba(148, 163, 184, ${opacity})`,
                     style: { borderRadius: 16 },
                     propsForDots: { r: "5", strokeWidth: "2", stroke: "#ef4444" },
-                    propsForLabels: { fontFamily: 'System' }
+                    propsForLabels: { fontFamily: 'System', fontSize: 11 }
                   }}
                   bezier
-                  style={{ marginVertical: 8, borderRadius: 16 }}
+                  style={{ borderRadius: 16, marginTop: 10 }}
                 />
               </View>
-              <Text style={[styles.sectionTitle, { marginTop: 20 }]}>لیست آژانس‌های فعال</Text>
+              <Text style={[styles.sectionTitle, { marginTop: 30 }]}>لیست آژانس‌های فعال</Text>
             </View>
           }
         />
@@ -185,16 +200,16 @@ export default function SuperAdminScreen({ navigation }: any) {
               <TextInput style={styles.input} placeholder="مثال: آقای رضایی" placeholderTextColor="#64748b" value={newAgency.owner_name} onChangeText={(t) => setNewAgency({...newAgency, owner_name: t})} />
 
               <Text style={styles.label}>موبایل تماس</Text>
-              <TextInput style={[styles.input, {fontFamily: 'System'}]} placeholder="0912..." keyboardType="phone-pad" placeholderTextColor="#64748b" value={newAgency.phone} onChangeText={(t) => setNewAgency({...newAgency, phone: t})} />
+              <TextInput style={[styles.input, {fontFamily: 'System', textAlign: 'left'}]} placeholder="0912..." keyboardType="phone-pad" placeholderTextColor="#64748b" value={newAgency.phone} onChangeText={(t) => setNewAgency({...newAgency, phone: t})} />
 
               <View style={styles.divider} />
               <Text style={styles.sectionSubtitle}>اطلاعات ورود مدیر سیستم (Admin)</Text>
 
               <Text style={styles.label}>نام کاربری (موبایل مدیر) *</Text>
-              <TextInput style={[styles.input, {fontFamily: 'System'}]} placeholder="admin_modern" placeholderTextColor="#64748b" value={newAgency.admin_username} onChangeText={(t) => setNewAgency({...newAgency, admin_username: t})} autoCapitalize="none" />
+              <TextInput style={[styles.input, {fontFamily: 'System', textAlign: 'left'}]} placeholder="admin_modern" placeholderTextColor="#64748b" value={newAgency.admin_username} onChangeText={(t) => setNewAgency({...newAgency, admin_username: t})} autoCapitalize="none" />
 
               <Text style={styles.label}>رمز عبور اولیه *</Text>
-              <TextInput style={[styles.input, {fontFamily: 'System'}]} placeholder="123456" placeholderTextColor="#64748b" value={newAgency.admin_password} onChangeText={(t) => setNewAgency({...newAgency, admin_password: t})} secureTextEntry />
+              <TextInput style={[styles.input, {fontFamily: 'System', textAlign: 'left'}]} placeholder="123456" placeholderTextColor="#64748b" value={newAgency.admin_password} onChangeText={(t) => setNewAgency({...newAgency, admin_password: t})} secureTextEntry />
 
               <TouchableOpacity style={styles.submitBtn} onPress={submitNewAgency}>
                 <Text style={styles.submitBtnText}>ایجاد و صدور لایسنس</Text>
@@ -214,36 +229,36 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
   backBtn: { width: 40, height: 40, backgroundColor: '#1E293B', borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
   addBtn: { width: 40, height: 40, backgroundColor: '#ef4444', borderRadius: 12, justifyContent: 'center', alignItems: 'center', shadowColor: '#ef4444', shadowOpacity: 0.4, shadowRadius: 10, elevation: 5 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#ef4444' }, // تم قرمز سوپرادمین
+  headerTitle: { fontSize: 18, fontFamily: 'Vazir-Bold', color: '#ef4444' }, 
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   
-  sectionTitle: { color: '#f8fafc', fontWeight: 'bold', fontSize: 16, textAlign: 'right', marginBottom: 15 },
-  chartBox: { borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#334155', backgroundColor: '#1E293B' },
+  sectionTitle: { color: '#f8fafc', fontFamily: 'Vazir-Bold', fontSize: 16, textAlign: 'right', marginBottom: 5, lineHeight: 28, paddingTop: 5 },
+  chartBox: { borderRadius: 16, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#334155', paddingBottom: 10, alignItems: 'center' },
   
-  agencyCard: { backgroundColor: '#1E293B', padding: 18, borderRadius: 20, marginBottom: 15, borderWidth: 1, borderColor: '#334155', elevation: 2 },
-  cardHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  agencyCard: { backgroundColor: '#1E293B', padding: 20, borderRadius: 20, marginBottom: 15, borderWidth: 1, borderColor: '#334155', elevation: 4 },
+  cardHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   titleBox: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
-  agencyName: { color: '#f8fafc', fontWeight: 'bold', fontSize: 16 },
-  badge: { backgroundColor: 'rgba(239, 68, 68, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#ef4444' },
-  badgeText: { color: '#ef4444', fontSize: 10, fontWeight: 'bold' },
+  agencyName: { color: '#f8fafc', fontFamily: 'Vazir-Bold', fontSize: 16 },
+  badge: { backgroundColor: 'rgba(239, 68, 68, 0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.5)', justifyContent: 'center', alignItems: 'center' },
+  badgeText: { color: '#ef4444', fontSize: 10, fontFamily: 'Vazir-Bold' },
   
   infoRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', marginTop: 5 },
-  infoText: { color: '#94a3b8', fontSize: 12 },
+  infoText: { color: '#94a3b8', fontSize: 13, fontFamily: 'Vazir-Regular' },
   
-  actions: { flexDirection: 'row-reverse', gap: 15, marginTop: 15, borderTopWidth: 1, borderTopColor: '#0B0F19', paddingTop: 12 },
-  actionBtn: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5, backgroundColor: '#0B0F19', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
+  actions: { flexDirection: 'row-reverse', gap: 15, marginTop: 15, borderTopWidth: 1, borderTopColor: '#0B0F19', paddingTop: 15 },
+  actionBtn: { flexDirection: 'row-reverse', alignItems: 'center', gap: 6, backgroundColor: '#0B0F19', paddingHorizontal: 15, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: '#334155' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(11, 15, 25, 0.9)', justifyContent: 'flex-end' },
   modalView: { backgroundColor: '#1E293B', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40, maxHeight: '90%', borderWidth: 1, borderColor: '#334155' },
   modalHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { color: '#ef4444', fontSize: 18, fontWeight: 'bold' },
+  modalTitle: { color: '#ef4444', fontSize: 18, fontFamily: 'Vazir-Bold' },
   
   divider: { height: 1, backgroundColor: '#334155', marginVertical: 20 },
-  sectionSubtitle: { color: '#3b82f6', fontSize: 14, fontWeight: 'bold', textAlign: 'right', marginBottom: 15 },
+  sectionSubtitle: { color: '#3b82f6', fontSize: 14, fontFamily: 'Vazir-Bold', textAlign: 'right', marginBottom: 15 },
   
-  label: { color: '#cbd5e1', fontSize: 12, fontWeight: 'bold', textAlign: 'right', marginBottom: 8, marginTop: 10 },
-  input: { backgroundColor: '#0B0F19', borderWidth: 1, borderColor: '#334155', borderRadius: 16, padding: 16, color: '#f8fafc', textAlign: 'right' },
+  label: { color: '#cbd5e1', fontSize: 13, fontFamily: 'Vazir-Bold', textAlign: 'right', marginBottom: 8, marginTop: 10 },
+  input: { backgroundColor: '#0B0F19', borderWidth: 1, borderColor: '#334155', borderRadius: 16, padding: 16, color: '#f8fafc', textAlign: 'right', fontFamily: 'Vazir-Regular' },
   
   submitBtn: { flexDirection: 'row-reverse', backgroundColor: '#ef4444', paddingVertical: 16, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 25 },
-  submitBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
+  submitBtnText: { color: '#fff', fontFamily: 'Vazir-Bold', fontSize: 16 }
 });
