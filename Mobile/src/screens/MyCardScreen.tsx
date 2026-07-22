@@ -51,14 +51,14 @@ export default function MyCardScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
-  backBtn: { width: 40, height: 40, backgroundColor: '#1e293b', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#f8fafc' },
+  container: { flex: 1, backgroundColor: '#0B0F19' },
+  header: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
+  backBtn: { width: 40, height: 40, backgroundColor: '#1E293B', borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
+  headerTitle: { fontSize: 18, fontFamily: 'Vazir-Bold', color: '#10b981' },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  desc: { color: '#94a3b8', textAlign: 'center', fontSize: 13, lineHeight: 22, marginBottom: 40 },
+  desc: { color: '#94a3b8', textAlign: 'center', fontSize: 13, lineHeight: 22, marginBottom: 40, fontFamily: 'Vazir-Regular' },
   qrCard: { backgroundColor: '#fff', padding: 20, borderRadius: 32, elevation: 10, shadowColor: '#10b981', shadowOpacity: 0.3, shadowRadius: 20, marginBottom: 40 },
   qrImage: { width: 250, height: 250, resizeMode: 'contain' },
-  nfcBtn: { flexDirection: 'row-reverse', alignItems: 'center', backgroundColor: '#3b82f6', paddingVertical: 16, paddingHorizontal: 30, borderRadius: 16, gap: 10 },
-  nfcBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  nfcBtn: { flexDirection: 'row-reverse', alignItems: 'center', backgroundColor: '#10b981', paddingVertical: 16, paddingHorizontal: 30, borderRadius: 16, gap: 10 },
+  nfcBtnText: { color: '#fff', fontSize: 16, fontFamily: 'Vazir-Bold' }
 });

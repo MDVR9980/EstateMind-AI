@@ -9,7 +9,6 @@ import * as Haptics from 'expo-haptics';
 import moment from 'moment-jalaali';
 import api, { BASE_URL } from '../services/api';
 
-// تنظیم تقویم به فارسی
 moment.loadPersian({ usePersianDigits: true, dialect: 'persian-modern' });
 
 export default function FinancialsScreen({ navigation }: any) {
@@ -17,7 +16,7 @@ export default function FinancialsScreen({ navigation }: any) {
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // مودال قرارداد جدید
+  // Modal States
   const [dealModalVisible, setDealModalVisible] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
@@ -44,9 +43,7 @@ export default function FinancialsScreen({ navigation }: any) {
       }
     } catch (error) {
       Toast.show({ type: 'error', text1: 'خطا', text2: 'دریافت گزارشات مالی با خطا مواجه شد.' });
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const fetchFormOptions = async () => {
@@ -57,9 +54,7 @@ export default function FinancialsScreen({ navigation }: any) {
       ]);
       setClients(clientRes.data.clients || []);
       setProperties(propRes.data.properties || []);
-    } catch (error) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'دریافت اطلاعات مشتریان با خطا مواجه شد.' });
-    }
+    } catch (error) {}
   };
 
   const openDealModal = () => {
@@ -70,17 +65,15 @@ export default function FinancialsScreen({ navigation }: any) {
 
   const calculateCommission = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    Alert.alert('محاسبه حقوق', 'آیا کمیسیون و سهم مشاوران برای این ماه محاسبه شود؟', [
+    Alert.alert('محاسبه حقوق و کمیسیون', 'آیا کمیسیون مشاوران بر اساس قراردادهای این ماه محاسبه شود؟', [
       { text: 'انصراف', style: 'cancel' },
-      { text: 'بله، محاسبه کن', onPress: async () => {
+      { text: 'محاسبه کن', onPress: async () => {
           try {
             const currentMonth = new Date().toISOString().slice(0, 7);
             await api.post('/api/deals/calculate-monthly', { year_month: currentMonth });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Toast.show({ type: 'success', text1: 'انجام شد', text2: 'سهم مشاورین برای این ماه بروزرسانی شد.' });
-          } catch (e) {
-            Toast.show({ type: 'error', text1: 'عدم دسترسی', text2: 'فقط مدیر شعبه می‌تواند حقوق را محاسبه کند.' });
-          }
+          } catch (e) { Toast.show({ type: 'error', text1: 'عدم دسترسی', text2: 'فقط مدیر شعبه دسترسی دارد.' }); }
       }}
     ]);
   };
@@ -88,10 +81,8 @@ export default function FinancialsScreen({ navigation }: any) {
   const submitDeal = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!selectedClient || !dealPrice || !commission) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'پر کردن مشتری، مبلغ معامله و کمیسیون الزامی است.' });
-      return;
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'مشتری، مبلغ معامله و کمیسیون الزامی است.' }); return;
     }
-
     setIsSubmitting(true);
     try {
       const payload = {
@@ -101,34 +92,26 @@ export default function FinancialsScreen({ navigation }: any) {
         deal_price: parseFloat(dealPrice.replace(/,/g, '')),
         commission_amount: parseFloat(commission.replace(/,/g, ''))
       };
-
       await api.post('/api/deals/add', payload);
-      
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Toast.show({ type: 'success', text1: 'ثبت شد!', text2: 'قرارداد با موفقیت در سیستم مالی ثبت شد 🚀' });
+      Toast.show({ type: 'success', text1: 'ثبت شد!', text2: 'قرارداد با موفقیت در سیستم مالی ثبت شد.' });
       setDealModalVisible(false);
-      
       setSelectedClient(null); setSelectedProperty(null); setDealPrice(''); setCommission('');
       fetchFinancials();
-    } catch (e) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکلی در ثبت قرارداد پیش آمد.' });
-    } finally {
-      setIsSubmitting(false);
-    }
+    } catch (e) { Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکلی در ثبت قرارداد پیش آمد.' }); } 
+    finally { setIsSubmitting(false); }
   };
 
   const formatPrice = (price: number) => price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
   const handleDownloadPDF = (dealId: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const pdfUrl = `${BASE_URL}/api/deals/${dealId}/contract-pdf`;
-    Linking.openURL(pdfUrl).catch(err => {
+    Linking.openURL(`${BASE_URL}/api/deals/${dealId}/contract-pdf`).catch(() => {
       Toast.show({ type: 'error', text1: 'خطا', text2: 'باز کردن فایل PDF با مشکل مواجه شد.' });
     });
   };
 
   const renderTransaction = ({ item }: { item: any }) => {
-    // تبدیل تاریخ میلادی سرور به شمسی (مثل: 24 تیر 1403)
     const shamsiDate = moment(item.date, 'YYYY-MM-DD').format('jD jMMMM jYYYY');
     const isSale = item.type.includes('فروش');
 
@@ -146,11 +129,9 @@ export default function FinancialsScreen({ navigation }: any) {
 
         <View style={styles.transLeft}>
           <Text style={styles.transAmount}>+ {formatPrice(item.commission)}</Text>
-          <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => handleDownloadPDF(item.id)}>
-              <Ionicons name="download-outline" size={18} color="#a855f7" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => handleDownloadPDF(item.id)}>
+            <Ionicons name="download-outline" size={18} color="#a855f7" />
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -159,24 +140,21 @@ export default function FinancialsScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => { Haptics.selectionAsync(); navigation.goBack(); }} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-forward" size={24} color="#f8fafc" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>امور مالی و کمیسیون</Text>
+        <Text style={styles.headerTitle}>گزارشات مالی و عملکرد</Text>
         <TouchableOpacity onPress={calculateCommission} style={styles.calcBtn}>
-          <Ionicons name="calculator-outline" size={24} color="#f59e0b" />
+          <Ionicons name="calculator-outline" size={22} color="#f59e0b" />
         </TouchableOpacity>
       </View>
 
-      {loading ? (
-        <View style={styles.centerContainer}><ActivityIndicator size="large" color="#10b981" /></View>
-      ) : (
+      {loading ? ( <View style={styles.centerContainer}><ActivityIndicator size="large" color="#10b981" /></View> ) : (
         <View style={{ flex: 1 }}>
           <View style={styles.paddingH}>
-            {/* Balance Card - BluBank Style */}
             <LinearGradient colors={['#1E293B', '#0f172a']} style={styles.heroCard}>
               <View style={styles.heroHeader}>
-                <Text style={styles.heroLabel}>مجموع درآمدزایی (کمیسیون کل)</Text>
+                <Text style={styles.heroLabel}>مجموع درآمدزایی شعبه (کمیسیون)</Text>
                 <Ionicons name="wallet" size={24} color="rgba(16, 185, 129, 0.5)" />
               </View>
               <Text style={styles.heroValue}>{formatPrice(stats.total_revenue)} <Text style={styles.heroCurrency}>تومان</Text></Text>
@@ -188,13 +166,13 @@ export default function FinancialsScreen({ navigation }: any) {
                 </View>
                 <View style={styles.divider} />
                 <View style={styles.splitBox}>
-                  <Text style={styles.splitLabel}>سهم آژانس</Text>
+                  <Text style={styles.splitLabel}>سهم آژانس (دفتر)</Text>
                   <Text style={[styles.splitValue, { color: '#3b82f6' }]}>{formatPrice(stats.office_share)}</Text>
                 </View>
               </View>
             </LinearGradient>
 
-            <Text style={styles.sectionTitle}>تراکنش‌ها و قراردادها</Text>
+            <Text style={styles.sectionTitle}>تراکنش‌ها و قراردادهای اخیر</Text>
           </View>
 
           {deals.length === 0 ? (
@@ -203,30 +181,24 @@ export default function FinancialsScreen({ navigation }: any) {
               <Text style={styles.emptyText}>تراکنشی برای نمایش وجود ندارد.</Text>
             </View>
           ) : (
-            <FlatList
-              data={deals}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={renderTransaction}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
-            />
+            <FlatList data={deals} keyExtractor={(item) => item.id.toString()} renderItem={renderTransaction} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false} />
           )}
         </View>
       )}
 
       {/* FAB - Add Deal */}
       <TouchableOpacity style={styles.fab} onPress={openDealModal}>
-        <LinearGradient colors={['#a855f7', '#7e22ce']} style={styles.fabGradient}>
-          <Ionicons name="add" size={32} color="#fff" />
+        <LinearGradient colors={['#10b981', '#059669']} style={styles.fabGradient}>
+          <MaterialCommunityIcons name="handshake-outline" size={32} color="#fff" />
         </LinearGradient>
       </TouchableOpacity>
 
-      {/* مودال ثبت قرارداد */}
+      {/* Modal - Add Deal */}
       <Modal animationType="slide" transparent={true} visible={dealModalVisible}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalView}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>ثبت قرارداد و وصولی 🤝</Text>
+              <Text style={styles.modalTitle}>ثبت قرارداد جدید 🤝</Text>
               <TouchableOpacity onPress={() => setDealModalVisible(false)}><Ionicons name="close" size={24} color="#94a3b8" /></TouchableOpacity>
             </View>
 
@@ -235,9 +207,9 @@ export default function FinancialsScreen({ navigation }: any) {
                 <Text style={styles.label}>مشتری خریدار/مستاجر *</Text>
                 <TouchableOpacity style={styles.dropdownBtn} onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  Alert.alert('انتخاب مشتری', 'مشتری مورد نظر را انتخاب کنید:', clients.map(c => ({ text: c.name, onPress: () => setSelectedClient(c) })).slice(0, 5));
+                  Alert.alert('انتخاب مشتری', 'مشتری مورد نظر را انتخاب کنید:', clients.map(c => ({ text: c.name, onPress: () => setSelectedClient(c) })).concat([{text: 'انصراف', style: 'cancel'}] as any));
                 }}>
-                  <Text style={[styles.dropdownText, !selectedClient && {color: '#64748b'}]}>{selectedClient ? selectedClient.name : 'انتخاب مشتری...'}</Text>
+                  <Text style={[styles.dropdownText, !selectedClient && {color: '#64748b'}]}>{selectedClient ? selectedClient.name : '-- انتخاب از قیف فروش --'}</Text>
                   <Ionicons name="chevron-down" size={18} color="#64748b" />
                 </TouchableOpacity>
               </View>
@@ -246,9 +218,9 @@ export default function FinancialsScreen({ navigation }: any) {
                 <Text style={styles.label}>فایل ملک مرتبط (اختیاری)</Text>
                 <TouchableOpacity style={styles.dropdownBtn} onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  Alert.alert('انتخاب فایل', 'ملک مورد نظر را انتخاب کنید:', properties.map(p => ({ text: p.title, onPress: () => setSelectedProperty(p) })).slice(0, 5));
+                  Alert.alert('انتخاب فایل', 'ملک مورد نظر را انتخاب کنید:', properties.map(p => ({ text: p.title, onPress: () => setSelectedProperty(p) })).concat([{text: 'انصراف', style: 'cancel'}] as any));
                 }}>
-                  <Text style={[styles.dropdownText, !selectedProperty && {color: '#64748b'}]}>{selectedProperty ? selectedProperty.title : 'انتخاب فایل از بانک...'}</Text>
+                  <Text style={[styles.dropdownText, !selectedProperty && {color: '#64748b'}]}>{selectedProperty ? selectedProperty.title : '-- انتخاب فایل از بانک --'}</Text>
                   <Ionicons name="chevron-down" size={18} color="#64748b" />
                 </TouchableOpacity>
               </View>
@@ -256,12 +228,8 @@ export default function FinancialsScreen({ navigation }: any) {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>نوع قرارداد</Text>
                 <View style={styles.radioRow}>
-                  <TouchableOpacity style={[styles.radioBtn, dealType === 'فروش' && styles.radioBtnActive]} onPress={() => { Haptics.selectionAsync(); setDealType('فروش'); }}>
-                    <Text style={[styles.radioText, dealType === 'فروش' && styles.radioTextActive]}>خرید و فروش</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.radioBtn, dealType === 'رهن و اجاره' && styles.radioBtnActive]} onPress={() => { Haptics.selectionAsync(); setDealType('رهن و اجاره'); }}>
-                    <Text style={[styles.radioText, dealType === 'رهن و اجاره' && styles.radioTextActive]}>رهن و اجاره</Text>
-                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.radioBtn, dealType === 'فروش' && styles.radioBtnActive]} onPress={() => { Haptics.selectionAsync(); setDealType('فروش'); }}><Text style={[styles.radioText, dealType === 'فروش' && styles.radioTextActive]}>خرید و فروش</Text></TouchableOpacity>
+                  <TouchableOpacity style={[styles.radioBtn, dealType === 'رهن و اجاره' && styles.radioBtnActive]} onPress={() => { Haptics.selectionAsync(); setDealType('رهن و اجاره'); }}><Text style={[styles.radioText, dealType === 'رهن و اجاره' && styles.radioTextActive]}>رهن و اجاره</Text></TouchableOpacity>
                 </View>
               </View>
 
@@ -288,17 +256,17 @@ export default function FinancialsScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0B0F19' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
+  header: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
   backBtn: { width: 40, height: 40, backgroundColor: '#1E293B', borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
   headerTitle: { fontSize: 18, fontFamily: 'Vazir-Bold', color: '#f8fafc' },
   calcBtn: { width: 40, height: 40, backgroundColor: 'rgba(245, 158, 11, 0.1)', borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#f59e0b' },
   paddingH: { paddingHorizontal: 20 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   
-  heroCard: { padding: 24, borderRadius: 28, marginBottom: 25, borderWidth: 1, borderColor: '#334155', elevation: 8, shadowColor: '#10b981', shadowOpacity: 0.1, shadowRadius: 20 },
+  heroCard: { padding: 24, borderRadius: 28, marginBottom: 25, borderWidth: 1, borderColor: '#334155', elevation: 8 },
   heroHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   heroLabel: { color: '#cbd5e1', fontSize: 13, fontFamily: 'Vazir-Bold' },
-  heroValue: { color: '#f8fafc', fontSize: 32, fontWeight: 'bold', textAlign: 'right', fontFamily: 'System', marginBottom: 20 },
+  heroValue: { color: '#f8fafc', fontSize: 32, fontFamily: 'System', fontWeight: 'bold', textAlign: 'right', marginBottom: 20 },
   heroCurrency: { fontSize: 14, fontFamily: 'Vazir-Regular', color: '#94a3b8' },
   
   splitRow: { flexDirection: 'row-reverse', backgroundColor: '#0B0F19', borderRadius: 20, padding: 15, borderWidth: 1, borderColor: '#334155' },
@@ -317,18 +285,17 @@ const styles = StyleSheet.create({
   transInfo: { justifyContent: 'center' },
   transTitle: { color: '#f8fafc', fontSize: 15, fontFamily: 'Vazir-Bold', textAlign: 'right', marginBottom: 4 },
   transDate: { color: '#94a3b8', fontSize: 11, fontFamily: 'Vazir-Regular', textAlign: 'right' },
-  transLeft: { alignItems: 'flex-start' },
+  transLeft: { alignItems: 'flex-start', flexDirection: 'row', gap: 10 },
   transAmount: { color: '#10b981', fontSize: 16, fontWeight: 'bold', fontFamily: 'System', marginBottom: 8 },
-  actionButtons: { flexDirection: 'row', gap: 8 },
-  iconBtn: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(168, 85, 247, 0.1)', justifyContent: 'center', alignItems: 'center' },
+  iconBtn: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(168, 85, 247, 0.1)', justifyContent: 'center', alignItems: 'center', alignSelf: 'flex-end' },
   
-  fab: { position: 'absolute', bottom: 30, left: 20, elevation: 10, shadowColor: '#a855f7', shadowOpacity: 0.4, shadowRadius: 15 },
-  fabGradient: { width: 60, height: 60, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
+  fab: { position: 'absolute', bottom: 30, left: 20, elevation: 10, shadowColor: '#10b981', shadowOpacity: 0.4, shadowRadius: 15 },
+  fabGradient: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' },
   
   modalOverlay: { flex: 1, backgroundColor: 'rgba(11, 15, 25, 0.9)', justifyContent: 'flex-end' },
   modalView: { backgroundColor: '#1E293B', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40, maxHeight: '90%', borderWidth: 1, borderColor: '#334155' },
   modalHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { color: '#a855f7', fontSize: 18, fontFamily: 'Vazir-Bold' },
+  modalTitle: { color: '#10b981', fontSize: 18, fontFamily: 'Vazir-Bold' },
   inputGroup: { marginBottom: 16 },
   label: { color: '#cbd5e1', marginBottom: 8, fontSize: 13, fontFamily: 'Vazir-Bold', textAlign: 'right' },
   input: { backgroundColor: '#0B0F19', borderWidth: 1, borderColor: '#334155', borderRadius: 16, padding: 16, color: '#f8fafc', textAlign: 'right', fontFamily: 'System', fontSize: 16 },
@@ -336,9 +303,9 @@ const styles = StyleSheet.create({
   dropdownText: { color: '#f8fafc', fontSize: 14, fontFamily: 'Vazir-Regular' },
   radioRow: { flexDirection: 'row-reverse', gap: 10 },
   radioBtn: { flex: 1, backgroundColor: '#0B0F19', paddingVertical: 14, borderRadius: 16, borderWidth: 1, borderColor: '#334155', alignItems: 'center' },
-  radioBtnActive: { backgroundColor: 'rgba(168, 85, 247, 0.1)', borderColor: '#a855f7' },
+  radioBtnActive: { backgroundColor: 'rgba(16, 185, 129, 0.1)', borderColor: '#10b981' },
   radioText: { color: '#64748b', fontSize: 13, fontFamily: 'Vazir-Bold' },
-  radioTextActive: { color: '#a855f7' },
-  submitBtn: { backgroundColor: '#a855f7', padding: 18, borderRadius: 16, marginTop: 15, alignItems: 'center' },
+  radioTextActive: { color: '#10b981' },
+  submitBtn: { backgroundColor: '#10b981', padding: 18, borderRadius: 16, marginTop: 15, alignItems: 'center' },
   submitText: { color: '#fff', fontSize: 16, fontFamily: 'Vazir-Bold' }
 });

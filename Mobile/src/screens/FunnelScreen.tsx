@@ -1,20 +1,19 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, ActivityIndicator, Dimensions, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
 import { useFocusEffect } from '@react-navigation/native';
-import { Audio } from 'expo-av';
 import api from '../services/api';
 
 const { width } = Dimensions.get('window');
-const COLUMN_WIDTH = width * 0.82; 
+const COLUMN_WIDTH = width * 0.85; 
 
 const STAGES = [
-  { id: 'لید جدید', title: 'لید جدید 📥', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.05)' },
+  { id: 'لید جدید', title: 'تماس اولیه 📥', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.05)' },
   { id: 'بازدید', title: 'در حال بازدید 👁️', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.05)' },
-  { id: 'جلسه در دفتر', title: 'جلسه و مذاکره 🤝', color: '#a855f7', bg: 'rgba(168, 85, 247, 0.05)' },
+  { id: 'جلسه در دفتر', title: 'جلسه در دفتر 🤝', color: '#a855f7', bg: 'rgba(168, 85, 247, 0.05)' },
   { id: 'قرارداد موفق', title: 'قرارداد موفق 🏆', color: '#10b981', bg: 'rgba(16, 185, 129, 0.05)' },
 ];
 
@@ -40,44 +39,25 @@ export default function FunnelScreen({ navigation }: any) {
     }
   };
 
-  const playSuccessEffect = async () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    try {
-      // استفاده از صدای پیش‌فرض در صورت نبودن فایل لوکال
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: 'https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg' }
-      );
-      await sound.playAsync();
-    } catch (error) {}
-  };
-
   const handleMoveClient = (client: any) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
     const availableStages = STAGES.filter(s => s.id !== client.funnel_stage);
     
     const alertButtons = availableStages.map(stage => ({
       text: `انتقال به ${stage.title}`,
       onPress: () => updateStage(client.id, stage.id)
     }));
-
     alertButtons.push({ text: 'انصراف', onPress: () => {}, style: 'cancel' } as any);
 
-    Alert.alert(
-      'مدیریت قیف فروش',
-      `مشتری "${client.name}" را به کدام مرحله منتقل می‌کنید؟`,
-      alertButtons
-    );
+    Alert.alert('مدیریت قیف فروش', `مشتری "${client.name}" را به کدام مرحله منتقل می‌کنید؟`, alertButtons);
   };
 
   const updateStage = async (clientId: number, newStage: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
-    // Optimistic Update
     setClients(prev => prev.map(c => c.id === clientId ? { ...c, funnel_stage: newStage } : c));
 
     if (newStage === 'قرارداد موفق') {
-      playSuccessEffect();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({ type: 'success', text1: 'تارگت زده شد! 🎉', text2: 'مشتری با موفقیت به قرارداد تبدیل شد.' });
     }
 
@@ -122,19 +102,13 @@ export default function FunnelScreen({ navigation }: any) {
         <TouchableOpacity onPress={() => { Haptics.selectionAsync(); navigation.goBack(); }} style={styles.backBtn}>
           <Ionicons name="arrow-forward" size={24} color="#f8fafc" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>مدیریت قیف فروش</Text>
+        <Text style={styles.headerTitle}>قیف فروش (Kanban)</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#64748b" style={styles.searchIcon} />
-        <TextInput 
-          style={styles.searchInput} 
-          placeholder="جستجوی نام یا موبایل..." 
-          placeholderTextColor="#64748b" 
-          value={searchQuery} 
-          onChangeText={setSearchQuery} 
-        />
+        <TextInput style={styles.searchInput} placeholder="جستجوی نام یا موبایل مشتری..." placeholderTextColor="#64748b" value={searchQuery} onChangeText={setSearchQuery} />
       </View>
 
       {loading ? (
@@ -142,13 +116,12 @@ export default function FunnelScreen({ navigation }: any) {
       ) : (
         <ScrollView 
           horizontal 
-          inverted // راست‌چین کردن اسکرول
+          inverted
           showsHorizontalScrollIndicator={false} 
           contentContainerStyle={styles.boardContainer}
           snapToInterval={COLUMN_WIDTH + 15}
           decelerationRate="fast"
         >
-          {/* آرایه برعکس می‌شود تا لید جدید سمت راست قرار بگیرد */}
           {[...STAGES].reverse().map((stage) => {
             const columnClients = filteredClients.filter(c => c.funnel_stage === stage.id);
             return (
@@ -164,7 +137,7 @@ export default function FunnelScreen({ navigation }: any) {
                   {columnClients.length === 0 ? (
                     <View style={styles.emptyColumn}>
                       <MaterialCommunityIcons name="ghost-outline" size={40} color="rgba(255,255,255,0.1)" />
-                      <Text style={styles.emptyText}>خالی</Text>
+                      <Text style={styles.emptyText}>مشتری در این مرحله نیست</Text>
                     </View>
                   ) : (
                     columnClients.map(client => renderCard(client, stage.color))

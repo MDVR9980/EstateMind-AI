@@ -6,11 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../services/api';
 
-interface Message {
-  id: string;
-  text: string;
-  isUser: boolean;
-}
+interface Message { id: string; text: string; isUser: boolean; }
 
 export default function ChatbotScreen({ navigation }: any) {
   const [messages, setMessages] = useState<Message[]>([
@@ -22,8 +18,8 @@ export default function ChatbotScreen({ navigation }: any) {
 
   const sendMessage = async () => {
     if (!inputText.trim()) return;
-
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
     const userMsg: Message = { id: Date.now().toString(), text: inputText.trim(), isUser: true };
     setMessages(prev => [...prev, userMsg]);
     setInputText('');
@@ -71,7 +67,7 @@ export default function ChatbotScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => { Haptics.selectionAsync(); navigation.goBack(); }} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-forward" size={24} color="#f8fafc" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
@@ -110,7 +106,7 @@ export default function ChatbotScreen({ navigation }: any) {
           />
           <TouchableOpacity style={styles.sendBtn} onPress={sendMessage} disabled={isTyping || !inputText.trim()}>
             <LinearGradient colors={inputText.trim() ? ['#10b981', '#059669'] : ['#334155', '#1e293b']} style={styles.sendGradient}>
-              <Ionicons name="send" size={20} color={inputText.trim() ? "#fff" : "#94a3b8"} style={{ marginLeft: 3 }} />
+              <Ionicons name="send" size={20} color={inputText.trim() ? "#fff" : "#94a3b8"} style={Platform.OS === 'ios' ? { marginLeft: 2 } : { transform: [{scaleX: -1}] }} />
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -121,7 +117,7 @@ export default function ChatbotScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0B0F19' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15, backgroundColor: '#1E293B', borderBottomWidth: 1, borderBottomColor: '#334155' },
+  header: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15, backgroundColor: '#1E293B', borderBottomWidth: 1, borderBottomColor: '#334155' },
   backBtn: { width: 40, height: 40, backgroundColor: '#0B0F19', borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
   headerCenter: { alignItems: 'center' },
   headerTitle: { fontSize: 16, fontFamily: 'Vazir-Bold', color: '#f8fafc' },
@@ -130,13 +126,13 @@ const styles = StyleSheet.create({
   chatContainer: { padding: 15, paddingBottom: 20 },
   msgWrapper: { maxWidth: '80%', borderRadius: 20, marginBottom: 15 },
   
-  msgUser: { alignSelf: 'flex-start' },
-  gradientMsg: { padding: 15, borderBottomLeftRadius: 4, borderRadius: 20 },
+  msgUser: { alignSelf: 'flex-end' },
+  gradientMsg: { padding: 15, borderBottomRightRadius: 4, borderRadius: 20 },
   msgTextUser: { color: '#fff', textAlign: 'right', fontFamily: 'Vazir-Regular', fontSize: 14, lineHeight: 24 },
   
   aiRow: { flexDirection: 'row-reverse', alignItems: 'flex-end', marginBottom: 15 },
   aiAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(16, 185, 129, 0.1)', borderWidth: 1, borderColor: '#10b981', justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
-  msgAI: { alignSelf: 'flex-end', backgroundColor: '#1E293B', borderBottomRightRadius: 4, borderWidth: 1, borderColor: '#334155', padding: 15 },
+  msgAI: { alignSelf: 'flex-start', backgroundColor: '#1E293B', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: '#334155', padding: 15 },
   msgTextAI: { color: '#e2e8f0', textAlign: 'right', fontFamily: 'Vazir-Regular', fontSize: 14, lineHeight: 24 },
   
   typingIndicator: { flexDirection: 'row-reverse', alignItems: 'center', paddingHorizontal: 20, marginBottom: 10, gap: 10 },

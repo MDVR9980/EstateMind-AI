@@ -26,22 +26,14 @@ export default function SuperAdminScreen({ navigation }: any) {
     setLoading(true);
     try {
       const res = await api.get('/api/super-admin/agencies');
-      if(res.data && res.data.length > 0) {
-        setAgencies(res.data);
-      } else {
-        setAgencies([]);
-      }
-    } catch (e) {
-      setAgencies([]);
-    } finally {
-      setLoading(false);
-    }
+      setAgencies(res.data && res.data.length > 0 ? res.data : []);
+    } catch (e) { setAgencies([]); } 
+    finally { setLoading(false); }
   };
 
   const toggleLicense = async (id: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setAgencies(prev => prev.map(a => a.id === id ? { ...a, subscription_active: !a.subscription_active } : a));
-    
     try {
       await api.put(`/api/super-admin/agencies/${id}/toggle`);
       Toast.show({ type: 'success', text1: 'بروزرسانی شد', text2: 'وضعیت لایسنس آژانس تغییر کرد.' });
@@ -53,22 +45,16 @@ export default function SuperAdminScreen({ navigation }: any) {
 
   const submitNewAgency = async () => {
     if (!newAgency.agency_name || !newAgency.admin_username || !newAgency.admin_password) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'فیلدهای نام آژانس، نام کاربری و رمز مدیر الزامی است.' });
-      return;
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'فیلدهای نام آژانس، نام کاربری و رمز مدیر الزامی است.' }); return;
     }
-    
     try {
       await api.post('/api/super-admin/agencies/add', newAgency);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({ type: 'success', text1: 'ثبت شد!', text2: 'آژانس جدید با موفقیت راه‌اندازی شد.' });
       setModalVisible(false);
-      
       setNewAgency({ agency_name: '', owner_name: '', phone: '', city: 'تهران', admin_username: '', admin_password: '' });
       fetchAgencies(); 
-    } catch (e) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'در ساخت آژانس مشکلی پیش آمد.' });
-    }
+    } catch (e) { Toast.show({ type: 'error', text1: 'خطا', text2: 'در ساخت آژانس مشکلی پیش آمد.' }); }
   };
 
   const handleDeleteAgency = (id: number, name: string) => {
@@ -76,15 +62,11 @@ export default function SuperAdminScreen({ navigation }: any) {
     Alert.alert('حذف دائم آژانس', `آیا از حذف کامل ${name} و تمام اطلاعات آن مطمئن هستید؟`, [
       { text: 'انصراف', style: 'cancel' },
       { text: 'حذف شود', style: 'destructive', onPress: async () => {
-        // حذف لایو از UI
         setAgencies(prev => prev.filter(a => a.id !== id));
         try {
           await api.delete(`/api/super-admin/agencies/${id}`);
           Toast.show({ type: 'success', text1: 'حذف شد', text2: 'آژانس به طور کامل از دیتابیس پاک شد.' });
-        } catch (e) {
-          fetchAgencies(); // بازگشت در صورت خطا
-          Toast.show({ type: 'error', text1: 'خطا در حذف' });
-        }
+        } catch (e) { fetchAgencies(); Toast.show({ type: 'error', text1: 'خطا در حذف' }); }
       }}
     ]);
   };
@@ -109,7 +91,7 @@ export default function SuperAdminScreen({ navigation }: any) {
       </View>
       
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => Toast.show({ type: 'info', text1: 'ویرایش', text2: 'ویرایش از پنل وب امکان‌پذیر است.' })}>
           <Ionicons name="pencil" size={16} color="#3b82f6" />
           <Text style={{color: '#3b82f6', fontSize: 13, fontFamily: 'Vazir-Bold'}}>ویرایش</Text>
         </TouchableOpacity>
@@ -125,56 +107,38 @@ export default function SuperAdminScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => { Haptics.selectionAsync(); navigation.goBack(); }} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-forward" size={24} color="#f8fafc" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>مرکز فرماندهی SaaS</Text>
+        <Text style={styles.headerTitle}>مدیریت آژانس‌ها (SaaS)</Text>
         <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setModalVisible(true); }} style={styles.addBtn}>
           <Ionicons name="business" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color="#ef4444" /></View>
-      ) : (
+      {loading ? ( <View style={styles.center}><ActivityIndicator size="large" color="#ef4444" /></View> ) : (
         <FlatList
           data={agencies}
           keyExtractor={item => item.id.toString()}
           renderItem={renderAgency}
           contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={{ alignItems: 'center', marginTop: 50 }}>
-              <Ionicons name="business-outline" size={60} color="#334155" />
-              <Text style={{ color: '#64748b', fontFamily: 'Vazir-Regular', marginTop: 10 }}>آژانسی ثبت نشده است.</Text>
-            </View>
-          }
+          ListEmptyComponent={<View style={{ alignItems: 'center', marginTop: 50 }}><Ionicons name="business-outline" size={60} color="#334155" /><Text style={{ color: '#64748b', fontFamily: 'Vazir-Regular', marginTop: 10 }}>آژانسی ثبت نشده است.</Text></View>}
           ListHeaderComponent={
             <View style={{ marginBottom: 30 }}>
               <Text style={styles.sectionTitle}>گزارش فروش لایسنس (میلیون تومان)</Text>
               <View style={styles.chartBox}>
                 <LineChart
-                  data={{
-                    labels: ["فروردین", "اردیب.", "خرداد", "تیر", "مرداد", "شهریور"],
-                    datasets: [{ data: [15, 28, 34, 45, 60, 85] }]
-                  }}
-                  width={width - 40}
-                  height={250}
-                  yAxisLabel=""
-                  yAxisSuffix="m"
+                  data={{ labels: ["فروردین", "اردیب.", "خرداد", "تیر", "مرداد", "شهریور"], datasets: [{ data: [15, 28, 34, 45, 60, 85] }] }}
+                  width={width - 40} height={250} yAxisLabel="" yAxisSuffix="m"
                   chartConfig={{
-                    backgroundColor: "#1E293B",
-                    backgroundGradientFrom: "#1E293B",
-                    backgroundGradientTo: "#0B0F19",
-                    decimalPlaces: 0,
-                    color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
+                    backgroundColor: "#1E293B", backgroundGradientFrom: "#1E293B", backgroundGradientTo: "#0B0F19",
+                    decimalPlaces: 0, color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
                     labelColor: (opacity = 1) => `rgba(148, 163, 184, ${opacity})`,
-                    style: { borderRadius: 16 },
-                    propsForDots: { r: "5", strokeWidth: "2", stroke: "#ef4444" },
+                    style: { borderRadius: 16 }, propsForDots: { r: "5", strokeWidth: "2", stroke: "#ef4444" },
                     propsForLabels: { fontFamily: 'System', fontSize: 11 }
                   }}
-                  bezier
-                  style={{ borderRadius: 16, marginTop: 10 }}
+                  bezier style={{ borderRadius: 16, marginTop: 10 }}
                 />
               </View>
               <Text style={[styles.sectionTitle, { marginTop: 30 }]}>لیست آژانس‌های فعال</Text>
@@ -200,16 +164,16 @@ export default function SuperAdminScreen({ navigation }: any) {
               <TextInput style={styles.input} placeholder="مثال: آقای رضایی" placeholderTextColor="#64748b" value={newAgency.owner_name} onChangeText={(t) => setNewAgency({...newAgency, owner_name: t})} />
 
               <Text style={styles.label}>موبایل تماس</Text>
-              <TextInput style={[styles.input, {fontFamily: 'System', textAlign: 'left'}]} placeholder="0912..." keyboardType="phone-pad" placeholderTextColor="#64748b" value={newAgency.phone} onChangeText={(t) => setNewAgency({...newAgency, phone: t})} />
+              <TextInput style={[styles.input, {fontFamily: 'System', textAlign: 'right'}]} placeholder="0912..." keyboardType="phone-pad" placeholderTextColor="#64748b" value={newAgency.phone} onChangeText={(t) => setNewAgency({...newAgency, phone: t})} />
 
               <View style={styles.divider} />
               <Text style={styles.sectionSubtitle}>اطلاعات ورود مدیر سیستم (Admin)</Text>
 
               <Text style={styles.label}>نام کاربری (موبایل مدیر) *</Text>
-              <TextInput style={[styles.input, {fontFamily: 'System', textAlign: 'left'}]} placeholder="admin_modern" placeholderTextColor="#64748b" value={newAgency.admin_username} onChangeText={(t) => setNewAgency({...newAgency, admin_username: t})} autoCapitalize="none" />
+              <TextInput style={[styles.input, {fontFamily: 'System', textAlign: 'right'}]} placeholder="admin_modern" placeholderTextColor="#64748b" value={newAgency.admin_username} onChangeText={(t) => setNewAgency({...newAgency, admin_username: t})} autoCapitalize="none" />
 
               <Text style={styles.label}>رمز عبور اولیه *</Text>
-              <TextInput style={[styles.input, {fontFamily: 'System', textAlign: 'left'}]} placeholder="123456" placeholderTextColor="#64748b" value={newAgency.admin_password} onChangeText={(t) => setNewAgency({...newAgency, admin_password: t})} secureTextEntry />
+              <TextInput style={[styles.input, {fontFamily: 'System', textAlign: 'right'}]} placeholder="123456" placeholderTextColor="#64748b" value={newAgency.admin_password} onChangeText={(t) => setNewAgency({...newAgency, admin_password: t})} secureTextEntry />
 
               <TouchableOpacity style={styles.submitBtn} onPress={submitNewAgency}>
                 <Text style={styles.submitBtnText}>ایجاد و صدور لایسنس</Text>
@@ -219,20 +183,19 @@ export default function SuperAdminScreen({ navigation }: any) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0B0F19' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
+  header: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
   backBtn: { width: 40, height: 40, backgroundColor: '#1E293B', borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
   addBtn: { width: 40, height: 40, backgroundColor: '#ef4444', borderRadius: 12, justifyContent: 'center', alignItems: 'center', shadowColor: '#ef4444', shadowOpacity: 0.4, shadowRadius: 10, elevation: 5 },
   headerTitle: { fontSize: 18, fontFamily: 'Vazir-Bold', color: '#ef4444' }, 
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   
-  sectionTitle: { color: '#f8fafc', fontFamily: 'Vazir-Bold', fontSize: 16, textAlign: 'right', marginBottom: 5, lineHeight: 28, paddingTop: 5 },
+  sectionTitle: { color: '#f8fafc', fontFamily: 'Vazir-Bold', fontSize: 16, textAlign: 'right', marginBottom: 5, paddingTop: 5 },
   chartBox: { borderRadius: 16, backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#334155', paddingBottom: 10, alignItems: 'center' },
   
   agencyCard: { backgroundColor: '#1E293B', padding: 20, borderRadius: 20, marginBottom: 15, borderWidth: 1, borderColor: '#334155', elevation: 4 },
