@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Image, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Image, Dimensions, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import api from '../services/api';
 
 const { width } = Dimensions.get('window');
@@ -26,6 +28,10 @@ export default function AddPropertyScreen({ navigation }: any) {
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   
+  // Voice AI States
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [isProcessingVoice, setIsProcessingVoice] = useState(false);
+
   const [formData, setFormData] = useState({
     title: '', deal_type: 'sale', property_type: 'apartment', neighborhood: '', city: 'مشهد', address: '',
     built_area: '', rooms: '', age: '', floor: '',
@@ -35,6 +41,74 @@ export default function AddPropertyScreen({ navigation }: any) {
     images: [] as string[]
   });
 
+  // ==========================================
+  // توابع دستیار صوتی (هوش مصنوعی)
+  // ==========================================
+  async function startRecording() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Toast.show({ type: 'error', text1: 'خطا', text2: 'لطفاً دسترسی میکروفون را مجاز کنید.' });
+        return;
+      }
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      setRecording(recording);
+    } catch (err) {
+      console.error('Failed to start recording', err);
+    }
+  }
+
+  async function stopRecording() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!recording) return;
+    setRecording(null);
+    await recording.stopAndUnloadAsync();
+    const uri = recording.getURI();
+    if (uri) processVoiceWithAI(uri);
+  }
+
+  const processVoiceWithAI = async (uri: string) => {
+    setIsProcessingVoice(true);
+    Toast.show({ type: 'info', text1: 'هوش مصنوعی 🧠', text2: 'در حال استخراج فیلدها از صدای شما...' });
+    try {
+      const fileUri = Platform.OS === 'ios' && !uri.startsWith('file://') ? `file://${uri}` : uri;
+      let formVoiceData = new FormData();
+      formVoiceData.append('audio', { uri: fileUri, name: 'voice_record.m4a', type: 'audio/m4a' } as any);
+
+      const response = await api.post(`/api/properties/voice-parse`, formVoiceData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (response.data.status === 'success') {
+        const aiData = response.data.data;
+        // ادغام هوشمند دیتای استخراج شده با فیلدهای فرم
+        setFormData(prev => ({
+          ...prev,
+          title: aiData.title || prev.title,
+          neighborhood: aiData.real_neighborhood || aiData.neighborhood || prev.neighborhood,
+          built_area: aiData.built_area ? aiData.built_area.toString() : prev.built_area,
+          rooms: aiData.rooms ? aiData.rooms.toString() : prev.rooms,
+          price_total: aiData.price_total ? aiData.price_total.toString() : prev.price_total,
+          property_type: aiData.property_type === 'ویلایی' ? 'villa' : aiData.property_type === 'زمین و کلنگی' ? 'land' : 'apartment',
+          has_elevator: aiData.has_elevator || prev.has_elevator,
+          has_parking: aiData.has_parking || prev.has_parking,
+          has_store_room: aiData.has_store_room || prev.has_store_room,
+        }));
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Toast.show({ type: 'success', text1: 'جادو شد! ✨', text2: 'فیلدها بر اساس صحبت شما پر شدند.' });
+      }
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکلی در تحلیل صدا پیش آمد.' });
+    } finally {
+      setIsProcessingVoice(false);
+    }
+  };
+
+  // ==========================================
+  // توابع فرم و پیمایش
+  // ==========================================
   const nextStep = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (step === 1 && (!formData.title || !formData.neighborhood)) {
@@ -67,22 +141,15 @@ export default function AddPropertyScreen({ navigation }: any) {
   };
 
   const submitProperty = async () => {
-    // Validation
     if (formData.deal_type === 'sale' && !formData.price_total) {
-      Toast.show({ type: 'error', text1: 'خطا', text2: 'مبلغ کل فروش الزامی است.' });
-      return;
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'مبلغ کل فروش الزامی است.' }); return;
     }
     
     setIsLoading(true);
     try {
-      // فرمت‌دهی نهایی برای ارسال به بک‌اند
       let finalPrice = 0;
-      if (formData.deal_type === 'sale') {
-        finalPrice = parseFloat(formData.price_total.replace(/,/g, '') || '0');
-      } else {
-        // در رهن و اجاره معمولاً رهن را در توتال می‌فرستند (یا هر استانداردی که در بک‌اند دارید)
-        finalPrice = parseFloat(formData.price_mortgage.replace(/,/g, '') || '0');
-      }
+      if (formData.deal_type === 'sale') finalPrice = parseFloat(formData.price_total.replace(/,/g, '') || '0');
+      else finalPrice = parseFloat(formData.price_mortgage.replace(/,/g, '') || '0'); // رهن در توتال ذخیره میشود
 
       const payload = {
         title: formData.title,
@@ -114,11 +181,8 @@ export default function AddPropertyScreen({ navigation }: any) {
         Toast.show({ type: 'success', text1: 'موفقیت', text2: 'فایل شما با موفقیت در سیستم ثبت شد.' });
         navigation.navigate('Properties');
       }
-    } catch (e) {
-      Toast.show({ type: 'error', text1: 'خطا در ثبت', text2: 'مشکلی در ارتباط با سرور رخ داد.' });
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (e) { Toast.show({ type: 'error', text1: 'خطا در ثبت', text2: 'مشکلی در ارتباط با سرور رخ داد.' }); } 
+    finally { setIsLoading(false); }
   };
 
   const formatPriceInput = (value: string) => {
@@ -149,19 +213,42 @@ export default function AddPropertyScreen({ navigation }: any) {
           <Ionicons name="arrow-forward" size={24} color="#f8fafc" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>ثبت فایل جدید</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('VoiceAdd')} style={styles.micBtn}>
-          <Ionicons name="mic" size={20} color="#a855f7" />
-        </TouchableOpacity>
+        <View style={{ width: 40 }} />
       </View>
-
-      {renderStepIndicator()}
-      <Text style={styles.stepTitle}>
-        {step === 1 ? '۱. پایه و آدرس' : step === 2 ? '۲. امکانات و مشخصات' : '۳. مالی و مالک'}
-      </Text>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           
+          {/* ===================== AI VOICE BANNER ===================== */}
+          <LinearGradient colors={['rgba(168, 85, 247, 0.1)', 'rgba(59, 130, 246, 0.1)']} style={styles.voiceBanner}>
+            <View style={styles.voiceBannerContent}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.voiceBannerTitle}>دستیار صوتی هوشمند (Voice to CRM)</Text>
+                <Text style={styles.voiceBannerText}>به جای تایپ فرم، دکمه را نگه دارید و مشخصات ملک را صحبت کنید تا هوش مصنوعی فیلدها را پُر کند!</Text>
+              </View>
+              
+              <View style={styles.micBox}>
+                {isProcessingVoice ? (
+                  <ActivityIndicator size="large" color="#a855f7" />
+                ) : (
+                  <TouchableOpacity 
+                    style={[styles.micBtn, recording && styles.micBtnRecording]}
+                    onPressIn={startRecording}
+                    onPressOut={stopRecording}
+                  >
+                    <Ionicons name="mic" size={28} color="#fff" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+            {recording && <Text style={styles.recordingText}>در حال ضبط صدا... رها کنید تا پردازش شود.</Text>}
+          </LinearGradient>
+
+          {renderStepIndicator()}
+          <Text style={styles.stepTitle}>
+            {step === 1 ? '۱. پایه و آدرس' : step === 2 ? '۲. امکانات و مشخصات' : '۳. مالی و مالک'}
+          </Text>
+
           {/* ===================== STEP 1 ===================== */}
           {step === 1 && (
             <View style={styles.stepContent}>
@@ -363,10 +450,18 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0B0F19' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
   backBtn: { width: 40, height: 40, backgroundColor: '#1E293B', borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
-  micBtn: { width: 40, height: 40, backgroundColor: 'rgba(168, 85, 247, 0.1)', borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#a855f7' },
   headerTitle: { fontSize: 18, fontFamily: 'Vazir-Bold', color: '#f8fafc' },
   
-  stepContainer: { flexDirection: 'row-reverse', justifyContent: 'space-between', paddingHorizontal: 60, marginVertical: 20, position: 'relative' },
+  voiceBanner: { borderRadius: 20, padding: 15, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(168, 85, 247, 0.5)' },
+  voiceBannerContent: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
+  voiceBannerTitle: { color: '#e9d5ff', fontSize: 15, fontFamily: 'Vazir-Bold', textAlign: 'right', marginBottom: 5 },
+  voiceBannerText: { color: '#94a3b8', fontSize: 11, fontFamily: 'Vazir-Regular', textAlign: 'right', lineHeight: 18 },
+  micBox: { marginLeft: 15 },
+  micBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#a855f7', justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#a855f7', shadowOpacity: 0.5, shadowRadius: 10 },
+  micBtnRecording: { backgroundColor: '#ef4444', transform: [{ scale: 1.1 }] },
+  recordingText: { color: '#ef4444', fontSize: 11, fontFamily: 'Vazir-Bold', textAlign: 'center', marginTop: 10 },
+
+  stepContainer: { flexDirection: 'row-reverse', justifyContent: 'space-between', paddingHorizontal: 60, marginVertical: 10, position: 'relative' },
   stepLineBg: { position: 'absolute', top: 14, left: 60, right: 60, height: 2, backgroundColor: '#334155', zIndex: -1 },
   stepLineActive: { height: '100%', backgroundColor: '#10b981' },
   stepWrapper: { backgroundColor: '#0B0F19', padding: 2 },
@@ -394,7 +489,7 @@ const styles = StyleSheet.create({
   featureText: { color: '#64748b', fontFamily: 'Vazir-Bold', fontSize: 12 },
   featureTextActive: { color: '#10b981' },
 
-  persianNumberText: { color: '#34d399', fontSize: 12, fontFamily: 'Vazir-Bold', textAlign: 'left', marginTop: 5, paddingLeft: 10 },
+  persianNumberText: { color: '#34d399', fontSize: 12, fontFamily: 'Vazir-Bold', textAlign: 'right', marginTop: 5, paddingRight: 10 },
 
   uploadBtn: { backgroundColor: 'rgba(16, 185, 129, 0.05)', borderWidth: 1, borderColor: '#10b981', borderStyle: 'dashed', borderRadius: 20, padding: 25, alignItems: 'center', marginBottom: 15, marginTop: 5 },
   uploadBtnText: { color: '#10b981', marginTop: 10, fontFamily: 'Vazir-Bold', fontSize: 12 },

@@ -539,6 +539,9 @@ export default function PropertiesScreen({ navigation }: any) {
           </View>
         </View>
       </Modal>
+      <TouchableOpacity style={styles.fabAddProp} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); navigation.navigate('AddProperty'); }}>
+        <Ionicons name="add" size={32} color="#fff" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -632,5 +635,6 @@ const styles = StyleSheet.create({
   cmaSubTitle: { color: '#94a3b8', textAlign: 'right', marginBottom: 10, fontFamily: 'Vazir-Bold' },
   cmaCard: { backgroundColor: '#0B0F19', padding: 20, borderRadius: 20, borderWidth: 1, marginBottom: 20 },
   cmaTitle: { color: '#fff', fontSize: 15, fontFamily: 'Vazir-Bold', textAlign: 'right', marginBottom: 10 },
-  cmaPrice: { fontSize: 20, fontWeight: 'bold', textAlign: 'right', fontFamily: 'System', marginBottom: 15 }
+  cmaPrice: { fontSize: 20, fontWeight: 'bold', textAlign: 'right', fontFamily: 'System', marginBottom: 15 },
+  fabAddProp: { position: 'absolute', bottom: 30, left: 24, width: 60, height: 60, borderRadius: 30, backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', elevation: 10, shadowColor: '#10b981', shadowOpacity: 0.4, shadowRadius: 15, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' },
 });
