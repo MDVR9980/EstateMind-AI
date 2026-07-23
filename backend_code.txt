@@ -153,6 +153,7 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select, or_
 from app.core.models import (
     Property, Client, Deal, UploadedForm,
@@ -297,6 +298,15 @@ app = FastAPI(
     title="EstateMind AI",
     version="3.0",
     lifespan=lifespan
+)
+
+# 🌟 رفع مشکل ارتباط فرانت‌اِند و بک‌اِند (CORS) 🌟
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # به همه سایت‌ها (مثل localhost:5173) اجازه اتصال میده
+    allow_credentials=True,
+    allow_methods=["*"],  # اجازه دادن به POST, GET, OPTIONS و ...
+    allow_headers=["*"],
 )
 
 # ثبت روترها

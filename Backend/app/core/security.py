@@ -34,13 +34,21 @@ def create_access_token(data: dict) -> str:
     return encoded_jwt
 
 def get_current_user_api(request: Request, session: Session):
-    """تابع مرکزی و یکپارچه برای احراز هویت تمام API ها"""
+    # ابتدا سعی میکند از کوکی بخواند
     token = request.cookies.get("access_token")
+    
+    # 🌟 تغییر طلایی: اگر کوکی نبود، از هدر ریکت (Bearer) میخواند
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.replace("Bearer ", "")
+            
     if not token: 
         raise HTTPException(status_code=401, detail="لطفاً ابتدا وارد سیستم شوید.")
+        
     try:
         payload = jwt.decode(token.replace("Bearer ", ""), SECRET_KEY, algorithms=[ALGORITHM])
-        from app.core.models import User # ایمپورت در اینجا برای جلوگیری از تداخل (Circular Import)
+        from app.core.models import User
         user = session.exec(select(User).where(User.username == payload.get("sub"))).first()
         if not user or not user.is_active:
             raise HTTPException(status_code=401, detail="حساب کاربری یافت نشد یا مسدود است.")

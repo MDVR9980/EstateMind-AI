@@ -75,6 +75,11 @@ class ApproveRequest(BaseModel):
 
 def get_current_user_local(request: Request, session: Session):
     token = request.cookies.get("access_token")
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.replace("Bearer ", "")
+            
     if not token: return None
     try:
         payload = jwt.decode(token.replace("Bearer ", ""), SECRET_KEY, algorithms=[ALGORITHM])
@@ -658,3 +663,33 @@ def perform_virtual_staging(property_id: int, request: Request, session: Session
     session.commit()
     
     return {"status": "success", "message": "چیدمان مجازی با موفقیت انجام شد."}
+
+@router.get("/trash-list")
+def get_trash_properties(request: Request, session: Session = Depends(get_session)):
+    """دریافت فایل‌های زباله‌دان"""
+    from app.core.security import get_current_user_api
+    user = get_current_user_api(request, session)
+    props = session.exec(select(Property).where(Property.agency_id == user.agency_id, Property.status == "trash").order_by(Property.id.desc())).all()
+    return {"status": "success", "properties": props}
+
+@router.put("/{property_id}/trash")
+def move_to_trash(property_id: int, request: Request, session: Session = Depends(get_session)):
+    """انتقال فایل به زباله‌دان (Soft Delete)"""
+    user = get_current_user_local(request, session)
+    if not user: raise HTTPException(401)
+    prop = session.get(Property, property_id)
+    if prop:
+        prop.status = "trash"
+        session.commit()
+    return {"status": "success"}
+
+@router.put("/{property_id}/restore")
+def restore_property(property_id: int, request: Request, session: Session = Depends(get_session)):
+    """بازگردانی فایل از زباله‌دان به لیست فعال"""
+    user = get_current_user_local(request, session)
+    if not user: raise HTTPException(401)
+    prop = session.get(Property, property_id)
+    if prop:
+        prop.status = "active"
+        session.commit()
+    return {"status": "success"}
