@@ -1631,17 +1631,32 @@ def approve_scraped_property(property_id: int, data: ApproveRequest, request: Re
 
 @router.get("/app-list")
 def get_properties_for_app(request: Request, session: Session = Depends(get_session)):
+    """
+    قانون امنیت مطلق حریم خصوصی:
+    ۱. فایل‌های عمومی آژانس (is_exclusive == False) برای همه مشاورین و مدیران قابل رویت است.
+    ۲. فایل‌های شخصی (is_exclusive == True) فقط برای مشاوری که آن را ثبت کرده (created_by_id == user.id) نمایش داده می‌شود (حتی مدیرعامل دسترسی ندارد).
+    """
     from app.core.security import get_current_user_api
+    from sqlmodel import or_
+    
     user = get_current_user_api(request, session)
-    if user.role in ["SUPER_ADMIN", "MANAGER"]:
-        props = session.exec(select(Property).where(Property.agency_id == user.agency_id, Property.status == "active").order_by(Property.id.desc())).all()
-    else:
-        props = session.exec(
-            select(Property)
-            .where(Property.agency_id == user.agency_id, Property.status == "active")
-            .where(or_(Property.created_by_id == user.id, Property.is_exclusive == False))
-            .order_by(Property.id.desc())
-        ).all()
+    if not user:
+        raise HTTPException(status_code=401, detail="باید لاگین باشید")
+
+    # کوئری ایزوله‌سازی فایل‌های شخصی
+    props = session.exec(
+        select(Property)
+        .where(Property.agency_id == user.agency_id)
+        .where(Property.status == "active")
+        .where(
+            or_(
+                Property.is_exclusive == False, # فایل‌های عمومی آژانس
+                Property.created_by_id == user.id # فایل‌های شخصی فقط و فقط سازنده آن
+            )
+        )
+        .order_by(Property.id.desc())
+    ).all()
+    
     return {"status": "success", "properties": props}
 
 @router.get("/pending-list")

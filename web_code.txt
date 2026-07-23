@@ -1816,66 +1816,77 @@ import {
   Search, Sparkles, Plus, Bot, LogIn, 
   Calculator, Eye, Trash2, Building2, MapPin, RefreshCcw, Lock, Globe, 
   Share2, Edit, CheckCircle2, Users, Megaphone, Copy, Check, X,
-  ChevronLeft, ChevronRight, UploadCloud, Map as MapIcon, Grid
+  ChevronLeft, ChevronRight, UploadCloud, Map as MapIcon, Grid, Phone, Brain
 } from 'lucide-react';
 import api from '../services/api';
 import { formatPrice, numberToPersianWords } from '../utils/numberFormat';
 
+// تابع پارس امن عکس‌ها
+const safeParseImages = (raw: any): string[] => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 export default function Properties({ setActiveMenu }: { setActiveMenu: (m: string) => void }) {
-  // تب‌های اصلی
   const [mainTab, setMainTab] = useState<'active' | 'pending' | 'trash'>('active');
   const [privacyFilter, setPrivacyFilter] = useState<'all' | 'private' | 'public'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('همه');
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
 
-  // داده‌ها
   const [activeProps, setActiveProps] = useState<any[]>([]);
   const [pendingProps, setPendingProps] = useState<any[]>([]);
   const [trashProps, setTrashProps] = useState<any[]>([]);
-  const [mapItems, setMapItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // اینپوت ایندکس عکس برای کارت‌ها { propertyId: currentIndex }
   const [cardImageIndex, setCardImageIndex] = useState<{ [key: number]: number }>({});
 
-  // سرچ‌ها
   const [searchQuery, setSearchQuery] = useState('');
   const [aiQuery, setAiQuery] = useState('');
 
-  // 🤖 مودال ربات دیوار
+  // 🤖 ربات دیوار
   const [botModalOpen, setBotModalOpen] = useState(false);
   const [botCount, setBotCount] = useState(50);
   const [isBotStarting, setIsBotStarting] = useState(false);
 
-  // 📣 مودال تایید انتشار دیوار
+  // 📣 دیوار
   const [divarConfirmModal, setDivarConfirmModal] = useState<any>(null);
 
-  // ⚖️ مودال CMA
+  // ⚖️ 🌟 ترازوی هوشمند (۳ ستونه دقیقاً طبق اسکرین‌شات ۲ و ۳)
   const [cmaModalOpen, setCmaModalOpen] = useState(false);
-  const [cmaData, setCmaData] = useState<any>(null);
+  const [cmaTargetProp, setCmaTargetProp] = useState<any>(null);
+  const [cmaComparables, setCmaComparables] = useState<any[]>([]);
+  const [cmaCompIndex, setCmaCompIndex] = useState(0);
+  const [cmaConclusion, setCmaConclusion] = useState<string>('');
   const [cmaLoading, setCmaLoading] = useState(false);
 
-  // 📱 مودال QR Code و کاتالوگ
+  // 📱 QR Code + لینک (کامل طبق درخواست)
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [selectedPropForQr, setSelectedPropForQr] = useState<any>(null);
   const [copiedLink, setCopyLinkSuccess] = useState(false);
 
-  // 🚀 مودال انتشار در شبکه‌ها (واتساپ، تلگرام، بله، روبیکا و...)
-  const [socialModalOpen, setSocialModalOpen] = useState(false);
-  const [selectedPropForSocial, setSelectedPropForSocial] = useState<any>(null);
-
-  // 🎯 مودال مچینگ خریداران
+  // 🎯 مچینگ
   const [matchModalOpen, setMatchModalOpen] = useState(false);
   const [matchedBuyers, setMatchedBuyers] = useState<any[]>([]);
   const [matchLoading, setMatchLoading] = useState(false);
 
-  // ✏️ مودال ویرایش پیشرفته رسانه و فایل
+  // ✏️ 🌟 ویرایش پیشرفته رسانه و فایل (۳ بخش طبق اسکرین‌شات ۱)
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingProp, setEditingProp] = useState<any>(null);
   const [editingImages, setEditingImages] = useState<string[]>([]);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [isAiGeneratingEdit, setIsAiGeneratingEdit] = useState(false);
 
-  // رفرنس نقشه Leaflet
+  // 👁️ مودال کاتالوگ داخلی
+  const [catalogModalOpen, setCatalogModalOpen] = useState(false);
+  const [catalogProp, setCatalogProp] = useState<any>(null);
+  const [catalogImgIndex, setCatalogImgIndex] = useState(0);
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
@@ -1884,9 +1895,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
   }, []);
 
   useEffect(() => {
-    if (viewMode === 'map') {
-      fetchMapData();
-    }
+    if (viewMode === 'map') fetchMapData();
   }, [viewMode]);
 
   const fetchProperties = async () => {
@@ -1898,9 +1907,9 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
         api.get('/api/properties/trash-list')
       ]);
 
-      if (activeRes.status === 'fulfilled') setActiveProps(activeRes.value.data.properties || []);
-      if (pendingRes.status === 'fulfilled') setPendingProps(pendingRes.value.data.properties || []);
-      if (trashRes.status === 'fulfilled') setTrashProps(trashRes.value.data.properties || []);
+      if (activeRes.status === 'fulfilled') setActiveProps(activeRes.value.data?.properties || []);
+      if (pendingRes.status === 'fulfilled') setPendingProps(pendingRes.value.data?.properties || []);
+      if (trashRes.status === 'fulfilled') setTrashProps(trashRes.value.data?.properties || []);
     } catch (error) {
       console.error("Error fetching properties", error);
     } finally {
@@ -1911,10 +1920,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
   const fetchMapData = async () => {
     try {
       const res = await api.get('/api/properties/map-data');
-      if (res.data.status === 'success') {
-        setMapItems(res.data.data);
-        initLeafletMap(res.data.data);
-      }
+      if (res.data?.status === 'success') initLeafletMap(res.data.data || []);
     } catch (e) { console.error("Map fetch error", e); }
   };
 
@@ -1953,16 +1959,14 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
       
       const marker = L.marker([lat, lng]).addTo(map);
       marker.bindPopup(`
-        <div style="direction: rtl; text-align: right; font-family: Vazirmatn, sans-serif;">
-          <h4 style="font-weight: bold; margin-bottom: 5px; color: #0f172a;">${item.title}</h4>
-          <p style="margin: 0; color: #10b981; font-weight: bold;">${item.price}</p>
-          <p style="margin-top: 3px; font-size: 11px; color: #64748b;">محله: ${item.neighborhood}</p>
+        <div style="direction: rtl; text-align: right; font-family: sans-serif;">
+          <h4 style="font-weight: bold; margin-bottom: 5px; color: #0f172a;">${item.title || 'ملک'}</h4>
+          <p style="margin: 0; color: #10b981; font-weight: bold;">${item.price || 'توافقی'}</p>
         </div>
       `);
     });
   };
 
-  // کنترل اسلایدر عکس روی کارت
   const handlePrevImage = (propId: number, maxImages: number) => {
     setCardImageIndex(prev => ({
       ...prev,
@@ -1977,15 +1981,48 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
     }));
   };
 
-  // ==========================================
-  // توابع عملیاتی واقعی (تک تک دکمه‌ها)
-  // ==========================================
+  const openCatalogModal = (prop: any) => {
+    setCatalogProp(prop);
+    setCatalogImgIndex(0);
+    setCatalogModalOpen(true);
+  };
+
+  // ⚖️ 🌟 ترازوی هوشمند (ارزیابی مقایسه‌ای ۳ ستونه با تلورانس ۲۰٪)
+  const handleOpenSmartValuation = async (targetProp: any) => {
+    setCmaTargetProp(targetProp);
+    setCmaCompIndex(0);
+    setCmaLoading(true);
+    setCmaModalOpen(true);
+
+    try {
+      // دریافت املاک مشابه با تلورانس ۲۰ درصد قیمت
+      const res = await api.get(`/api/properties/${targetProp.id}/compare`);
+      
+      if (res.data && res.data.comparables) {
+        setCmaComparables(res.data.comparables);
+        setCmaConclusion(res.data.conclusion || 'سیستم بر اساس متراژ و منطقه این دو ملک را ارزیابی کرد.');
+      } else {
+        // فالبک برای حالت تستی
+        const minP = targetProp.price_total * 0.8;
+        const maxP = targetProp.price_total * 1.2;
+        const filteredComps = activeProps.filter(p => p.id !== targetProp.id && p.price_total >= minP && p.price_total <= maxP);
+        setCmaComparables(filteredComps);
+        setCmaConclusion('این ملک در مقایسه با فایل‌های هم‌رده منطقه از ارزشمندی بالایی برخوردار است.');
+      }
+    } catch (e) {
+      console.error(e);
+      setCmaComparables([]);
+      setCmaConclusion('فایل مشابهی در بازه تلورانس ۲۰٪ قیمت یافت نشد.');
+    } finally {
+      setCmaLoading(false);
+    }
+  };
 
   const handleStartCrawler = async () => {
     setIsBotStarting(true);
     try {
       const res = await api.post('/api/crawler/start', { target_count: botCount, city: "mashhad" });
-      alert(res.data.message);
+      alert(res.data?.message || "ربات بیدار شد!");
       setBotModalOpen(false);
       fetchProperties();
     } catch (e: any) {
@@ -1996,34 +2033,22 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
   const handleDivarLogin = async () => {
     try {
       const res = await api.post('/api/crawler/divar-login');
-      alert(res.data.message);
+      alert(res.data?.message || "مرورگر باز شد");
     } catch (e: any) { alert("خطا در باز کردن مرورگر دیوار"); }
   };
 
   const handlePublishToDivar = async (id: number) => {
     try {
       const res = await api.post(`/api/crawler/publish-to-divar/${id}`);
-      alert(res.data.message);
+      alert(res.data?.message || "درخواست ارسال شد");
       setDivarConfirmModal(null);
     } catch (e: any) { alert("خطا در ارسال به دیوار"); }
-  };
-
-  const handleCMA = async (id: number) => {
-    setCmaLoading(true);
-    setCmaModalOpen(true);
-    try {
-      const res = await api.get(`/api/pricing/analyze/${id}`);
-      setCmaData(res.data);
-    } catch (e) {
-      alert("خطا در کارشناسی قیمت");
-      setCmaModalOpen(false);
-    } finally { setCmaLoading(false); }
   };
 
   const handleAIEvaluation = async (id: number) => {
     try {
       const res = await api.post(`/api/properties/${id}/generate-ai-details`);
-      alert(`✨ نتیجه ارزیابی هوشمند AI:\n\nنقاط قوت:\n${res.data.pros}\n\nنقاط ضعف:\n${res.data.cons}`);
+      alert(`✨ نتیجه ارزیابی هوشمند AI:\n\nنقاط قوت:\n${res.data?.pros || ''}\n\nنقاط ضعف:\n${res.data?.cons || ''}`);
       fetchProperties();
     } catch (e) { alert("خطا در ارزیابی هوشمند ملک"); }
   };
@@ -2069,21 +2094,17 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
     } catch (e) { alert("خطا در حذف دائم فایل"); }
   };
 
-  // ویرایش پیشرفته: باز کردن مودال
+  // ✏️ ویرایش پیشرفته
   const openEditModal = (prop: any) => {
     setEditingProp({ ...prop });
-    let imgs: string[] = [];
-    try { imgs = JSON.parse(prop.image_urls || "[]"); } catch (e) {}
-    setEditingImages(imgs);
+    setEditingImages(safeParseImages(prop.image_urls));
     setEditModalOpen(true);
   };
 
-  // حذف عکس از گالری ویرایش
   const handleRemoveImageFromEdit = (index: number) => {
     setEditingImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  // آپلود فایل رسانه جدید در ویرایش
   const handleUploadNewMedia = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !e.target.files[0] || !editingProp) return;
     setIsUploadingMedia(true);
@@ -2101,7 +2122,20 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
     } catch (e) { alert("خطا در آپلود رسانه"); } finally { setIsUploadingMedia(false); }
   };
 
-  // ذخیره ویرایش پیشرفته
+  const handleAIEvalInEdit = async () => {
+    if (!editingProp) return;
+    setIsAiGeneratingEdit(true);
+    try {
+      const res = await api.post(`/api/properties/${editingProp.id}/generate-ai-details`);
+      setEditingProp((prev: any) => ({
+        ...prev,
+        ai_pros: res.data?.pros || prev.ai_pros,
+        ai_cons: res.data?.cons || prev.ai_cons
+      }));
+      alert("مزایا و معایب جدید توسط هوش مصنوعی کشف شد.");
+    } catch (e) { alert("خطا در کشف اتوماتیک AI"); } finally { setIsAiGeneratingEdit(false); }
+  };
+
   const handleSaveAdvancedEdit = async () => {
     if (!editingProp) return;
     try {
@@ -2119,45 +2153,40 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
     } catch (e) { alert("خطا در ذخیره ویرایش"); }
   };
 
-  // اشتراک‌گذاری شبکه پیام‌رسان‌ها
-  const handleSocialShare = (platform: string) => {
-    if (!selectedPropForSocial) return;
-    const catalogUrl = `http://127.0.0.1:8000/catalog/property/${selectedPropForSocial.id}`;
-    const text = `🏢 *${selectedPropForSocial.title}*\n📍 محله: ${selectedPropForSocial.neighborhood}\n💰 قیمت: ${formatPrice(selectedPropForSocial.price_total)}\n\nمشاهده تصاویر و جزئیات بیشتر:\n${catalogUrl}`;
-
-    let url = '';
-    if (platform === 'whatsapp') url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
-    else if (platform === 'telegram') url = `https://t.me/share/url?url=${encodeURIComponent(catalogUrl)}&text=${encodeURIComponent(text)}`;
-    else if (platform === 'bale') url = `bale://share?text=${encodeURIComponent(text)}`;
-    else if (platform === 'rubika') url = `rubika://share?text=${encodeURIComponent(text)}`;
-
-    if (url) window.open(url, '_blank');
-    else {
-      navigator.clipboard.writeText(text);
-      alert("متن آگهی کپی شد!");
-    }
+  const handleMatchBuyers = async (id: number) => {
+    setMatchLoading(true);
+    setMatchModalOpen(true);
+    try {
+      const res = await api.get(`/api/properties/${id}/match-buyers`);
+      setMatchedBuyers(res.data?.matches || []);
+    } catch (e) {
+      alert("خطا در مچینگ خریداران");
+      setMatchModalOpen(false);
+    } finally { setMatchLoading(false); }
   };
 
-  // 🧠 موتور فیلتر چند لایه پیشرفته
+  // 🧠 فیلتر هوشمند
   const getFilteredData = () => {
     let rawList = mainTab === 'active' ? activeProps : mainTab === 'pending' ? pendingProps : trashProps;
 
+    if (!Array.isArray(rawList)) return [];
+
     if (mainTab === 'active') {
-      if (privacyFilter === 'private') rawList = rawList.filter(p => p.is_exclusive === true);
-      else if (privacyFilter === 'public') rawList = rawList.filter(p => p.is_exclusive === false);
+      if (privacyFilter === 'private') rawList = rawList.filter(p => p?.is_exclusive === true);
+      else if (privacyFilter === 'public') rawList = rawList.filter(p => p?.is_exclusive === false);
     }
 
     if (categoryFilter !== 'همه') {
-      if (categoryFilter === 'آپارتمان') rawList = rawList.filter(p => p.property_type === 'آپارتمان' || p.property_type === 'apartment');
-      else if (categoryFilter === 'ویلایی') rawList = rawList.filter(p => p.property_type === 'ویلایی' || p.property_type === 'villa');
-      else if (categoryFilter === 'زمین و کلنگی') rawList = rawList.filter(p => p.property_type?.includes('زمین') || p.property_type?.includes('کلنگی') || p.property_type === 'land');
-      else if (categoryFilter === 'پنت‌هاوس') rawList = rawList.filter(p => p.title?.includes('پنت') || p.description?.includes('پنت'));
-      else if (categoryFilter === 'فروش') rawList = rawList.filter(p => p.deal_type === 'فروش' || p.deal_type === 'SALE');
-      else if (categoryFilter === 'اجاره') rawList = rawList.filter(p => p.deal_type === 'رهن و اجاره' || p.deal_type === 'RENT');
+      if (categoryFilter === 'آپارتمان') rawList = rawList.filter(p => p?.property_type === 'آپارتمان' || p?.property_type === 'apartment');
+      else if (categoryFilter === 'ویلایی') rawList = rawList.filter(p => p?.property_type === 'ویلایی' || p?.property_type === 'villa');
+      else if (categoryFilter === 'زمین و کلنگی') rawList = rawList.filter(p => p?.property_type?.includes('زمین') || p?.property_type?.includes('کلنگی') || p?.property_type === 'land');
+      else if (categoryFilter === 'پنت‌هاوس') rawList = rawList.filter(p => p?.title?.includes('پنت') || p?.description?.includes('پنت'));
+      else if (categoryFilter === 'فروش') rawList = rawList.filter(p => p?.deal_type === 'فروش' || p?.deal_type === 'SALE');
+      else if (categoryFilter === 'اجاره') rawList = rawList.filter(p => p?.deal_type === 'رهن و اجاره' || p?.deal_type === 'RENT');
     }
 
     if (searchQuery) {
-      rawList = rawList.filter(p => p.title?.includes(searchQuery) || p.neighborhood?.includes(searchQuery));
+      rawList = rawList.filter(p => p?.title?.includes(searchQuery) || p?.neighborhood?.includes(searchQuery));
     }
 
     return rawList;
@@ -2168,7 +2197,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
   return (
     <div className="animate-fade-in-up pb-24" dir="rtl">
       
-      {/* هدر اصلی */}
+      {/* هدر */}
       <div className="flex flex-col lg:flex-row items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
@@ -2179,7 +2208,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
         
         <div className="flex flex-wrap items-center gap-3">
           <button onClick={() => setViewMode(v => v === 'grid' ? 'map' : 'grid')} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-600/20">
-            {viewMode === 'grid' ? <><MapIcon className="w-4 h-4"/> نمایش نقشه</> : <><Building2 className="w-4 h-4"/> نمایش کارت‌ها</>}
+            {viewMode === 'grid' ? <><MapIcon className="w-4 h-4"/> نمایش نقشه</> : <><Grid className="w-4 h-4"/> نمایش کارت‌ها</>}
           </button>
 
           <button onClick={() => setActiveMenu('add_property')} className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-emerald-500/20">
@@ -2196,7 +2225,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
         </div>
       </div>
 
-      {/* سرچ‌بار و فیلترها */}
+      {/* سرچ‌بار و تب‌ها */}
       <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-5 mb-6 shadow-2xl space-y-4">
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2207,7 +2236,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
               placeholder="جستجوی عامیانه با هوش مصنوعی (مثال: یه خونه نورگیر سمت سجاد...)"
               className="w-full bg-purple-500/5 border border-purple-500/20 rounded-2xl pr-10 pl-20 py-3 text-xs text-purple-100 placeholder:text-purple-400/50 focus:outline-none focus:border-purple-500 transition-all"
             />
-            <button className="absolute left-2 top-1/2 -translate-y-1/2 bg-purple-500 hover:bg-purple-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-500/20">
+            <button className="absolute left-2 top-1/2 -translate-y-1/2 bg-purple-500 hover:bg-purple-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all">
               بگرد
             </button>
           </div>
@@ -2222,7 +2251,6 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
           </div>
         </div>
 
-        {/* تب‌ها و زیرتب‌های حریم خصوصی */}
         <div className="flex flex-col lg:flex-row items-center justify-between gap-4 pt-2 border-t border-slate-800">
           
           <div className="flex items-center gap-1.5 bg-slate-800/60 p-1.5 rounded-2xl border border-slate-700/50 w-full lg:w-auto">
@@ -2252,7 +2280,6 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
           )}
         </div>
 
-        {/* چیپ‌های دسته‌بندی سریع */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1">
           <span className="text-xs text-slate-500 font-bold ml-2">دسته:</span>
           {['همه', 'آپارتمان', 'ویلایی', 'زمین و کلنگی', 'پنت‌هاوس', 'فروش', 'اجاره'].map((cat) => (
@@ -2282,27 +2309,24 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
           <p className="text-slate-400 text-sm font-bold">هیچ فایلی یافت نشد.</p>
         </div>
       ) : (
-        /* گرید اصلی کارت‌های املاک */
+        /* گرید کارت‌های املاک */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
           {filteredProperties.map((prop) => {
-            let imgs: string[] = [];
-            try { imgs = JSON.parse(prop.image_urls || "[]"); } catch(e) {}
-
-            const activeImgIdx = cardImageIndex[prop.id] || 0;
-            const currentImgUrl = imgs.length > 0 ? (imgs[activeImgIdx].startsWith('http') ? imgs[activeImgIdx] : `http://127.0.0.1:8000${imgs[activeImgIdx]}`) : '';
+            const imgs = safeParseImages(prop?.image_urls);
+            const activeImgIdx = cardImageIndex[prop?.id] || 0;
+            const currentImgUrl = imgs.length > 0 ? (imgs[activeImgIdx]?.startsWith('http') ? imgs[activeImgIdx] : `http://127.0.0.1:8000${imgs[activeImgIdx]}`) : '';
 
             return (
               <div key={prop.id} className="bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-3xl overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col">
                 
-                {/* 🌟 بخش اسلایدر عکس و فیلم رو کارت 🌟 */}
+                {/* اسلایدر عکس */}
                 <div className="relative h-56 bg-slate-950 overflow-hidden group">
                   {currentImgUrl ? (
-                    <img src={currentImgUrl} alt={prop.title} className="w-full h-full object-cover transition-all duration-300" />
+                    <img src={currentImgUrl} alt={prop.title || 'ملک'} className="w-full h-full object-cover transition-all duration-300" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-slate-950"><Building2 className="w-12 h-12 text-slate-800" /></div>
                   )}
 
-                  {/* دکمه‌های اسلاید چپ و راست */}
                   {imgs.length > 1 && (
                     <>
                       <button 
@@ -2317,13 +2341,13 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                       >
                         <ChevronLeft className="w-4 h-4" />
                       </button>
-                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-slate-950/80 px-2 py-0.5 rounded-full border border-slate-800 text-[10px] text-slate-300 font-mono nums-fa">
-                        {activeImgIdx + 1} / {imgs.length}
+                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-slate-950/80 px-2.5 py-0.5 rounded-full border border-slate-800 text-[10px] text-slate-300 font-mono nums-fa">
+                        {activeImgIdx + 1} از {imgs.length} عکس
                       </div>
                     </>
                   )}
 
-                  {/* نشان‌های بالایی */}
+                  {/* نشان‌های حریم خصوصی و نوع معامله */}
                   <div className="absolute top-3 right-3 flex gap-2 z-10">
                     <span className={`px-3 py-1 rounded-xl text-[11px] font-bold backdrop-blur-md border shadow-lg ${prop.is_exclusive ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-blue-500/20 text-blue-300 border-blue-500/40'}`}>
                       {prop.is_exclusive ? '🔒 شخصی' : '👁️ عمومی'}
@@ -2338,13 +2362,13 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                   </div>
                 </div>
 
-                {/* محتوای کارت */}
+                {/* محتوای متنی کارت */}
                 <div className="p-5 flex-1 flex flex-col">
                   <h3 className="text-base font-bold text-slate-100 mb-2 line-clamp-1">{prop.title}</h3>
                   
                   <div className="flex items-center justify-between mb-3 text-xs text-slate-400">
                     <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-rose-400" /> {prop.neighborhood || 'سجاد'}</span>
-                    <span className="text-slate-400 font-mono nums-fa">کد فایل: {prop.id}</span>
+                    <span className="text-slate-400 font-mono nums-fa">کد فایل: #{prop.id}</span>
                   </div>
 
                   <div className="mb-4 bg-slate-950/60 p-3 rounded-2xl border border-slate-800/80">
@@ -2353,7 +2377,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                     {prop.price_total > 0 && <p className="text-[10px] text-emerald-500/80 mt-1 font-bold">{numberToPersianWords(prop.price_total)}</p>}
                   </div>
 
-                  {/* 🌟 بخش تحلیل هوش مصنوعی (نقاط قوت/ضعف) 🌟 */}
+                  {/* 🌟 تحلیل هوش مصنوعی (نقاط قوت/ضعف) 🌟 */}
                   {(prop.ai_pros || prop.ai_cons) && (
                     <div className="bg-purple-950/20 border border-purple-500/20 rounded-2xl p-3.5 mb-4 space-y-2">
                       <p className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
@@ -2372,16 +2396,16 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                     </div>
                   )}
 
-                  {/* 🌟 تمام دکمه‌های کاملاً واقعی 🌟 */}
+                  {/* 🌟 تمامی دکمه‌های عملیاتی کارت 🌟 */}
                   <div className="mt-auto pt-3 border-t border-slate-800/80 space-y-2">
                     
                     {mainTab === 'pending' ? (
                       /* اکشن‌های صندوق ربات */
                       <div className="grid grid-cols-3 gap-2">
-                        <button onClick={() => handleApprovePending(prop.id, false)} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1">
+                        <button onClick={() => handleApprovePending(prop.id, false)} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1 shadow-lg shadow-emerald-500/20">
                           <CheckCircle2 className="w-4 h-4" /> ثبت عمومی
                         </button>
-                        <button onClick={() => handleApprovePending(prop.id, true)} className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1">
+                        <button onClick={() => handleApprovePending(prop.id, true)} className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1 shadow-lg shadow-amber-500/20">
                           <Lock className="w-4 h-4" /> ثبت شخصی
                         </button>
                         <button onClick={() => handleMoveToTrash(prop.id)} className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1">
@@ -2399,17 +2423,19 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                         </button>
                       </div>
                     ) : (
-                      /* اکشن‌های اصلی فایل‌های فعال */
+                      /* اکشن‌های کامل فایل‌های فعال */
                       <>
                         <button onClick={() => setDivarConfirmModal(prop)} className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-rose-500/20">
                           <Megaphone className="w-4 h-4" /> انتشار یک‌کلیکی در دیوار
                         </button>
 
                         <div className="grid grid-cols-2 gap-2">
-                          <button onClick={() => handleCMA(prop.id)} className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1">
+                          {/* 🌟 ارزیابی هوشمند ترازویی ۳ ستونه با ۲۰٪ تلورانس 🌟 */}
+                          <button onClick={() => handleOpenSmartValuation(prop)} className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1">
                             <Calculator className="w-3.5 h-3.5" /> کارشناسی قیمت (CMA)
                           </button>
-                          <button onClick={() => window.open(`http://127.0.0.1:8000/catalog/property/${prop.id}`, '_blank')} className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1">
+
+                          <button onClick={() => openCatalogModal(prop)} className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1">
                             <Eye className="w-3.5 h-3.5" /> مشاهده کاتالوگ
                           </button>
                         </div>
@@ -2419,7 +2445,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                             <Sparkles className="w-3.5 h-3.5" /> ارزیابی هوشمند
                           </button>
 
-                          {/* 🌟 دکمه عمومی کردن فقط برای فایل‌های شخصی 🌟 */}
+                          {/* قانون یک‌طرفه: فقط برای شخصی دکمه عمومی‌سازی ظاهر می‌شود */}
                           {prop.is_exclusive ? (
                             <button onClick={() => handleMakePublic(prop.id)} className="bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1">
                               <Globe className="w-3.5 h-3.5" /> عمومی کردن
@@ -2455,131 +2481,150 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
       )}
 
       {/* ==================================================== */}
-      {/* 📣 MODAL 1: تایید انتشار در دیوار (اسکرین‌شات ۸) */}
+      {/* ⚖️ 🌟 MODAL 1: ترازوی هوشمند (۳ ستونه دقیقاً مطابق اسکرین‌شات ۲ و ۳) */}
       {/* ==================================================== */}
-      {divarConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-fade-in-up text-center">
-            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mx-auto mb-4">
-              <Megaphone className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-bold text-slate-100 mb-2">انتشار در دیوار؟</h3>
-            <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-              ربات به صورت خودکار فرم دیوار را با اطلاعات این فایل پر می‌کند.
-            </p>
+      {cmaModalOpen && cmaTargetProp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-6xl p-6 lg:p-8 shadow-2xl animate-fade-in-up max-h-[92vh] overflow-y-auto relative">
+            <button onClick={() => setCmaModalOpen(false)} className="absolute left-6 top-6 text-slate-500 hover:text-white bg-slate-800 p-2 rounded-full transition-all z-20">
+              <X className="w-5 h-5"/>
+            </button>
 
-            <div className="flex gap-3">
-              <button onClick={() => setDivarConfirmModal(null)} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-xl text-xs transition-all">
-                انصراف
-              </button>
-              <button onClick={() => handlePublishToDivar(divarConfirmModal.id)} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs transition-all shadow-lg shadow-indigo-600/20">
-                بله، منتشر کن
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            <h3 className="text-xl font-bold text-amber-400 mb-6 flex items-center gap-2">
+              <Calculator className="w-6 h-6"/> ترازوی هوشمند کارشناسی قیمت و ارزیابی رقبا ⚖️
+            </h3>
 
-      {/* ==================================================== */}
-      {/* ✏️ MODAL 2: ویرایش پیشرفته رسانه و فایل (اسکرین‌شات ۶ و ۷) */}
-      {/* ==================================================== */}
-      {editModalOpen && editingProp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-fade-in-up max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
-              <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                <Edit className="w-5 h-5 text-purple-400"/> ویرایش پیشرفته رسانه و فایل
-              </h3>
-              <button onClick={() => setEditModalOpen(false)} className="text-slate-500 hover:text-white"><X className="w-5 h-5"/></button>
-            </div>
-
-            <div className="space-y-6">
-              {/* بخش ۱: اطلاعات اصلی */}
-              <div className="space-y-4">
-                <h4 className="text-xs font-bold text-emerald-400">۱. اطلاعات اصلی</h4>
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1.5">عنوان آگهی:</label>
-                  <input type="text" value={editingProp.title} onChange={e => setEditingProp({...editingProp, title: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-slate-100 outline-none focus:border-purple-500" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5">قیمت کل (تومان):</label>
-                    <input type="number" value={editingProp.price_total} onChange={e => setEditingProp({...editingProp, price_total: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-emerald-400 font-bold outline-none nums-fa" dir="ltr" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5">تلفن تماس مالک:</label>
-                    <input type="text" value={editingProp.owner_phone || ''} onChange={e => setEditingProp({...editingProp, owner_phone: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-slate-100 outline-none nums-fa" dir="ltr" />
-                  </div>
-                </div>
+            {cmaLoading ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-sm text-amber-400 font-bold">در حال پردازش تلورانس ۲۰٪ قیمت و مقایسه هوشمند با املاک بازار...</p>
               </div>
-
-              {/* بخش ۲: مزایا و معایب AI */}
-              <div className="space-y-4 pt-4 border-t border-slate-800">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-purple-400">۲. مزایا و معایب هوشمند</h4>
-                  <button onClick={() => handleAIEvaluation(editingProp.id)} className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1">
-                    <Sparkles className="w-3 h-3"/> کشف اتوماتیک AI
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-emerald-400 mb-1.5">نقاط قوت:</label>
-                    <textarea rows={3} value={editingProp.ai_pros || ''} onChange={e => setEditingProp({...editingProp, ai_pros: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 outline-none focus:border-purple-500 resize-none" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-rose-400 mb-1.5">نقاط ضعف:</label>
-                    <textarea rows={3} value={editingProp.ai_cons || ''} onChange={e => setEditingProp({...editingProp, ai_cons: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 outline-none focus:border-purple-500 resize-none" />
-                  </div>
-                </div>
-              </div>
-
-              {/* بخش ۳: مدیریت گالری عکس و فیلم MP4 */}
-              <div className="space-y-4 pt-4 border-t border-slate-800">
-                <h4 className="text-xs font-bold text-blue-400">۳. مدیریت گالری عکس و فیلم (MP4)</h4>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-                  {editingImages.map((img, idx) => (
-                    <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
-                      <img src={img.startsWith('http') ? img : `http://127.0.0.1:8000${img}`} alt="media" className="w-full h-full object-cover" />
+                {/* ستون ۱ (راست): ملک هدف شما */}
+                <div className="bg-slate-950/80 border border-emerald-500/30 rounded-3xl p-5 flex flex-col justify-between relative overflow-hidden">
+                  <span className="absolute top-3 right-3 bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded-xl shadow-lg">
+                    فایل هدف شما 🎯
+                  </span>
+                  
+                  <div>
+                    <div className="h-44 bg-slate-900 rounded-2xl overflow-hidden mb-4 border border-slate-800 mt-6">
+                      {safeParseImages(cmaTargetProp.image_urls)[0] ? (
+                        <img src={safeParseImages(cmaTargetProp.image_urls)[0].startsWith('http') ? safeParseImages(cmaTargetProp.image_urls)[0] : `http://127.0.0.1:8000${safeParseImages(cmaTargetProp.image_urls)[0]}`} className="w-full h-full object-cover" alt="target" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center"><Building2 className="w-10 h-10 text-slate-700"/></div>
+                      )}
+                    </div>
+
+                    <h4 className="text-sm font-bold text-slate-100 mb-2">{cmaTargetProp.title}</h4>
+                    <p className="text-lg font-bold text-emerald-400 nums-fa mb-4">{formatPrice(cmaTargetProp.price_total)}</p>
+
+                    <div className="bg-emerald-950/20 border border-emerald-500/20 rounded-2xl p-3 space-y-2 mb-3">
+                      <p className="text-[11px] font-bold text-emerald-400">✨ نقاط قوت:</p>
+                      <p className="text-[11px] text-slate-300 leading-relaxed">{cmaTargetProp.ai_pros || 'دارای موقعیت عالی و متریال درجه یک'}</p>
+                    </div>
+
+                    <div className="bg-rose-950/20 border border-rose-500/20 rounded-2xl p-3 space-y-2">
+                      <p className="text-[11px] font-bold text-rose-400">⚠️ نقاط ضعف:</p>
+                      <p className="text-[11px] text-slate-300 leading-relaxed">{cmaTargetProp.ai_cons || 'عدم درج عکس واقعی یا نیاز به بررسی سن بنا'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ستون ۲ (وسط): ملک رقیب در بازار + دکمه‌های ورق زدن */}
+                <div className="bg-slate-950/80 border border-amber-500/30 rounded-3xl p-5 flex flex-col justify-between relative overflow-hidden">
+                  <span className="absolute top-3 right-3 bg-amber-500 text-slate-950 text-[10px] font-bold px-3 py-1 rounded-xl shadow-lg">
+                    رقیب در بازار (تلورانس ۲۰٪)
+                  </span>
+
+                  <div>
+                    {cmaComparables.length > 0 ? (
+                      (() => {
+                        const currentComp = cmaComparables[cmaCompIndex] || cmaComparables[0];
+                        const compImgs = safeParseImages(currentComp.image_urls);
+                        const compImgUrl = compImgs[0] ? (compImgs[0].startsWith('http') ? compImgs[0] : `http://127.0.0.1:8000${compImgs[0]}`) : '';
+
+                        return (
+                          <>
+                            <div className="h-44 bg-slate-900 rounded-2xl overflow-hidden mb-4 border border-slate-800 mt-6 relative">
+                              {compImgUrl ? (
+                                <img src={compImgUrl} className="w-full h-full object-cover" alt="comp" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center"><Building2 className="w-10 h-10 text-slate-700"/></div>
+                              )}
+                            </div>
+
+                            <h4 className="text-sm font-bold text-slate-100 mb-2">{currentComp.title}</h4>
+                            <p className="text-lg font-bold text-amber-400 nums-fa mb-4">{formatPrice(currentComp.price_total || currentComp.price)}</p>
+
+                            <div className="bg-emerald-950/20 border border-emerald-500/20 rounded-2xl p-3 space-y-2 mb-3">
+                              <p className="text-[11px] font-bold text-emerald-400">✨ نقاط قوت رقیب:</p>
+                              <p className="text-[11px] text-slate-300 leading-relaxed">{currentComp.ai_pros || currentComp.pros || 'موقعیت مکانی مناسب'}</p>
+                            </div>
+
+                            <div className="bg-rose-950/20 border border-rose-500/20 rounded-2xl p-3 space-y-2">
+                              <p className="text-[11px] font-bold text-rose-400">⚠️ نقاط ضعف رقیب:</p>
+                              <p className="text-[11px] text-slate-300 leading-relaxed">{currentComp.ai_cons || currentComp.cons || 'عدم درج تصویر واقعی'}</p>
+                            </div>
+                          </>
+                        );
+                      })()
+                    ) : (
+                      <div className="text-center py-20 text-slate-500 text-xs">ملک دیگری در بازه ۲۰٪ قیمت یافت نشد.</div>
+                    )}
+                  </div>
+
+                  {/* دکمه‌های جابجایی بین رقبا */}
+                  {cmaComparables.length > 1 && (
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-800 mt-4">
                       <button 
-                        onClick={() => handleRemoveImageFromEdit(idx)}
-                        className="absolute top-1 right-1 bg-rose-500 text-white p-1 rounded-full shadow-lg hover:bg-rose-600 transition-all"
+                        onClick={() => setCmaCompIndex(prev => prev === 0 ? cmaComparables.length - 1 : prev - 1)}
+                        className="bg-slate-800 hover:bg-slate-700 text-slate-200 p-2.5 rounded-xl border border-slate-700 transition-all flex items-center gap-1 text-xs font-bold"
                       >
-                        <X className="w-3 h-3" />
+                        <ChevronRight className="w-4 h-4"/> رقیب قبلی
+                      </button>
+                      <span className="text-xs text-slate-400 font-mono nums-fa">{cmaCompIndex + 1} از {cmaComparables.length}</span>
+                      <button 
+                        onClick={() => setCmaCompIndex(prev => prev === cmaComparables.length - 1 ? 0 : prev + 1)}
+                        className="bg-slate-800 hover:bg-slate-700 text-slate-200 p-2.5 rounded-xl border border-slate-700 transition-all flex items-center gap-1 text-xs font-bold"
+                      >
+                        رقیب بعدی <ChevronLeft className="w-4 h-4"/>
                       </button>
                     </div>
-                  ))}
+                  )}
                 </div>
 
-                {/* باکس آپلود فایل جدید */}
-                <label className="border-2 border-dashed border-slate-800 hover:border-purple-500/50 bg-slate-950/40 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-colors">
-                  <UploadCloud className="w-8 h-8 text-slate-500 mb-2" />
-                  <span className="text-xs font-bold text-purple-400">برای آپلود عکس یا ویدیو کلیک کنید</span>
-                  <input type="file" onChange={handleUploadNewMedia} accept="image/*,video/mp4" className="hidden" />
-                </label>
-              </div>
+                {/* ستون ۳ (چپ): جمع‌بندی هوش مصنوعی */}
+                <div className="bg-purple-950/20 border border-purple-500/30 rounded-3xl p-6 flex flex-col justify-between text-center relative overflow-hidden">
+                  <div>
+                    <div className="w-16 h-16 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mx-auto mb-4">
+                      <Brain className="w-8 h-8" />
+                    </div>
+                    <h4 className="text-base font-bold text-purple-300 mb-4">جمع‌بندی تحلیلی هوش مصنوعی</h4>
+                    <p className="text-xs text-slate-200 leading-relaxed text-right bg-slate-950/80 p-5 rounded-2xl border border-slate-800/80 whitespace-pre-line">
+                      {cmaConclusion}
+                    </p>
+                  </div>
 
-              {/* دکمه‌های پایانی */}
-              <div className="flex gap-3 pt-4 border-t border-slate-800">
-                <button onClick={() => setEditModalOpen(false)} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-xl text-xs transition-all">
-                  انصراف
-                </button>
-                <button onClick={handleSaveAdvancedEdit} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl text-xs transition-all shadow-lg shadow-purple-600/20">
-                  ذخیره تغییرات
-                </button>
+                  <button onClick={() => setCmaModalOpen(false)} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3.5 rounded-xl text-xs transition-all shadow-lg shadow-purple-600/20 mt-6">
+                    تایید و بستن ترازو
+                  </button>
+                </div>
+
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
 
       {/* ==================================================== */}
-      {/* 📱 MODAL 3: اشتراک‌گذاری هوشمند & QR Code (اسکرین‌شات ۳) */}
+      {/* 📱 🌟 MODAL 2: کد QR و لینک مستقیم کاتالوگ (اسکرین‌شات ۳) */}
       {/* ==================================================== */}
       {qrModalOpen && selectedPropForQr && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl animate-fade-in-up text-center relative">
-            <button onClick={() => setQrModalOpen(false)} className="absolute left-4 top-4 text-slate-500 hover:text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 lg:p-8 shadow-2xl animate-fade-in-up text-center relative">
+            <button onClick={() => setQrModalOpen(false)} className="absolute left-4 top-4 text-slate-500 hover:text-white bg-slate-800 p-2 rounded-full">
               <X className="w-5 h-5"/>
             </button>
 
@@ -2595,6 +2640,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
               />
             </div>
 
+            {/* 🌟 اینپوت حاوی لینک مستقیم کاتالوگ 🌟 */}
             <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl p-2 mb-6">
               <input 
                 type="text" readOnly value={`http://127.0.0.1:8000/catalog/property/${selectedPropForQr.id}`}
@@ -2620,50 +2666,118 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
       )}
 
       {/* ==================================================== */}
-      {/* ⚖️ MODAL 4: ترازوی هوشمند (CMA - اسکرین‌شات ۵) */}
+      {/* ✏️ 🌟 MODAL 3: ویرایش پیشرفته رسانه و فایل (اسکرین‌شات ۱) */}
       {/* ==================================================== */}
-      {cmaModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-fade-in-up max-h-[90vh] overflow-y-auto">
+      {editModalOpen && editingProp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl p-6 lg:p-8 shadow-2xl animate-fade-in-up max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
-              <h3 className="text-lg font-bold text-amber-400 flex items-center gap-2">
-                <Calculator className="w-5 h-5"/> ترازوی هوشمند کارشناسی قیمت (CMA)
+              <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <Edit className="w-5 h-5 text-purple-400"/> ویرایش پیشرفته رسانه و فایل ✏️
               </h3>
-              <button onClick={() => setCmaModalOpen(false)} className="text-slate-500 hover:text-white"><X className="w-5 h-5"/></button>
+              <button onClick={() => setEditModalOpen(false)} className="text-slate-500 hover:text-white bg-slate-800 p-2 rounded-full"><X className="w-5 h-5"/></button>
             </div>
 
-            {cmaLoading ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-xs text-amber-400 font-bold">در حال آنالیز قیمت منطقه و مقایسه با فایل‌های مشابه...</p>
+            <div className="space-y-6">
+              {/* بخش ۱: اطلاعات اصلی */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-emerald-400">۱. اطلاعات اصلی</h4>
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">عنوان آگهی:</label>
+                  <input type="text" value={editingProp.title || ''} onChange={e => setEditingProp({...editingProp, title: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-slate-100 outline-none focus:border-purple-500" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5">قیمت کل (تومان):</label>
+                    <input type="number" value={editingProp.price_total || 0} onChange={e => setEditingProp({...editingProp, price_total: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-emerald-400 font-bold outline-none nums-fa" dir="ltr" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5">تلفن تماس مالک:</label>
+                    <input type="text" value={editingProp.owner_phone || ''} onChange={e => setEditingProp({...editingProp, owner_phone: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-slate-100 outline-none nums-fa" dir="ltr" />
+                  </div>
+                </div>
               </div>
-            ) : cmaData ? (
-              <div className="space-y-6">
-                <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl">
-                  <h4 className="text-xs font-bold text-amber-400 mb-2">💡 تحلیل استراتژیک قیمت‌گذاری:</h4>
-                  <p className="text-xs text-slate-200 leading-relaxed">{cmaData.scenarios?.market?.days || 'تحلیل بازار با موفقیت انجام شد.'}</p>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center">
-                    <p className="text-[11px] text-slate-500 mb-1">سناریوی فروش فوری (۵ روزه)</p>
-                    <p className="text-sm font-bold text-rose-400 nums-fa">{formatPrice(cmaData.scenarios?.conservative?.price || 0)}</p>
+              {/* بخش ۲: مزایا و معایب AI با دکمه کشف اتوماتیک */}
+              <div className="space-y-4 pt-4 border-t border-slate-800">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-purple-400">۲. مزایا و معایب هوشمند</h4>
+                  <button onClick={handleAIEvalInEdit} disabled={isAiGeneratingEdit} className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1">
+                    {isAiGeneratingEdit ? <div className="w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div> : <><Sparkles className="w-3.5 h-3.5"/> کشف اتوماتیک AI</>}
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-emerald-400 mb-1.5">نقاط قوت:</label>
+                    <textarea rows={4} value={editingProp.ai_pros || ''} onChange={e => setEditingProp({...editingProp, ai_pros: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 outline-none focus:border-purple-500 resize-none" />
                   </div>
-                  <div className="bg-slate-950 p-4 rounded-2xl border border-emerald-500/30 text-center">
-                    <p className="text-[11px] text-slate-500 mb-1">قیمت کارشناسی بازار (نرمال)</p>
-                    <p className="text-base font-bold text-emerald-400 nums-fa">{formatPrice(cmaData.suggested_price || 0)}</p>
-                  </div>
-                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center">
-                    <p className="text-[11px] text-slate-500 mb-1">قیمت پیشنهادی مالک</p>
-                    <p className="text-sm font-bold text-amber-400 nums-fa">{formatPrice(cmaData.owner_price || 0)}</p>
+                  <div>
+                    <label className="block text-xs font-bold text-rose-400 mb-1.5">نقاط ضعف:</label>
+                    <textarea rows={4} value={editingProp.ai_cons || ''} onChange={e => setEditingProp({...editingProp, ai_cons: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 outline-none focus:border-purple-500 resize-none" />
                   </div>
                 </div>
+              </div>
 
-                <button onClick={() => setCmaModalOpen(false)} className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-xl text-xs transition-all">
-                  متوجه شدم
+              {/* بخش ۳: مدیریت گالری و آپلود جدید */}
+              <div className="space-y-4 pt-4 border-t border-slate-800">
+                <h4 className="text-xs font-bold text-blue-400">۳. مدیریت گالری عکس و فیلم (MP4)</h4>
+                
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                  {editingImages.map((img, idx) => (
+                    <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
+                      <img src={img.startsWith('http') ? img : `http://127.0.0.1:8000${img}`} alt="media" className="w-full h-full object-cover" />
+                      <button 
+                        onClick={() => handleRemoveImageFromEdit(idx)}
+                        className="absolute top-1 right-1 bg-rose-500 text-white p-1 rounded-full shadow-lg hover:bg-rose-600 transition-all z-10"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <label className="border-2 border-dashed border-slate-800 hover:border-purple-500/50 bg-slate-950/40 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-colors">
+                  <UploadCloud className="w-8 h-8 text-slate-500 mb-2" />
+                  <span className="text-xs font-bold text-purple-400">
+                    {isUploadingMedia ? "در حال آپلود..." : "برای آپلود عکس یا ویدیو کلیک کنید"}
+                  </span>
+                  <input type="file" onChange={handleUploadNewMedia} accept="image/*,video/mp4" className="hidden" />
+                </label>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t border-slate-800">
+                <button onClick={() => setEditModalOpen(false)} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-xl text-xs transition-all">
+                  انصراف
+                </button>
+                <button onClick={handleSaveAdvancedEdit} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl text-xs transition-all shadow-lg shadow-purple-600/20">
+                  ذخیره تغییرات
                 </button>
               </div>
-            ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📣 MODAL 4: تایید انتشار در دیوار */}
+      {divarConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-fade-in-up text-center">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mx-auto mb-4">
+              <Megaphone className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-slate-100 mb-2">انتشار در دیوار؟</h3>
+            <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+              ربات به صورت خودکار فرم دیوار را با اطلاعات این فایل پر می‌کند.
+            </p>
+
+            <div className="flex gap-3">
+              <button onClick={() => setDivarConfirmModal(null)} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-xl text-xs transition-all">
+                انصراف
+              </button>
+              <button onClick={() => handlePublishToDivar(divarConfirmModal.id)} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs transition-all shadow-lg shadow-indigo-600/20">
+                بله، منتشر کن
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2701,6 +2815,142 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                 {isBotStarting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'استارت ربات'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🎯 MODAL 6: مچینگ خریداران */}
+      {matchModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl animate-fade-in-up">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-cyan-400 flex items-center gap-2"><Users className="w-5 h-5"/> خریداران منطبق در قیف فروش</h3>
+              <button onClick={() => setMatchModalOpen(false)} className="text-slate-500 hover:text-white"><X className="w-5 h-5"/></button>
+            </div>
+
+            {matchLoading ? (
+              <div className="flex flex-col items-center justify-center py-8">
+                <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                <p className="text-xs text-cyan-400 font-bold">در حال بررسی بودجه خریداران...</p>
+              </div>
+            ) : matchedBuyers.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-6">خریدار مناسبی برای این بودجه در قیف فروش یافت نشد.</p>
+            ) : (
+              <div className="space-y-3 mb-6 max-h-60 overflow-y-auto">
+                {matchedBuyers.map(b => (
+                  <div key={b.id} className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-slate-200">{b.name}</p>
+                      <p className="text-[11px] text-slate-500 font-mono nums-fa" dir="ltr">{b.phone}</p>
+                    </div>
+                    <span className="text-xs font-bold text-cyan-400 nums-fa">{formatPrice(b.budget)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button onClick={() => setMatchModalOpen(false)} className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-xl text-xs transition-all">
+              بستن
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 👁️ MODAL 7: کاتالوگ اختصاصی ملک */}
+      {catalogModalOpen && catalogProp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl p-6 lg:p-8 shadow-2xl animate-fade-in-up max-h-[90vh] overflow-y-auto relative">
+            <button onClick={() => setCatalogModalOpen(false)} className="absolute left-6 top-6 text-slate-500 hover:text-white bg-slate-800 p-2 rounded-full transition-all z-20">
+              <X className="w-5 h-5"/>
+            </button>
+
+            <h3 className="text-lg font-bold text-slate-100 mb-6 flex items-center gap-2">
+              <Eye className="w-5 h-5 text-blue-400" /> کاتالوگ اختصاصی ملک
+            </h3>
+
+            {(() => {
+              const catalogImgs = safeParseImages(catalogProp.image_urls);
+              const activeImg = catalogImgs[catalogImgIndex] ? (catalogImgs[catalogImgIndex].startsWith('http') ? catalogImgs[catalogImgIndex] : `http://127.0.0.1:8000${catalogImgs[catalogImgIndex]}`) : '';
+
+              return (
+                <div className="space-y-6">
+                  <div className="relative h-72 bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
+                    {activeImg ? (
+                      <img src={activeImg} className="w-full h-full object-cover" alt="catalog" />
+                    ) : (
+                      <Building2 className="w-16 h-16 text-slate-800"/>
+                    )}
+
+                    {catalogImgs.length > 1 && (
+                      <div className="absolute inset-0 flex items-center justify-between p-4 pointer-events-none">
+                        <button onClick={() => setCatalogImgIndex(prev => prev === 0 ? catalogImgs.length - 1 : prev - 1)} className="pointer-events-auto bg-slate-950/80 hover:bg-slate-900 text-white p-2 rounded-full border border-slate-700">
+                          <ChevronRight className="w-5 h-5"/>
+                        </button>
+                        <button onClick={() => setCatalogImgIndex(prev => prev === catalogImgs.length - 1 ? 0 : prev + 1)} className="pointer-events-auto bg-slate-950/80 hover:bg-slate-900 text-white p-2 rounded-full border border-slate-700">
+                          <ChevronLeft className="w-5 h-5"/>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {catalogImgs.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                      {catalogImgs.map((img, idx) => (
+                        <button key={idx} onClick={() => setCatalogImgIndex(idx)} className={`w-16 h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 ${catalogImgIndex === idx ? 'border-blue-500' : 'border-slate-800 opacity-60'}`}>
+                          <img src={img.startsWith('http') ? img : `http://127.0.0.1:8000${img}`} className="w-full h-full object-cover" alt="thumb" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950 p-5 rounded-2xl border border-slate-800">
+                    <div>
+                      <h4 className="text-base font-bold text-slate-100 mb-2">{catalogProp.title}</h4>
+                      <p className="text-xs text-slate-400 mb-4 flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-rose-400" /> {catalogProp.neighborhood || 'مشهد'}
+                      </p>
+                      <div className="space-y-1">
+                        <p className="text-[11px] text-slate-500">قیمت کل:</p>
+                        <p className="text-xl font-bold text-emerald-400 nums-fa">{formatPrice(catalogProp.price_total)}</p>
+                        {catalogProp.price_total > 0 && (
+                          <p className="text-xs text-emerald-500/80 font-bold">{numberToPersianWords(catalogProp.price_total)}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 text-xs text-slate-300">
+                      <div className="flex justify-between py-1.5 border-b border-slate-800">
+                        <span className="text-slate-500">متراژ:</span>
+                        <span className="font-bold nums-fa">{catalogProp.built_area || 0} متر</span>
+                      </div>
+                      <div className="flex justify-between py-1.5 border-b border-slate-800">
+                        <span className="text-slate-500">تعداد خواب:</span>
+                        <span className="font-bold nums-fa">{catalogProp.rooms || 0} خواب</span>
+                      </div>
+                      <div className="flex justify-between py-1.5 border-b border-slate-800">
+                        <span className="text-slate-500">نوع معامله:</span>
+                        <span className="font-bold text-emerald-400">{catalogProp.deal_type || 'فروش'}</span>
+                      </div>
+                      <div className="flex justify-between py-1.5 border-b border-slate-800">
+                        <span className="text-slate-500">تلفن تماس:</span>
+                        <span className="font-bold text-indigo-400 font-mono nums-fa" dir="ltr">{catalogProp.owner_phone || 'ثبت نشده'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {catalogProp.description && (
+                    <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                      <p className="text-xs font-bold text-slate-400 mb-1">توضیحات ملک:</p>
+                      <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-line">{catalogProp.description}</p>
+                    </div>
+                  )}
+
+                  <button onClick={() => setCatalogModalOpen(false)} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl text-xs transition-all shadow-lg shadow-blue-600/20">
+                    بستن کاتالوگ
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

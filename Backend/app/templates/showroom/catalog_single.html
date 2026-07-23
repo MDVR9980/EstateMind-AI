@@ -3,186 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ page_title }}</title>
-    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <title>{{ prop.title }} — کاتالوگ دیجیتال EstateMind AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Vazirmatn', sans-serif; background-color: #f8fafc; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
+        body { font-family: 'Vazirmatn', sans-serif; background-color: #020617; color: #f8fafc; }
     </style>
 </head>
-<body class="text-slate-800 pb-20">
+<body class="min-h-screen p-4 md:p-8">
 
-    <!-- Header -->
-    <header class="bg-slate-900 text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md">
-        <div class="flex items-center gap-2">
-            <span class="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-lg">املاک {{ agency.name }}</span>
-        </div>
-        <h1 class="text-sm font-bold flex items-center gap-2">اطلاعات تکمیلی ملک</h1>
-    </header>
-
-    <main class="max-w-3xl mx-auto mt-6 px-4">
+    <div class="max-w-3xl mx-auto bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
         
-        <!-- Image/Video Slider -->
-        <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden mb-6 relative">
-            {% if media_list %}
-            <div id="slider" class="relative w-full h-[400px] flex items-center justify-center bg-black">
-                {% for media in media_list %}
-                    <div class="slide absolute inset-0 transition-opacity duration-500 {{ 'opacity-100 z-10' if loop.index0 == 0 else 'opacity-0 z-0' }}">
-                        {% if media.endswith('.mp4') %}
-                            <video src="{{ media }}" class="w-full h-full object-contain" controls></video>
-                        {% else %}
-                            <img src="{{ media }}" class="w-full h-full object-contain">
-                        {% endif %}
-                    </div>
-                {% endfor %}
-                
-                {% if media_list|length > 1 %}
-                <button onclick="changeSlide(-1)" class="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center z-20 hover:bg-black/80"><i class="ph-bold ph-caret-right"></i></button>
-                <button onclick="changeSlide(1)" class="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center z-20 hover:bg-black/80"><i class="ph-bold ph-caret-left"></i></button>
-                <div class="absolute bottom-4 right-4 bg-black/60 text-white text-xs px-2 py-1 rounded-lg z-20"><span id="slide-counter">1</span> از {{ media_list|length }} عکس/فیلم</div>
-                {% endif %}
-            </div>
+        <!-- گالری تصویر -->
+        <div class="relative h-80 md:h-96 bg-slate-950 flex items-center justify-center overflow-hidden">
+            {% if media_list and media_list|length > 0 %}
+                <img id="mainImage" src="{{ media_list[0] }}" class="w-full h-full object-cover">
             {% else %}
-            <div class="w-full h-[300px] bg-slate-100 flex flex-col items-center justify-center text-slate-400">
-                <i class="ph-fill ph-image text-5xl mb-2"></i><p>عکسی ثبت نشده</p>
+                <div class="text-slate-700 text-lg font-bold">بدون تصویر</div>
+            {% endif %}
+            <span class="absolute top-4 right-4 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-xl text-xs font-bold backdrop-blur-md">
+                {{ prop.deal_type.value if prop.deal_type else 'فروش' }}
+            </span>
+        </div>
+
+        <!-- جزییات ملک -->
+        <div class="p-6 md:p-8 space-y-6">
+            <div>
+                <h1 class="text-xl md:text-2xl font-bold text-slate-100 mb-2">{{ prop.title }}</h1>
+                <p class="text-xs text-slate-400">📍 محله: {{ prop.neighborhood }} | کد ملک: #{{ prop.id }}</p>
+            </div>
+
+            <!-- قیمت -->
+            <div class="bg-emerald-500/10 border border-emerald-500/20 p-5 rounded-2xl flex items-center justify-between">
+                <div>
+                    <span class="text-xs text-slate-400 block mb-1">قیمت کل:</span>
+                    <span class="text-2xl font-bold text-emerald-400">{{ "{:,.0f}".format(prop.price_total) if prop.price_total else 'توافقی' }} تومان</span>
+                </div>
+                <span class="text-xs font-bold bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700">
+                    {{ prop.property_type.value if prop.property_type else 'آپارتمان' }}
+                </span>
+            </div>
+
+            <!-- مشخصات کلیدی -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center">
+                    <span class="text-[11px] text-slate-500 block mb-1">متراژ</span>
+                    <span class="text-sm font-bold text-slate-200">{{ prop.built_area or 0 }} متر</span>
+                </div>
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center">
+                    <span class="text-[11px] text-slate-500 block mb-1">تعداد خواب</span>
+                    <span class="text-sm font-bold text-slate-200">{{ prop.rooms or 0 }} خواب</span>
+                </div>
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center">
+                    <span class="text-[11px] text-slate-500 block mb-1">سن بنا</span>
+                    <span class="text-sm font-bold text-slate-200">{{ prop.age or 'نوساز' }}</span>
+                </div>
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center">
+                    <span class="text-[11px] text-slate-500 block mb-1">طبقه</span>
+                    <span class="text-sm font-bold text-slate-200">{{ prop.floor or 'نامشخص' }}</span>
+                </div>
+            </div>
+
+            <!-- باکس تحلیل هوش مصنوعی -->
+            {% if prop.ai_pros or prop.ai_cons %}
+            <div class="bg-purple-950/20 border border-purple-500/20 p-5 rounded-2xl space-y-2">
+                <h3 class="text-xs font-bold text-purple-300">✨ تحلیل هوش مصنوعی EstateMind AI:</h3>
+                {% if prop.ai_pros %}<p class="text-xs text-emerald-400">✔️ {{ prop.ai_pros }}</p>{% endif %}
+                {% if prop.ai_cons %}<p class="text-xs text-rose-400">❌ {{ prop.ai_cons }}</p>{% endif %}
             </div>
             {% endif %}
 
-            <!-- Details -->
-            <div class="p-6">
-                <h2 class="text-xl font-bold mb-4">{{ prop.title }}</h2>
-                <div class="flex flex-wrap gap-2 mb-6">
-                    <span class="bg-primary-600/90 text-white backdrop-blur text-[10px] font-bold px-2 py-1 rounded-lg">
-                        {% if 'APARTMENT' in prop.property_type %}آپارتمان
-                        {% elif 'VILLA' in prop.property_type %}ویلایی
-                        {% elif 'LAND' in prop.property_type %}زمین/کلنگی
-                        {% else %}تجاری{% endif %}
-                    </span>
-                    <span class="bg-gray-900/80 text-white backdrop-blur text-[10px] font-bold px-2 py-1 rounded-lg">
-                        {% if 'فروش' in prop.deal_type %}فروش
-                        {% elif 'اجاره' in prop.deal_type %}رهن/اجاره
-                        {% else %}مشارکت{% endif %}
-                    </span>
-                    <span class="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl text-lg font-bold">قیمت کل: {{ "{:,.0f}".format(prop.price_total) if prop.price_total > 0 else 'توافقی' }} <span class="text-sm">تومان</span>
-                    <p id="price-word" class="text-xs text-slate-500 font-bold mt-2"></p>
-                </div>
-
-                <div class="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-                    <div class="flex items-center gap-2 text-sm">
-                        <i class="ph-fill ph-user text-indigo-600 text-lg"></i>
-                        <span class="font-bold text-slate-600">ثبت‌کننده: {{ prop.publisher or 'مشاور آژانس' }}</span>
-                    </div>
-                    <div class="flex items-center gap-4">
-                        <span class="text-sm font-bold text-rose-600 dir-ltr"><i class="ph-fill ph-phone"></i> {{ prop.contact_phone }}</span>
-                    </div>
-                </div>
-
-                <div class="flex flex-wrap gap-2 mb-8 justify-center">
-                    <span class="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full border border-indigo-100">طبقه: {{ prop.floor or 'همکف' }}</span>
-                    <span class="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full border border-indigo-100">تراس: {% if prop.has_store_room %}دارد{% else %}ندارد{% endif %}</span>
-                    <span class="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full border border-indigo-100">نورگیری: خوب</span>
-                </div>
-
-                <!-- AI Pros & Cons -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-rose-50/50 border border-rose-200 rounded-2xl p-5">
-                        <h4 class="font-bold text-rose-700 mb-2 flex items-center gap-1 text-sm"><i class="ph-fill ph-warning"></i> نقاط ضعف (تحلیل AI)</h4>
-                        <p class="text-rose-800/80 text-sm leading-loose text-justify">{{ prop.ai_cons or 'نکته منفی خاصی یافت نشد.' }}</p>
-                    </div>
-                    <div class="bg-emerald-50/50 border border-emerald-200 rounded-2xl p-5">
-                        <h4 class="font-bold text-emerald-700 mb-2 flex items-center gap-1 text-sm"><i class="ph-fill ph-sparkle"></i> نقاط قوت (تحلیل AI)</h4>
-                        <p class="text-emerald-800/80 text-sm leading-loose text-justify">{{ prop.ai_pros or 'نکته مثبت خاصی ثبت نشده است.' }}</p>
-                    </div>
-                </div>
+            <!-- دکمه‌های تماس -->
+            <div class="pt-4 border-t border-slate-800 flex gap-3">
+                {% if prop.owner_phone and prop.owner_phone != 'ندارد' %}
+                    <a href="tel:{{ prop.owner_phone }}" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl text-xs text-center transition-all shadow-lg shadow-emerald-500/20">
+                        📞 تماس با مشاور / دفتر
+                    </a>
+                {% endif %}
+                <a href="https://api.whatsapp.com/send?text={{ prop.title }}" target="_blank" class="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 px-5 py-3.5 rounded-xl text-xs font-bold">
+                    واتساپ
+                </a>
             </div>
+
         </div>
-    </main>
+    </div>
 
-    <script>
-        // ۱. اسکریپت مربوط به اسلایدر عکس‌ها
-        let currentSlide = 0;
-        const slides = document.querySelectorAll('.slide');
-        function changeSlide(direction) {
-            if(slides.length === 0) return;
-            slides[currentSlide].classList.replace('opacity-100', 'opacity-0');
-            slides[currentSlide].classList.replace('z-10', 'z-0');
-            
-            currentSlide += direction;
-            if (currentSlide >= slides.length) currentSlide = 0;
-            if (currentSlide < 0) currentSlide = slides.length - 1;
-            
-            slides[currentSlide].classList.replace('opacity-0', 'opacity-100');
-            slides[currentSlide].classList.replace('z-0', 'z-10');
-            document.getElementById('slide-counter').innerText = currentSlide + 1;
-        }
-
-        // ۲. توابع تبدیل عدد به حروف فارسی
-        const numWords = ["صفر","یک","دو","سه","چهار","پنج","شش","هفت","هشت","نه","ده","یازده","دوازده","سیزده","چهارده","پانزده","شانزده","هفده","هجده","نوزده"];
-        const tens = ["","","بیست","سی","چهل","پنجاه","شصت","هفتاد","هشتاد","نود"];
-        const hundreds = ["","صد","دویست","سیصد","چهارصد","پانصد","ششصد","هفتصد","هشتصد","نهصد"];
-        const scales = ["","هزار","میلیون","میلیارد","تریلیون"];
-
-        function numberToPersianWords(num) {
-            if (num === 0) return "صفر";
-            let str = num.toString(); let chunks = [];
-            while (str.length > 0) { chunks.push(str.slice(-3)); str = str.slice(0, -3); }
-            let result = [];
-            for (let i = 0; i < chunks.length; i++) {
-                let chunk = parseInt(chunks[i], 10); if (chunk === 0) continue;
-                let chunkWords = []; let h = Math.floor(chunk / 100); let rem = chunk % 100;
-                if (h > 0) chunkWords.push(hundreds[h]);
-                if (rem > 0) {
-                    if (rem < 20) chunkWords.push(numWords[rem]);
-                    else { chunkWords.push(tens[Math.floor(rem / 10)]); if (rem % 10 > 0) chunkWords.push(numWords[rem % 10]); }
-                }
-                let chunkText = chunkWords.join(" و "); if (i > 0) chunkText += " " + scales[i];
-                result.push(chunkText);
-            }
-            return result.reverse().join(" و ") + " تومان";
-        }
-
-        // ۳. اجرای تبدیل قیمت به محض لود شدن صفحه کاتالوگ
-        document.addEventListener("DOMContentLoaded", () => {
-            const priceVal = {{ prop.price_total }};
-            if(priceVal > 0) {
-                const priceWordEl = document.getElementById("price-word");
-                if(priceWordEl) {
-                    priceWordEl.innerText = "معادل: " + numberToPersianWords(priceVal);
-                }
-            }
-        });
-    </script>
-
-    <!-- دکمه شناور QR / NFC -->
-    <button onclick="showNfcQrModal({{ prop.id }})" class="fixed bottom-6 left-6 z-50 w-14 h-14 bg-gradient-to-tr from-slate-800 to-slate-900 text-white rounded-full flex items-center justify-center text-3xl shadow-2xl hover:scale-110 transition-transform shadow-slate-900/40">
-        <i class="ph-bold ph-qr-code"></i>
-    </button>
-
-    <script>
-        function showNfcQrModal(propId) {
-            const catalogUrl = `${window.location.origin}/catalog/property/${propId}`;
-            const qrApiUrl = `/api/nfc/generate-qr/${propId}`;
-
-            Swal.fire({
-                title: 'انتقال کاتالوگ به موبایل شما 📱',
-                html: `
-                    <div class="flex flex-col items-center justify-center p-2">
-                        <p class="text-sm text-slate-600 text-center mb-4 leading-relaxed font-bold">
-                            لطفاً دوربین موبایل خود را باز کرده و روی بارکد زیر بگیرید:
-                        </p>
-                        <div class="bg-white p-3 rounded-3xl shadow-lg border border-gray-100 mb-2">
-                            <img src="${qrApiUrl}" alt="QR Code" class="w-56 h-56 rounded-xl object-contain mx-auto">
-                        </div>
-                    </div>
-                `,
-                showConfirmButton: true,
-                confirmButtonText: 'بستن',
-                confirmButtonColor: '#0f172a'
-            });
-        }
-    </script>
 </body>
 </html>
