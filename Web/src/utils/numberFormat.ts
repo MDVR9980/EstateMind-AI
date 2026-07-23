@@ -1,5 +1,3 @@
-// Web/src/utils/numberFormat.ts
-
 export const formatPrice = (price: number | string): string => {
   if (!price || Number(price) === 0) return '';
   return Number(price).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -22,4 +20,22 @@ export const numberToPersianWords = (num: number): string => {
   if (k > 0) parts.push(`${k} هزار`);
   
   return parts.length > 0 ? parts.join(' و ') + ' تومان' : '';
+};
+
+// 🌟 تابع تبدیل هوشمند و نیتیو تاریخ میلادی به شمسی کامل (مثلا: ۱ مرداد ۱۴۰۶)
+export const toJalaliDate = (gregorianDateStr: string): string => {
+  if (!gregorianDateStr) return 'نامشخص';
+  try {
+    const date = new Date(gregorianDateStr);
+    if (isNaN(date.getTime())) return gregorianDateStr;
+
+    const formatter = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    return formatter.format(date);
+  } catch (e) {
+    return gregorianDateStr;
+  }
 };

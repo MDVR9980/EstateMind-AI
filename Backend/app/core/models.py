@@ -1,11 +1,12 @@
 from sqlmodel import SQLModel, Field
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 
 class UserRole(str, Enum):
     SUPER_ADMIN = "SUPER_ADMIN"
     MANAGER = "MANAGER"
+    RANGE_MANAGER = "RANGE_MANAGER"
     AGENT = "AGENT"
 
 class FunnelStage(str, Enum):
@@ -64,7 +65,12 @@ class Agency(SQLModel, table=True):
     owner_name: str
     phone: str = Field(unique=True)
     city: str = Field(default="تهران")
+    
+    # 🌟 فیلدهای لایسنس SaaS
+    max_agents_allowed: int = Field(default=5) # ظرفیت کاربران (Seats)
+    price_per_seat: float = Field(default=500000) # قیمت هر کاربر به تومان
     subscription_active: bool = Field(default=True)
+    subscription_expires_at: datetime = Field(default_factory=lambda: datetime.utcnow() + timedelta(days=365))
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class User(SQLModel, table=True):

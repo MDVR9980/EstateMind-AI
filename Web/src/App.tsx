@@ -17,6 +17,7 @@ import Properties from './components/Properties';
 import AddProperty from './components/AddProperty';
 import Customers from './components/Customers';
 import Financials from './components/Financials';
+import SuperAdmin from './components/SuperAdmin';
 
 export default function App() {
   const { token, login } = useAuthStore();
@@ -119,6 +120,8 @@ export default function App() {
             {activeMenu === 'properties' && <Properties setActiveMenu={setActiveMenu} />}
 
             {activeMenu === 'add_property' && <AddProperty setActiveMenu={setActiveMenu} />}
+            
+            {activeMenu === 'super_admin' && <SuperAdmin />}
             
           </main>
         </div>

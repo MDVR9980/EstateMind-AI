@@ -46,37 +46,49 @@ async def upload_user_avatar(request: Request, file: UploadFile = File(...), ses
     return {"status": "success", "avatar_url": user.avatar_url}
     
 @router.post("/add")
-def add_user(data: UserCreateRequest, session: Session = Depends(get_session)):
-    """API استخدام و ثبت مشاور / مدیر رنج جدید"""
-    try:
-        if session.exec(select(User).where(User.username == data.username)).first():
-            raise HTTPException(status_code=400, detail="این نام کاربری (موبایل) قبلاً در سیستم ثبت شده است.")
+def add_user(data: UserCreateRequest, request: Request, session: Session = Depends(get_session)):
+    """استخدام پرسنل جدید با چک کردن سقف مجاز لایسنس آژانس"""
+    user = get_current_user_api(request, session)
+    if not user or user.role not in [UserRole.MANAGER, UserRole.SUPER_ADMIN]:
+        raise HTTPException(status_code=403, detail="فقط مدیر آژانس دسترسی ثبت پرسنل دارد.")
         
-        role_enum = UserRole.AGENT
-        if data.role == "manager": 
-            role_enum = UserRole.MANAGER
-            
-        new_user = User(
-            agency_id=1, # آژانس فعلی
-            full_name=data.full_name,
-            username=data.username,
-            hashed_password=get_password_hash(data.password),
-            role=role_enum,
-            target_neighborhoods=data.target_neighborhoods,
-            commission_sale=data.commission_sale,
-            commission_rent=data.commission_rent,
-            commission_partnership=data.commission_partnership
+    agency = session.get(Agency, user.agency_id)
+    if not agency:
+        raise HTTPException(status_code=404, detail="آژانس مربوطه یافت نشد.")
+        
+    # 🔒 بررسی سقف ظرفیت لایسنس (Seats Limit Check)
+    active_users = session.exec(
+        select(User).where(User.agency_id == user.agency_id, User.is_active == True)
+    ).all()
+    
+    if len(active_users) >= agency.max_agents_allowed:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"ظرفیت لایسنس آژانس شما ({agency.max_agents_allowed} کاربر) تکمیل شده است. برای افزودن مشاور جدید، لایسنس خود را ارتقا دهید."
         )
-        
-        session.add(new_user)
-        session.commit()
-        return {"status": "success", "message": "پرسنل جدید با موفقیت به تیم اضافه شد."}
-        
-    except HTTPException as http_err:
-        raise http_err
-    except Exception as e:
-        print(f"❌ Error adding user: {e}")
-        raise HTTPException(status_code=500, detail="خطا در ثبت کاربر")
+
+    if session.exec(select(User).where(User.username == data.username)).first():
+        raise HTTPException(status_code=400, detail="این شماره موبایل/نام‌کاربری قبلاً ثبت شده است.")
+
+    role_enum = UserRole.AGENT
+    if data.role == "manager": role_enum = UserRole.MANAGER
+    elif data.role == "range_manager": role_enum = UserRole.RANGE_MANAGER # مدیر رنج
+
+    new_user = User(
+        agency_id=user.agency_id,
+        full_name=data.full_name,
+        username=data.username,
+        hashed_password=get_password_hash(data.password),
+        role=role_enum,
+        target_neighborhoods=data.target_neighborhoods,
+        commission_sale=data.commission_sale,
+        commission_rent=data.commission_rent,
+        commission_partnership=data.commission_partnership
+    )
+    
+    session.add(new_user)
+    session.commit()
+    return {"status": "success", "message": "پرسنل جدید با موفقیت به تیم اضافه شد."}
 
 @router.delete("/{user_id}")
 def delete_user(user_id: int, session: Session = Depends(get_session)):
