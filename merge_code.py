@@ -30,26 +30,22 @@ def combine_files(directory, output_file, extensions, exclude_dirs, exclude_file
 # ==========================================
 # 1. تنظیمات پوشه موبایل (React Native)
 # ==========================================
-# پوشه‌هایی که کلا نباید اسکن شوند:
 mobile_excludes = [
     'node_modules', '.expo', 'assets', '.git', 
     'ios', 'android', 'build', 'dist', 'coverage', '.cache'
 ]
 
-# فایل‌های به شدت حجیم و غیرضروری که نباید خوانده شوند:
 mobile_exclude_files = [
     'package-lock.json', 'yarn.lock', 'bun.lockb',
-    'tsconfig.json' # (اگر نیاز ندارید)
+    'tsconfig.json'
 ]
 
-# برای ریکت نیتیو فقط فایل‌های حاوی کد منطقی را می‌خواهیم
-# اگر فایل های json برایتان مهم نیست (مثل فایل های زبان یا دیتای تستی)، پسوند .json را از لیست زیر حذف کنید
 mobile_extensions = ['.ts', '.tsx', '.js', '.jsx', '.json']
 
 combine_files('./Mobile', 'mobile_code.txt', mobile_extensions, mobile_excludes, mobile_exclude_files)
 
 # ==========================================
-# 2. تنظیمات پوشه بک‌اند
+# 2. تنظیمات پوشه بک‌اند (FastAPI)
 # ==========================================
 backend_excludes = [
     'venv', 'chroma_db', 'uploads', '.git', '__pycache__', 
@@ -57,9 +53,26 @@ backend_excludes = [
 ]
 
 backend_exclude_files = [
-    'poetry.lock', 'Pipfile.lock' # فایل‌های لاک پایتون
+    'poetry.lock', 'Pipfile.lock' 
 ]
 
 combine_files('./Backend', 'backend_code.txt', ['.py', '.md', '.json'], backend_excludes, backend_exclude_files)
+
+# ==========================================
+# 3. تنظیمات پوشه وب (React / Vite / Tailwind)
+# ==========================================
+web_excludes = [
+    'node_modules', 'dist', 'build', '.git', '.bolt', '.cache', 'public'
+]
+
+web_exclude_files = [
+    'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lockb',
+    'tsconfig.json', 'tsconfig.app.json', 'tsconfig.node.json', 'eslint.config.js'
+]
+
+# پسوندهای مربوط به وب (css و html هم اضافه شد)
+web_extensions = ['.ts', '.tsx', '.js', '.jsx', '.json', '.css', '.html']
+
+combine_files('./Web', 'web_code.txt', web_extensions, web_excludes, web_exclude_files)
 
 print("🎉 کار تمام شد! حالا فایل‌ها بسیار سبک‌تر شده‌اند.")

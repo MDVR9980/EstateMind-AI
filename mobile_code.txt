@@ -40,18 +40,19 @@ FILE: ./Mobile\app.json
 FILE: ./Mobile\App.tsx
 ==================================================
 
+// App.tsx
 import 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
-import { View } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
-import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { navigationRef } from './src/navigation/NavigationService';
+import { useAuthStore } from './src/store/useAuthStore';
 
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
@@ -72,78 +73,64 @@ import FunnelScreen from './src/screens/FunnelScreen';
 import SuperAdminScreen from './src/screens/SuperAdminScreen';
 
 const Stack = createNativeStackNavigator();
-
-// مخفی کردن اسپلش اسکرین بعد از لود شدن
 SplashScreen.preventAutoHideAsync();
 
-const toastConfig = {
-  success: (props: any) => (
-    <BaseToast
-      {...props}
-      style={{ borderLeftColor: '#10b981', backgroundColor: '#1E293B', borderRadius: 16, height: 'auto', paddingVertical: 10, borderWidth: 1, borderColor: '#334155' }}
-      contentContainerStyle={{ paddingHorizontal: 15 }}
-      text1Style={{ fontSize: 14, fontWeight: 'bold', color: '#f8fafc', textAlign: 'right' }}
-      text2Style={{ fontSize: 12, color: '#94a3b8', textAlign: 'right', marginTop: 4 }}
-      renderLeadingIcon={() => <View style={{justifyContent: 'center', paddingLeft: 15}}><Ionicons name="checkmark-circle" size={28} color="#10b981" /></View>}
-    />
-  ),
-  error: (props: any) => (
-    <ErrorToast
-      {...props}
-      style={{ borderLeftColor: '#ef4444', backgroundColor: '#1E293B', borderRadius: 16, height: 'auto', paddingVertical: 10, borderWidth: 1, borderColor: '#334155' }}
-      contentContainerStyle={{ paddingHorizontal: 15 }}
-      text1Style={{ fontSize: 14, fontWeight: 'bold', color: '#f8fafc', textAlign: 'right' }}
-      text2Style={{ fontSize: 12, color: '#94a3b8', textAlign: 'right', marginTop: 4 }}
-      renderLeadingIcon={() => <View style={{justifyContent: 'center', paddingLeft: 15}}><Ionicons name="alert-circle" size={28} color="#ef4444" /></View>}
-    />
-  ),
-  info: (props: any) => (
-    <BaseToast
-      {...props}
-      style={{ borderLeftColor: '#3b82f6', backgroundColor: '#1E293B', borderRadius: 16, height: 'auto', paddingVertical: 10, borderWidth: 1, borderColor: '#334155' }}
-      contentContainerStyle={{ paddingHorizontal: 15 }}
-      text1Style={{ fontSize: 14, fontWeight: 'bold', color: '#f8fafc', textAlign: 'right' }}
-      text2Style={{ fontSize: 12, color: '#94a3b8', textAlign: 'right', marginTop: 4 }}
-      renderLeadingIcon={() => <View style={{justifyContent: 'center', paddingLeft: 15}}><Ionicons name="information-circle" size={28} color="#3b82f6" /></View>}
-    />
-  )
-};
-
 export default function App() {
+  const { token, isLoading, checkAuth } = useAuthStore();
+
   useEffect(() => {
-    // از آنجایی که فعلاً فونت کاستوم را حذف کردیم، بلافاصله اسپلش را مخفی می‌کنیم
-    SplashScreen.hideAsync();
+    checkAuth().then(() => {
+      SplashScreen.hideAsync();
+    });
   }, []);
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#10b981" />
+      </View>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <NavigationContainer ref={navigationRef}>
-          <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }} initialRouteName="Login">
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Dashboard" component={DashboardScreen} />
-            <Stack.Screen name="Properties" component={PropertiesScreen} />
-            <Stack.Screen name="AddProperty" component={AddPropertyScreen} />
-            <Stack.Screen name="VoiceAdd" component={VoiceAddScreen} />
-            <Stack.Screen name="Customers" component={CustomersScreen} />
-            <Stack.Screen name="Funnel" component={FunnelScreen} />
-            <Stack.Screen name="Financials" component={FinancialsScreen} />
-            <Stack.Screen name="Reels" component={ReelsScreen} />
-            <Stack.Screen name="Partnership" component={PartnershipScreen} />
-            <Stack.Screen name="MyCard" component={MyCardScreen} />
-            <Stack.Screen name="Tickets" component={TicketsScreen} />
-            <Stack.Screen name="Reminders" component={RemindersScreen} />
-            <Stack.Screen name="Settings" component={SettingsScreen} />
-            <Stack.Screen name="Chatbot" component={ChatbotScreen} />
-            <Stack.Screen name="SuperAdmin" component={SuperAdminScreen} />
+          <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+            {token == null ? (
+              // Auth Stack (کاربر لاگین نیست)
+              <Stack.Screen name="Login" component={LoginScreen} />
+            ) : (
+              // App Stack (کاربر لاگین است)
+              <Stack.Group>
+                <Stack.Screen name="Dashboard" component={DashboardScreen} />
+                <Stack.Screen name="Properties" component={PropertiesScreen} />
+                <Stack.Screen name="AddProperty" component={AddPropertyScreen} />
+                <Stack.Screen name="VoiceAdd" component={VoiceAddScreen} />
+                <Stack.Screen name="Customers" component={CustomersScreen} />
+                <Stack.Screen name="Funnel" component={FunnelScreen} />
+                <Stack.Screen name="Financials" component={FinancialsScreen} />
+                <Stack.Screen name="Reels" component={ReelsScreen} />
+                <Stack.Screen name="Partnership" component={PartnershipScreen} />
+                <Stack.Screen name="MyCard" component={MyCardScreen} />
+                <Stack.Screen name="Tickets" component={TicketsScreen} />
+                <Stack.Screen name="Reminders" component={RemindersScreen} />
+                <Stack.Screen name="Settings" component={SettingsScreen} />
+                <Stack.Screen name="Chatbot" component={ChatbotScreen} />
+                <Stack.Screen name="SuperAdmin" component={SuperAdminScreen} />
+              </Stack.Group>
+            )}
           </Stack.Navigator>
         </NavigationContainer>
-        
-        <Toast config={toastConfig} />
+        <Toast />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: { flex: 1, backgroundColor: '#0B0F19', justifyContent: 'center', alignItems: 'center' }
+});
 
 ==================================================
 FILE: ./Mobile\babel.config.js
@@ -211,7 +198,8 @@ FILE: ./Mobile\package.json
     "react-native-toast-message": "^2.4.0",
     "react-native-url-polyfill": "^4.0.0",
     "react-native-worklets": "0.5.1",
-    "react-native-worklets-core": "^1.6.3"
+    "react-native-worklets-core": "^1.6.3",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@types/react": "~19.1.10",
@@ -256,10 +244,11 @@ export function navigate(name: string, params?: any) {
 FILE: ./Mobile\src\screens\AddPropertyScreen.tsx
 ==================================================
 
+// src/screens/AddPropertyScreen.tsx
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Image, Dimensions, Alert } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
@@ -267,20 +256,10 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../services/api';
 
-const { width } = Dimensions.get('window');
+// وارد کردن ابزارهای فرمت عدد که در گام قبل ساختیم
+import { numberToPersianWords, formatPrice, formatInputToNumber } from '../utils/numberFormat';
 
-// تابع تبدیل عدد به حروف فارسی (ویژه املاک)
-const numberToPersianWords = (num: number) => {
-  if (!num || isNaN(num)) return '';
-  let b = Math.floor(num / 1000000000);
-  let m = Math.floor((num % 1000000000) / 1000000);
-  let k = Math.floor((num % 1000000) / 1000);
-  let parts = [];
-  if (b > 0) parts.push(`${b} میلیارد`);
-  if (m > 0) parts.push(`${m} میلیون`);
-  if (k > 0) parts.push(`${k} هزار`);
-  return parts.length > 0 ? parts.join(' و ') + ' تومان' : '';
-};
+const { width } = Dimensions.get('window');
 
 export default function AddPropertyScreen({ navigation }: any) {
   const [step, setStep] = useState(1);
@@ -296,7 +275,7 @@ export default function AddPropertyScreen({ navigation }: any) {
     has_elevator: false, has_parking: false, has_store_room: false, has_master_room: false,
     price_total: '', price_mortgage: '', price_rent: '', 
     owner_phone: '', owner_name: '', description: '',
-    images: [] as string[]
+    images: [] as string[] // در اینجا URI های لوکال گوشی ذخیره می‌شود
   });
 
   // ==========================================
@@ -305,16 +284,20 @@ export default function AddPropertyScreen({ navigation }: any) {
   async function startRecording() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     try {
-      const permission = await Audio.requestPermissionsAsync();
-      if (permission.status !== 'granted') {
-        Toast.show({ type: 'error', text1: 'خطا', text2: 'لطفاً دسترسی میکروفون را مجاز کنید.' });
-        return;
+      // 🌟 فیکس باگ: خالی کردن حافظه میکروفون قبل از شروع مجدد
+      if (recording) {
+        await recording.stopAndUnloadAsync();
+        setRecording(null);
       }
+      
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== 'granted') return;
+      
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      setRecording(recording);
+      const { recording: newRecording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      setRecording(newRecording);
     } catch (err) {
-      console.error('Failed to start recording', err);
+      console.log('Recording error:', err);
     }
   }
 
@@ -341,14 +324,13 @@ export default function AddPropertyScreen({ navigation }: any) {
 
       if (response.data.status === 'success') {
         const aiData = response.data.data;
-        // ادغام هوشمند دیتای استخراج شده با فیلدهای فرم
         setFormData(prev => ({
           ...prev,
           title: aiData.title || prev.title,
           neighborhood: aiData.real_neighborhood || aiData.neighborhood || prev.neighborhood,
           built_area: aiData.built_area ? aiData.built_area.toString() : prev.built_area,
           rooms: aiData.rooms ? aiData.rooms.toString() : prev.rooms,
-          price_total: aiData.price_total ? aiData.price_total.toString() : prev.price_total,
+          price_total: aiData.price_total ? formatPrice(aiData.price_total) : prev.price_total,
           property_type: aiData.property_type === 'ویلایی' ? 'villa' : aiData.property_type === 'زمین و کلنگی' ? 'land' : 'apartment',
           has_elevator: aiData.has_elevator || prev.has_elevator,
           has_parking: aiData.has_parking || prev.has_parking,
@@ -365,7 +347,7 @@ export default function AddPropertyScreen({ navigation }: any) {
   };
 
   // ==========================================
-  // توابع فرم و پیمایش
+  // توابع فرم و آپلود عکس
   // ==========================================
   const nextStep = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -384,7 +366,7 @@ export default function AddPropertyScreen({ navigation }: any) {
   const pickImages = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images, // فقط عکس برای جلوگیری از باگ
       allowsMultipleSelection: true,
       quality: 0.7,
     });
@@ -398,17 +380,52 @@ export default function AddPropertyScreen({ navigation }: any) {
     setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
   };
 
+  // آپلود موازی عکس‌ها به سرور قبل از ثبت فرم نهایی
+  const uploadTempImages = async (localUris: string[]) => {
+    const uploadedUrls: string[] = [];
+    for (const uri of localUris) {
+      try {
+        const fileUri = Platform.OS === 'ios' && !uri.startsWith('file://') ? `file://${uri}` : uri;
+        const fileExt = uri.split('.').pop() || 'jpg';
+        const imgFormData = new FormData();
+        imgFormData.append('file', {
+          uri: fileUri,
+          name: `temp_image.${fileExt}`,
+          type: `image/${fileExt === 'png' ? 'png' : 'jpeg'}`
+        } as any);
+
+        const response = await api.post('/api/properties/upload-temp', imgFormData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+
+        if (response.data.status === 'success') {
+          uploadedUrls.push(response.data.url);
+        }
+      } catch (e) {
+        console.log('Upload error', e);
+      }
+    }
+    return uploadedUrls;
+  };
+
   const submitProperty = async () => {
     if (formData.deal_type === 'sale' && !formData.price_total) {
       Toast.show({ type: 'error', text1: 'خطا', text2: 'مبلغ کل فروش الزامی است.' }); return;
     }
     
     setIsLoading(true);
-    try {
-      let finalPrice = 0;
-      if (formData.deal_type === 'sale') finalPrice = parseFloat(formData.price_total.replace(/,/g, '') || '0');
-      else finalPrice = parseFloat(formData.price_mortgage.replace(/,/g, '') || '0'); // رهن در توتال ذخیره میشود
+    Toast.show({ type: 'info', text1: 'درحال ثبت...', text2: 'آپلود تصاویر و ذخیره در دیتابیس' });
 
+    try {
+      // ۱. آپلود عکس‌های لوکال به سرور و دریافت لینک‌ها
+      const serverImageUrls = await uploadTempImages(formData.images);
+
+      // ۲. محاسبه قیمت نهایی
+      let finalPrice = 0;
+      if (formData.deal_type === 'sale') finalPrice = formatInputToNumber(formData.price_total);
+      else finalPrice = formatInputToNumber(formData.price_mortgage); // مبلغ رهن را در فیلد قیمت کل می‌گذاریم
+
+      // ۳. ساخت Payload برای ارسال به بک‌اند
       const payload = {
         title: formData.title,
         deal_type: formData.deal_type,
@@ -430,6 +447,7 @@ export default function AddPropertyScreen({ navigation }: any) {
         description: formData.description,
         document_type: "SINGLE",
         is_exclusive: true,
+        image_urls: serverImageUrls // <--- ارسال لیست URL های سرور
       };
 
       const res = await api.post(`/api/properties/save`, payload);
@@ -439,14 +457,11 @@ export default function AddPropertyScreen({ navigation }: any) {
         Toast.show({ type: 'success', text1: 'موفقیت', text2: 'فایل شما با موفقیت در سیستم ثبت شد.' });
         navigation.navigate('Properties');
       }
-    } catch (e) { Toast.show({ type: 'error', text1: 'خطا در ثبت', text2: 'مشکلی در ارتباط با سرور رخ داد.' }); } 
-    finally { setIsLoading(false); }
-  };
-
-  const formatPriceInput = (value: string) => {
-    const numericValue = value.replace(/,/g, '').replace(/[^0-9]/g, '');
-    if (!numericValue) return '';
-    return parseInt(numericValue).toLocaleString('en-US');
+    } catch (e) { 
+      Toast.show({ type: 'error', text1: 'خطا در ثبت', text2: 'مشکلی در ارتباط با سرور رخ داد.' }); 
+    } finally { 
+      setIsLoading(false); 
+    }
   };
 
   const renderStepIndicator = () => (
@@ -591,7 +606,7 @@ export default function AddPropertyScreen({ navigation }: any) {
               <Text style={styles.label}>گالری عکس و فیلم (آپلود همزمان)</Text>
               <TouchableOpacity style={styles.uploadBtn} onPress={pickImages}>
                 <Ionicons name="cloud-upload-outline" size={32} color="#10b981" />
-                <Text style={styles.uploadBtnText}>برای آپلود عکس کلیک کنید</Text>
+                <Text style={styles.uploadBtnText}>برای انتخاب عکس کلیک کنید</Text>
               </TouchableOpacity>
               
               {formData.images.length > 0 && (
@@ -622,9 +637,9 @@ export default function AddPropertyScreen({ navigation }: any) {
                     keyboardType="numeric" 
                     placeholderTextColor="#64748b" 
                     value={formData.price_total} 
-                    onChangeText={(t) => setFormData({...formData, price_total: formatPriceInput(t)})} 
+                    onChangeText={(t) => setFormData({...formData, price_total: formatPrice(formatInputToNumber(t))})} 
                   />
-                  {formData.price_total ? <Text style={styles.persianNumberText}>{numberToPersianWords(parseInt(formData.price_total.replace(/,/g, '')))}</Text> : null}
+                  {formData.price_total ? <Text style={styles.persianNumberText}>{numberToPersianWords(formatInputToNumber(formData.price_total))}</Text> : null}
                 </>
               ) : (
                 <>
@@ -635,9 +650,9 @@ export default function AddPropertyScreen({ navigation }: any) {
                     keyboardType="numeric" 
                     placeholderTextColor="#64748b" 
                     value={formData.price_mortgage} 
-                    onChangeText={(t) => setFormData({...formData, price_mortgage: formatPriceInput(t)})} 
+                    onChangeText={(t) => setFormData({...formData, price_mortgage: formatPrice(formatInputToNumber(t))})} 
                   />
-                  {formData.price_mortgage ? <Text style={styles.persianNumberText}>{numberToPersianWords(parseInt(formData.price_mortgage.replace(/,/g, '')))}</Text> : null}
+                  {formData.price_mortgage ? <Text style={styles.persianNumberText}>{numberToPersianWords(formatInputToNumber(formData.price_mortgage))}</Text> : null}
 
                   <Text style={[styles.label, {marginTop: 10}]}>مبلغ اجاره ماهانه (تومان) *</Text>
                   <TextInput 
@@ -646,9 +661,9 @@ export default function AddPropertyScreen({ navigation }: any) {
                     keyboardType="numeric" 
                     placeholderTextColor="#64748b" 
                     value={formData.price_rent} 
-                    onChangeText={(t) => setFormData({...formData, price_rent: formatPriceInput(t)})} 
+                    onChangeText={(t) => setFormData({...formData, price_rent: formatPrice(formatInputToNumber(t))})} 
                   />
-                  {formData.price_rent ? <Text style={[styles.persianNumberText, {color: '#60a5fa'}]}>{numberToPersianWords(parseInt(formData.price_rent.replace(/,/g, '')))}</Text> : null}
+                  {formData.price_rent ? <Text style={[styles.persianNumberText, {color: '#60a5fa'}]}>{numberToPersianWords(formatInputToNumber(formData.price_rent))}</Text> : null}
                 </>
               )}
               
@@ -919,6 +934,7 @@ const styles = StyleSheet.create({
 FILE: ./Mobile\src\screens\CustomersScreen.tsx
 ==================================================
 
+// src/screens/CustomersScreen.tsx
 import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, ActivityIndicator, TextInput, Alert, Modal, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -927,8 +943,10 @@ import { Audio } from 'expo-av';
 import { useFocusEffect } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import api from '../services/api';
+
+// ایمپورت ابزارهای فرمت عدد
+import { numberToPersianWords, formatPrice, formatInputToNumber } from '../utils/numberFormat';
 
 export default function CustomersScreen({ navigation }: any) {
   const [clients, setClients] = useState<any[]>([]);
@@ -942,18 +960,9 @@ export default function CustomersScreen({ navigation }: any) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [callResult, setCallResult] = useState<any>(null);
 
-  // New Client Modal
-  const [modalVisible, setModalVisible] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('');
-  const [newDealType, setNewDealType] = useState('sale');
-  const [newBudget, setNewBudget] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
   // Requirement Modal for AI Matching
   const [reqModalVisible, setReqModalVisible] = useState(false);
   const [reqHoods, setReqHoods] = useState('');
-  const [reqMinBudget, setReqMinBudget] = useState('');
   const [reqMaxBudget, setReqMaxBudget] = useState('');
 
   useFocusEffect(
@@ -971,11 +980,6 @@ export default function CustomersScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatPrice = (price: number) => {
-    if (!price || price === 0) return 'بودجه نامشخص';
-    return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' تومان';
   };
 
   // ==========================================
@@ -1007,12 +1011,21 @@ export default function CustomersScreen({ navigation }: any) {
   async function startRecording() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     try {
+      // 🌟 فیکس باگ: خالی کردن حافظه میکروفون قبل از شروع مجدد
+      if (recording) {
+        await recording.stopAndUnloadAsync();
+        setRecording(null);
+      }
+      
       const permission = await Audio.requestPermissionsAsync();
       if (permission.status !== 'granted') return;
+      
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      setRecording(recording);
-    } catch (err) {}
+      const { recording: newRecording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      setRecording(newRecording);
+    } catch (err) {
+      console.log('Recording error:', err);
+    }
   }
 
   async function stopRecording() {
@@ -1027,8 +1040,10 @@ export default function CustomersScreen({ navigation }: any) {
   const analyzeCallAudio = async (uri: string) => {
     setIsAnalyzing(true);
     try {
+      // تضمین ارسال درست فایل در iOS و Android
+      const fileUri = Platform.OS === 'ios' && !uri.startsWith('file://') ? `file://${uri}` : uri;
       let formData = new FormData();
-      formData.append('audio', { uri: uri, name: 'call.m4a', type: 'audio/m4a' } as any);
+      formData.append('audio', { uri: fileUri, name: 'call.m4a', type: 'audio/m4a' } as any);
       
       const response = await api.post(`/api/clients/${activeClient.id}/analyze-call`, formData, { 
         headers: { 'Content-Type': 'multipart/form-data' } 
@@ -1047,23 +1062,27 @@ export default function CustomersScreen({ navigation }: any) {
   };
 
   // ==========================================
-  // ثبت فرم نیازها برای مچینگ خودکار
+  // ثبت فرم نیازها برای مچینگ خودکار (Radar)
   // ==========================================
   const submitRequirement = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!reqHoods) { Toast.show({ type: 'error', text1: 'خطا', text2: 'ثبت محله الزامی است.' }); return; }
     try {
       const payload = { 
-        client_id: activeClient.id, deal_type: 'sale', property_type: 'apartment', 
+        client_id: activeClient.id, 
+        deal_type: 'sale', 
+        property_type: 'apartment', 
         preferred_neighborhoods: reqHoods, 
-        min_budget: reqMinBudget ? parseFloat(reqMinBudget.replace(/,/g, '')) : 0, 
-        max_budget: reqMaxBudget ? parseFloat(reqMaxBudget.replace(/,/g, '')) : 0 
+        min_budget: 0, 
+        max_budget: formatInputToNumber(reqMaxBudget) 
       };
       await api.post('/api/clients/add-requirement', payload);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Toast.show({ type: 'success', text1: 'پرزنتیشن ثبت شد 🎯', text2: 'ربات هر زمان فایل مشابهی ثبت شود شما را خبر می‌کند.' });
-      setReqModalVisible(false); setReqHoods(''); setReqMaxBudget(''); setReqMinBudget('');
-    } catch (e) { Toast.show({ type: 'error', text1: 'خطا' }); }
+      Toast.show({ type: 'success', text1: 'تارگت تنظیم شد 🎯', text2: 'ربات هر زمان فایل مشابهی شکار کند شما را خبر می‌کند.' });
+      setReqModalVisible(false); 
+      setReqHoods(''); 
+      setReqMaxBudget('');
+    } catch (e) { Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکل در ثبت رادار.' }); }
   };
 
   const renderClientCard = ({ item }: { item: any }) => {
@@ -1091,8 +1110,8 @@ export default function CustomersScreen({ navigation }: any) {
 
         <View style={styles.actionsRow}>
           <TouchableOpacity style={styles.reqBtn} onPress={() => { setActiveClient(item); setReqModalVisible(true); }}>
-            <Ionicons name="easel-outline" size={18} color="#a855f7" />
-            <Text style={styles.btnText}>فرم نیاز (AI)</Text>
+            <Ionicons name="radar-outline" size={18} color="#a855f7" />
+            <Text style={styles.btnText}>تارگت (مچینگ)</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.reqBtn, { backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: '#3b82f6' }]} onPress={() => { setActiveClient(item); setCallResult(null); setCallModalVisible(true); }}>
             <Ionicons name="mic-outline" size={18} color="#3b82f6" />
@@ -1128,30 +1147,37 @@ export default function CustomersScreen({ navigation }: any) {
       <Modal animationType="slide" transparent={true} visible={callModalVisible} onRequestClose={() => setCallModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalView}>
-            <View style={styles.modalHeader}><Text style={[styles.modalTitle, { color: '#3b82f6' }]}>تحلیلگر مکالمه 📞</Text><TouchableOpacity onPress={() => setCallModalVisible(false)}><Ionicons name="close" size={24} color="#94a3b8" /></TouchableOpacity></View>
-            <Text style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', marginBottom: 30, lineHeight: 22 }}>مکالمه خود با <Text style={{fontWeight: 'bold', color: '#fff'}}>{activeClient?.name}</Text> را ضبط کنید تا هوش مصنوعی آن را خلاصه کرده و احساسات مشتری را بسنجد.</Text>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: '#3b82f6' }]}>تحلیلگر مکالمه 📞</Text>
+              <TouchableOpacity onPress={() => { setCallModalVisible(false); setCallResult(null); setRecording(null); }}>
+                <Ionicons name="close" size={24} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
+            <Text style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', marginBottom: 30, lineHeight: 22, fontFamily: 'Vazir-Regular' }}>
+              مکالمه خود با <Text style={{fontWeight: 'bold', color: '#fff'}}>{activeClient?.name}</Text> را ضبط کنید تا هوش مصنوعی آن را خلاصه کرده و احساسات مشتری را بسنجد.
+            </Text>
             
             <View style={{ alignItems: 'center', marginBottom: 30 }}>
               {isAnalyzing ? (
                 <View style={{ alignItems: 'center' }}>
                   <ActivityIndicator size="large" color="#3b82f6" />
-                  <Text style={{ color: '#3b82f6', marginTop: 15, fontWeight: 'bold' }}>در حال پردازش صدا و احساسات...</Text>
+                  <Text style={{ color: '#3b82f6', marginTop: 15, fontFamily: 'Vazir-Bold' }}>در حال پردازش صدا و احساسات...</Text>
                 </View>
               ) : (
                 <TouchableOpacity style={[styles.micButton, recording ? { backgroundColor: '#ef4444', transform: [{ scale: 1.1 }] } : null]} onPressIn={startRecording} onPressOut={stopRecording}>
                   <Ionicons name="mic" size={50} color="#fff" />
                 </TouchableOpacity>
               )}
-              <Text style={{ color: '#cbd5e1', marginTop: 15, fontSize: 12 }}>{recording ? "در حال ضبط... رها کنید تا تحلیل شود" : "دکمه را نگه دارید و صحبت کنید"}</Text>
+              <Text style={{ color: '#cbd5e1', marginTop: 15, fontSize: 12, fontFamily: 'Vazir-Regular' }}>{recording ? "در حال ضبط... رها کنید تا تحلیل شود" : "دکمه را نگه دارید و صحبت کنید"}</Text>
             </View>
 
             {callResult && (
               <View style={{ backgroundColor: '#0B0F19', padding: 15, borderRadius: 16, borderWidth: 1, borderColor: '#334155' }}>
-                <Text style={{ color: '#3b82f6', fontWeight: 'bold', marginBottom: 10, textAlign: 'right' }}>📝 خلاصه مکالمه:</Text>
-                <Text style={{ color: '#f8fafc', fontSize: 13, lineHeight: 22, textAlign: 'right', marginBottom: 15 }}>{callResult.summary}</Text>
+                <Text style={{ color: '#3b82f6', fontFamily: 'Vazir-Bold', marginBottom: 10, textAlign: 'right' }}>📝 خلاصه مکالمه:</Text>
+                <Text style={{ color: '#f8fafc', fontSize: 13, lineHeight: 22, textAlign: 'right', marginBottom: 15, fontFamily: 'Vazir-Regular' }}>{callResult.summary}</Text>
                 <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: '#1E293B', paddingTop: 10 }}>
-                  <Text style={{ color: '#94a3b8', fontSize: 12 }}>حالت احساسی (Sentiment):</Text>
-                  <Text style={{ color: callResult.sentiment === 'positive' ? '#10b981' : callResult.sentiment === 'negative' ? '#ef4444' : '#f59e0b', fontWeight: 'bold' }}>
+                  <Text style={{ color: '#94a3b8', fontSize: 12, fontFamily: 'Vazir-Regular' }}>حالت احساسی (Sentiment):</Text>
+                  <Text style={{ color: callResult.sentiment === 'positive' ? '#10b981' : callResult.sentiment === 'negative' ? '#ef4444' : '#f59e0b', fontFamily: 'Vazir-Bold' }}>
                     {callResult.sentiment === 'positive' ? 'راغب و مثبت 😊' : callResult.sentiment === 'negative' ? 'ناراضی / سرد 😠' : 'معمولی 😐'}
                   </Text>
                 </View>
@@ -1165,12 +1191,28 @@ export default function CustomersScreen({ navigation }: any) {
       <Modal animationType="fade" transparent={true} visible={reqModalVisible} onRequestClose={() => setReqModalVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalView}>
-            <View style={styles.modalHeader}><Text style={[styles.modalTitle, { color: '#a855f7' }]}>تارگت‌یابی هوشمند 🎯</Text><TouchableOpacity onPress={() => setReqModalVisible(false)}><Ionicons name="close" size={24} color="#94a3b8" /></TouchableOpacity></View>
-            <Text style={{ color: '#94a3b8', fontSize: 12, textAlign: 'right', marginBottom: 20 }}>با تنظیم این بخش، هر زمان فایل مناسبی در سیستم ثبت شود (حتی توسط ربات دیوار)، سیستم به شما آلارم می‌دهد.</Text>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: '#a855f7' }]}>تارگت‌یابی هوشمند 🎯</Text>
+              <TouchableOpacity onPress={() => setReqModalVisible(false)}><Ionicons name="close" size={24} color="#94a3b8" /></TouchableOpacity>
+            </View>
+            <Text style={{ color: '#94a3b8', fontSize: 12, textAlign: 'right', marginBottom: 20, fontFamily: 'Vazir-Regular', lineHeight: 20 }}>با تنظیم این بخش، هر زمان فایل مناسبی در سیستم ثبت شود (حتی توسط ربات دیوار)، سیستم به شما آلارم می‌دهد.</Text>
             
-            <View style={styles.inputGroup}><Text style={styles.label}>محله‌های درخواستی (با ویرگول جدا کنید) *</Text><TextInput style={styles.input} placeholder="مثال: سجاد، هاشمیه" placeholderTextColor="#64748b" value={reqHoods} onChangeText={setReqHoods} /></View>
-            <View style={{ flexDirection: 'row-reverse', gap: 10 }}>
-              <View style={[styles.inputGroup, { flex: 1 }]}><Text style={styles.label}>حداکثر بودجه</Text><TextInput style={[styles.input, { fontFamily: 'System' }]} placeholder="مثال: 10,000,000,000" placeholderTextColor="#64748b" keyboardType="numeric" value={reqMaxBudget} onChangeText={(text) => setReqMaxBudget(text.replace(/,/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ","))} /></View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>محله‌های درخواستی (با ویرگول جدا کنید) *</Text>
+              <TextInput style={styles.input} placeholder="مثال: سجاد، هاشمیه" placeholderTextColor="#64748b" value={reqHoods} onChangeText={setReqHoods} />
+            </View>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>حداکثر بودجه</Text>
+              <TextInput 
+                style={[styles.input, { fontFamily: 'System', color: '#a855f7', borderColor: 'rgba(168, 85, 247, 0.5)' }]} 
+                placeholder="مثال: 10,000,000,000" 
+                placeholderTextColor="#64748b" 
+                keyboardType="numeric" 
+                value={reqMaxBudget} 
+                onChangeText={(text) => setReqMaxBudget(formatPrice(formatInputToNumber(text)))} 
+              />
+              {reqMaxBudget ? <Text style={styles.persianNumberText}>{numberToPersianWords(formatInputToNumber(reqMaxBudget))}</Text> : null}
             </View>
 
             <TouchableOpacity style={[styles.submitBtn, { backgroundColor: '#a855f7' }]} onPress={submitRequirement}>
@@ -1184,75 +1226,92 @@ export default function CustomersScreen({ navigation }: any) {
   );
 }
 
-// ... (استایل‌ها مشابه فایل قبل با رنگ‌بندی Dark Theme است)
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0B0F19' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
   backBtn: { width: 40, height: 40, backgroundColor: '#1E293B', borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#f8fafc' },
+  headerTitle: { fontSize: 18, fontFamily: 'Vazir-Bold', color: '#f8fafc' },
   
   searchContainer: { flexDirection: 'row-reverse', alignItems: 'center', backgroundColor: '#1E293B', marginHorizontal: 20, borderRadius: 16, paddingHorizontal: 15, marginBottom: 15, borderWidth: 1, borderColor: '#334155' },
   searchIcon: { marginLeft: 10 },
-  searchInput: { flex: 1, color: '#f8fafc', paddingVertical: 12, textAlign: 'right' },
+  searchInput: { flex: 1, color: '#f8fafc', paddingVertical: 12, textAlign: 'right', fontFamily: 'Vazir-Regular' },
   
   listContent: { paddingHorizontal: 20, paddingBottom: 100 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { color: '#64748b', marginTop: 10, fontSize: 14 },
+  emptyText: { color: '#64748b', marginTop: 10, fontSize: 14, fontFamily: 'Vazir-Regular' },
   
   card: { backgroundColor: '#1E293B', borderRadius: 24, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#334155', elevation: 5 },
   cardHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottomWidth: 1, borderBottomColor: '#0B0F19', paddingBottom: 12 },
   clientInfo: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12 },
   avatar: { width: 42, height: 42, borderRadius: 21, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
-  avatarText: { fontWeight: 'bold', fontSize: 16 },
-  clientName: { color: '#f8fafc', fontWeight: 'bold', fontSize: 15, textAlign: 'right' },
-  clientPhone: { color: '#94a3b8', fontSize: 11, textAlign: 'right', marginTop: 2 },
+  avatarText: { fontFamily: 'Vazir-Bold', fontSize: 16 },
+  clientName: { color: '#f8fafc', fontFamily: 'Vazir-Bold', fontSize: 15, textAlign: 'right' },
+  clientPhone: { color: '#94a3b8', fontSize: 11, textAlign: 'right', marginTop: 2, fontFamily: 'System' },
   categoryBadge: { padding: 8, borderRadius: 12, borderWidth: 1 },
   
   actionsRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 10 },
   reqBtn: { flex: 1, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(168, 85, 247, 0.1)', borderWidth: 1, borderColor: '#a855f7', padding: 12, borderRadius: 14, gap: 8 },
-  btnText: { color: '#a855f7', fontWeight: 'bold', fontSize: 12 },
+  btnText: { color: '#a855f7', fontFamily: 'Vazir-Bold', fontSize: 12 },
   
   modalOverlay: { flex: 1, backgroundColor: 'rgba(11, 15, 25, 0.9)', justifyContent: 'flex-end' },
   modalView: { backgroundColor: '#1E293B', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40, maxHeight: '90%', borderWidth: 1, borderColor: '#334155' },
   modalHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  modalTitle: { color: '#fff', fontSize: 18, fontFamily: 'Vazir-Bold' },
   
   inputGroup: { marginBottom: 16 },
-  label: { color: '#cbd5e1', marginBottom: 8, fontSize: 13, fontWeight: 'bold', textAlign: 'right' },
-  input: { backgroundColor: '#0B0F19', borderWidth: 1, borderColor: '#334155', borderRadius: 16, padding: 16, color: '#f8fafc', textAlign: 'right' },
+  label: { color: '#cbd5e1', marginBottom: 8, fontSize: 13, fontFamily: 'Vazir-Bold', textAlign: 'right' },
+  input: { backgroundColor: '#0B0F19', borderWidth: 1, borderColor: '#334155', borderRadius: 16, padding: 16, color: '#f8fafc', textAlign: 'right', fontFamily: 'Vazir-Regular' },
   submitBtn: { backgroundColor: '#10b981', padding: 18, borderRadius: 16, marginTop: 10, alignItems: 'center' },
-  submitText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  micButton: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#3b82f6', justifyContent: 'center', alignItems: 'center', shadowColor: '#3b82f6', shadowOpacity: 0.5, shadowRadius: 20, elevation: 10 }
+  submitText: { color: '#fff', fontSize: 16, fontFamily: 'Vazir-Bold' },
+  micButton: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#3b82f6', justifyContent: 'center', alignItems: 'center', shadowColor: '#3b82f6', shadowOpacity: 0.5, shadowRadius: 20, elevation: 10 },
+
+  persianNumberText: { color: '#c084fc', fontSize: 12, fontFamily: 'Vazir-Bold', textAlign: 'right', marginTop: 8, paddingRight: 5 }
 });
 
 ==================================================
 FILE: ./Mobile\src\screens\DashboardScreen.tsx
 ==================================================
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+// src/screens/DashboardScreen.tsx
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { jwtDecode } from 'jwt-decode';
 import Toast from 'react-native-toast-message';
 import BottomSheet, { BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 import moment from 'moment-jalaali';
 import api, { BASE_URL } from '../services/api';
+import { useAuthStore } from '../store/useAuthStore';
+import * as SecureStore from 'expo-secure-store';
+import { jwtDecode } from 'jwt-decode';
 
-const { width } = Dimensions.get('window');
 moment.loadPersian({ usePersianDigits: true, dialect: 'persian-modern' });
 
 export default function DashboardScreen({ navigation }: any) {
-  const [userData, setUserData] = useState({ full_name: 'همکار عزیز', role: '...', avatar_letter: 'A' });
+  const { user, setUser, logout } = useAuthStore();
   const [stats, setStats] = useState({ properties: 0, clients: 0, ai_matches: 0 });
   const [loading, setLoading] = useState(true);
+  const [realRole, setRealRole] = useState('AGENT'); // 🌟 استیت جدید برای نقش واقعی
 
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['45%'], []);
+
+  // خواندن نقش واقعی از توکن امنیتی (برای رفع باگ منوها)
+  useEffect(() => {
+    const getRoleFromToken = async () => {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (token) {
+        try {
+          const decoded: any = jwtDecode(token);
+          setRealRole(decoded.role || 'AGENT');
+        } catch (e) {}
+      }
+    };
+    getRoleFromToken();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -1260,43 +1319,18 @@ export default function DashboardScreen({ navigation }: any) {
     }, [])
   );
 
-  useEffect(() => {
-    let ws: WebSocket | null = null;
-    const connectWebSocket = async () => {
-      try {
-        const token = await SecureStore.getItemAsync('userToken');
-        if (token) {
-          const decoded: any = jwtDecode(token);
-          const userId = decoded.user_id || decoded.id || 1; 
-          ws = new WebSocket(`${BASE_URL.replace('http', 'ws')}/ws/${userId}`);
-          ws.onmessage = (event) => {
-            try {
-              const data = JSON.parse(event.data);
-              if (data) {
-                Toast.show({
-                  type: data.type === 'success' ? 'success' : 'info',
-                  text1: data?.title || 'پیام سیستم 🔔',
-                  text2: data?.message || '',
-                  position: 'top',
-                });
-              }
-            } catch (err) {}
-          };
-        }
-      } catch (e) {}
-    };
-    connectWebSocket();
-    return () => { if (ws) ws.close(); };
-  }, []);
-
   const fetchDashboardData = async () => {
     try {
       const response = await api.get('/api/users/dashboard-stats');
       if (response.data.status === 'success') {
-        setUserData(response.data.user);
+        setUser(response.data.user);
         setStats(response.data.stats);
       }
-    } catch (error) {} finally { setLoading(false); }
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'دریافت اطلاعات داشبورد شکست خورد.' });
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleLogout = async () => {
@@ -1304,18 +1338,29 @@ export default function DashboardScreen({ navigation }: any) {
     Alert.alert("خروج از حساب", "آیا مطمئن هستید که می‌خواهید خارج شوید؟", [
       { text: "انصراف", style: "cancel" },
       { text: "خروج", style: "destructive", onPress: async () => {
-          await SecureStore.deleteItemAsync('userToken');
-          navigation.replace('Login');
-        }
-      }
+          await logout();
+      }}
     ]);
   };
 
   const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.7} />
-    ), []
+    (props: any) => <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.7} />, 
+    []
   );
+
+  const menuItems = [
+    { id: 1, title: 'بانک املاک', sub: 'مدیریت فایل‌ها', icon: 'business-outline', color: '#3b82f6', route: 'Properties', roles: ['SUPER_ADMIN', 'MANAGER', 'AGENT'] },
+    { id: 2, title: 'قیف فروش', sub: 'Kanban Board', icon: 'funnel-outline', color: '#f59e0b', route: 'Funnel', roles: ['SUPER_ADMIN', 'MANAGER', 'AGENT'] }, 
+    { id: 3, title: 'امور مالی', sub: 'کمیسیون‌ها', icon: 'wallet-outline', color: '#10b981', route: 'Financials', roles: ['SUPER_ADMIN', 'MANAGER', 'AGENT'] },
+    { id: 4, title: 'مشتریان', sub: 'ارزیابی تماس', icon: 'people-outline', color: '#14b8a6', route: 'Customers', roles: ['SUPER_ADMIN', 'MANAGER', 'AGENT'] },
+    { id: 5, title: 'مدیریت کل', sub: 'ویژه مدیران', icon: 'shield-checkmark-outline', color: '#ef4444', route: 'SuperAdmin', roles: ['SUPER_ADMIN'] },
+    { id: 6, title: 'پرزنت نمایشگاهی', sub: 'Showcase', icon: 'easel-outline', color: '#ec4899', route: 'Reels', roles: ['SUPER_ADMIN', 'MANAGER', 'AGENT'] },
+    { id: 7, title: 'مشارکت', sub: 'کلنگی و سازنده', icon: 'hand-right-outline', color: '#0ea5e9', route: 'Partnership', roles: ['SUPER_ADMIN', 'MANAGER', 'AGENT'] },
+    { id: 8, title: 'پروفایل', sub: 'تنظیمات حساب', icon: 'settings-outline', color: '#a855f7', route: 'Settings', roles: ['SUPER_ADMIN', 'MANAGER', 'AGENT'] },
+  ];
+
+  // 🌟 حالا دکمه‌ها بر اساس نقش واقعی فیلتر می‌شوند 🌟
+  const filteredMenuItems = menuItems.filter(item => item.roles.includes(realRole));
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1334,14 +1379,14 @@ export default function DashboardScreen({ navigation }: any) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           bottomSheetRef.current?.expand();
         }} style={styles.avatarContainer}>
-          <Text style={styles.avatarText}>{userData.avatar_letter}</Text>
+          <Text style={styles.avatarText}>{user?.avatar_letter || 'U'}</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.welcomeSection}>
           <Text style={styles.dateText}>{moment().format('jD jMMMM jYYYY')}</Text>
-          <Text style={styles.greeting}>روز بخیر، {userData.full_name} 👋</Text>
+          <Text style={styles.greeting}>روز بخیر، {user?.full_name || 'همکار عزیز'} 👋</Text>
         </View>
 
         <LinearGradient colors={['#1e293b', '#0f172a']} style={styles.heroCard}>
@@ -1360,16 +1405,7 @@ export default function DashboardScreen({ navigation }: any) {
 
         <Text style={styles.sectionTitle}>دسترسی سریع</Text>
         <View style={styles.grid}>
-          {[
-            { id: 1, title: 'بانک املاک', sub: 'مدیریت فایل‌ها', icon: 'business-outline', color: '#3b82f6', route: 'Properties' },
-            { id: 2, title: 'قیف فروش', sub: 'Kanban Board', icon: 'funnel-outline', color: '#f59e0b', route: 'Funnel' }, 
-            { id: 3, title: 'امور مالی', sub: 'کمیسیون‌ها', icon: 'wallet-outline', color: '#10b981', route: 'Financials' },
-            { id: 4, title: 'مشتریان', sub: 'ارزیابی تماس', icon: 'people-outline', color: '#14b8a6', route: 'Customers' },
-            { id: 5, title: 'مدیریت کل', sub: 'ویژه مدیران', icon: 'shield-checkmark-outline', color: '#ef4444', route: 'SuperAdmin' }, 
-            { id: 6, title: 'پرزنت نمایشگاهی', sub: 'Showcase', icon: 'easel-outline', color: '#ec4899', route: 'Reels' },
-            { id: 7, title: 'مشارکت', sub: 'کلنگی و سازنده', icon: 'hand-right-outline', color: '#0ea5e9', route: 'Partnership' },
-            { id: 8, title: 'پروفایل', sub: 'تنظیمات حساب', icon: 'settings-outline', color: '#a855f7', route: 'Settings' },
-          ].map((item) => (
+          {filteredMenuItems.map((item) => (
             <TouchableOpacity key={item.id} style={styles.gridItem} onPress={() => navigation.navigate(item.route)}>
               <View style={[styles.iconContainer, { backgroundColor: `${item.color}15`, borderColor: `${item.color}50` }]}>
                 <Ionicons name={item.icon as any} size={28} color={item.color} />
@@ -1391,11 +1427,11 @@ export default function DashboardScreen({ navigation }: any) {
         <View style={styles.sheetContent}>
           <View style={styles.sheetHeader}>
             <View style={[styles.avatarContainer, { width: 60, height: 60, borderRadius: 30 }]}>
-              <Text style={[styles.avatarText, { fontSize: 24 }]}>{userData.avatar_letter}</Text>
+              <Text style={[styles.avatarText, { fontSize: 24 }]}>{user?.avatar_letter || 'U'}</Text>
             </View>
             <View style={{ marginRight: 15 }}>
-              <Text style={styles.sheetName}>{userData.full_name}</Text>
-              <Text style={styles.sheetRole}>{userData.role}</Text>
+              <Text style={styles.sheetName}>{user?.full_name || 'کاربر سیستم'}</Text>
+              <Text style={styles.sheetRole}>{realRole === 'SUPER_ADMIN' ? 'مدیر کل پلتفرم' : realRole === 'MANAGER' ? 'مدیر آژانس' : 'مشاور املاک'}</Text>
             </View>
           </View>
           
@@ -1465,6 +1501,7 @@ const styles = StyleSheet.create({
 FILE: ./Mobile\src\screens\FinancialsScreen.tsx
 ==================================================
 
+// src/screens/FinancialsScreen.tsx
 import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -1476,9 +1513,14 @@ import * as Haptics from 'expo-haptics';
 import moment from 'moment-jalaali';
 import api, { BASE_URL } from '../services/api';
 
+// ایمپورت استیت سراسری و ابزارهای فرمت عدد
+import { useAuthStore } from '../store/useAuthStore';
+import { numberToPersianWords, formatPrice, formatInputToNumber } from '../utils/numberFormat';
+
 moment.loadPersian({ usePersianDigits: true, dialect: 'persian-modern' });
 
 export default function FinancialsScreen({ navigation }: any) {
+  const { user } = useAuthStore(); // گرفتن اطلاعات کاربر برای سطح دسترسی
   const [stats, setStats] = useState({ total_revenue: 0, agent_share: 0, office_share: 0 });
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1540,7 +1582,9 @@ export default function FinancialsScreen({ navigation }: any) {
             await api.post('/api/deals/calculate-monthly', { year_month: currentMonth });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Toast.show({ type: 'success', text1: 'انجام شد', text2: 'سهم مشاورین برای این ماه بروزرسانی شد.' });
-          } catch (e) { Toast.show({ type: 'error', text1: 'عدم دسترسی', text2: 'فقط مدیر شعبه دسترسی دارد.' }); }
+          } catch (e) { 
+            Toast.show({ type: 'error', text1: 'عدم دسترسی', text2: 'فقط مدیر شعبه دسترسی دارد.' }); 
+          }
       }}
     ]);
   };
@@ -1556,8 +1600,8 @@ export default function FinancialsScreen({ navigation }: any) {
         client_id: selectedClient.id,
         property_id: selectedProperty ? selectedProperty.id : 0,
         deal_type: dealType,
-        deal_price: parseFloat(dealPrice.replace(/,/g, '')),
-        commission_amount: parseFloat(commission.replace(/,/g, ''))
+        deal_price: formatInputToNumber(dealPrice),
+        commission_amount: formatInputToNumber(commission)
       };
       await api.post('/api/deals/add', payload);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1565,11 +1609,12 @@ export default function FinancialsScreen({ navigation }: any) {
       setDealModalVisible(false);
       setSelectedClient(null); setSelectedProperty(null); setDealPrice(''); setCommission('');
       fetchFinancials();
-    } catch (e) { Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکلی در ثبت قرارداد پیش آمد.' }); } 
-    finally { setIsSubmitting(false); }
+    } catch (e) { 
+      Toast.show({ type: 'error', text1: 'خطا', text2: 'مشکلی در ثبت قرارداد پیش آمد.' }); 
+    } finally { 
+      setIsSubmitting(false); 
+    }
   };
-
-  const formatPrice = (price: number) => price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
   const handleDownloadPDF = (dealId: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1604,6 +1649,9 @@ export default function FinancialsScreen({ navigation }: any) {
     );
   };
 
+  // فقط مدیر شعبه و سوپر ادمین حق محاسبه حقوق را دارند
+  const isManager = user?.role === 'MANAGER' || user?.role === 'SUPER_ADMIN';
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -1611,9 +1659,15 @@ export default function FinancialsScreen({ navigation }: any) {
           <Ionicons name="arrow-forward" size={24} color="#f8fafc" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>گزارشات مالی و عملکرد</Text>
-        <TouchableOpacity onPress={calculateCommission} style={styles.calcBtn}>
-          <Ionicons name="calculator-outline" size={22} color="#f59e0b" />
-        </TouchableOpacity>
+        
+        {/* مخفی کردن دکمه محاسبه حقوق برای مشاوران ساده */}
+        {isManager ? (
+          <TouchableOpacity onPress={calculateCommission} style={styles.calcBtn}>
+            <Ionicons name="calculator-outline" size={22} color="#f59e0b" />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
       </View>
 
       {loading ? ( <View style={styles.centerContainer}><ActivityIndicator size="large" color="#10b981" /></View> ) : (
@@ -1702,12 +1756,30 @@ export default function FinancialsScreen({ navigation }: any) {
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>مبلغ کل معامله (تومان) *</Text>
-                <TextInput style={styles.input} keyboardType="numeric" value={dealPrice} onChangeText={(text) => setDealPrice(formatPrice(parseFloat(text.replace(/,/g, '') || '0')))} placeholder="مثال: 5,000,000,000" placeholderTextColor="#64748b" />
+                <TextInput 
+                  style={styles.input} 
+                  keyboardType="numeric" 
+                  value={dealPrice} 
+                  onChangeText={(text) => setDealPrice(formatPrice(formatInputToNumber(text)))} 
+                  placeholder="مثال: 5,000,000,000" 
+                  placeholderTextColor="#64748b" 
+                />
+                {/* اضافه شدن تبدیل عدد به حروف */}
+                {dealPrice ? <Text style={styles.persianNumberText}>{numberToPersianWords(formatInputToNumber(dealPrice))}</Text> : null}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>کمیسیون کل دریافتی (تومان) *</Text>
-                <TextInput style={[styles.input, { color: '#10b981', borderColor: '#10b981', fontSize: 18 }]} keyboardType="numeric" value={commission} onChangeText={(text) => setCommission(formatPrice(parseFloat(text.replace(/,/g, '') || '0')))} placeholder="مجموع دریافتی از طرفین" placeholderTextColor="#64748b" />
+                <TextInput 
+                  style={[styles.input, { color: '#10b981', borderColor: '#10b981', fontSize: 18 }]} 
+                  keyboardType="numeric" 
+                  value={commission} 
+                  onChangeText={(text) => setCommission(formatPrice(formatInputToNumber(text)))} 
+                  placeholder="مجموع دریافتی از طرفین" 
+                  placeholderTextColor="#64748b" 
+                />
+                {/* اضافه شدن تبدیل عدد به حروف */}
+                {commission ? <Text style={[styles.persianNumberText, {color: '#10b981'}]}>{numberToPersianWords(formatInputToNumber(commission))}</Text> : null}
               </View>
 
               <TouchableOpacity style={styles.submitBtn} onPress={submitDeal} disabled={isSubmitting}>
@@ -1774,7 +1846,9 @@ const styles = StyleSheet.create({
   radioText: { color: '#64748b', fontSize: 13, fontFamily: 'Vazir-Bold' },
   radioTextActive: { color: '#10b981' },
   submitBtn: { backgroundColor: '#10b981', padding: 18, borderRadius: 16, marginTop: 15, alignItems: 'center' },
-  submitText: { color: '#fff', fontSize: 16, fontFamily: 'Vazir-Bold' }
+  submitText: { color: '#fff', fontSize: 16, fontFamily: 'Vazir-Bold' },
+  
+  persianNumberText: { color: '#3b82f6', fontSize: 12, fontFamily: 'Vazir-Bold', textAlign: 'right', marginTop: 8, paddingRight: 5 },
 });
 
 ==================================================
@@ -1974,10 +2048,10 @@ const styles = StyleSheet.create({
 FILE: ./Mobile\src\screens\LoginScreen.tsx
 ==================================================
 
+import { useAuthStore } from '../store/useAuthStore';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 import Toast from 'react-native-toast-message';
 import * as Haptics from 'expo-haptics';
@@ -1986,6 +2060,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { BASE_URL } from '../services/api';
 
 export default function LoginScreen({ navigation }: any) {
+  // ۱. فراخوانی تابع ورود از Zustand در ابتدای کامپوننت
+  const login = useAuthStore((state) => state.login);
+
   const [activeTab, setActiveTab] = useState<'otp' | 'password'>('otp');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -2010,11 +2087,12 @@ export default function LoginScreen({ navigation }: any) {
     setIsLoading(true);
     try {
       const response = await axios.post(`${BASE_URL}/api/auth/login`, { username, password });
+      
+      // ۲. ویرایش بخش ورود با نام کاربری و رمز عبور
       if (response.data.access_token) {
-        await SecureStore.setItemAsync('userToken', response.data.access_token);
+        await login(response.data.access_token);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Toast.show({ type: 'success', text1: 'خوش آمدید', text2: response.data.message });
-        navigation.replace('Dashboard');
       }
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -2057,11 +2135,12 @@ export default function LoginScreen({ navigation }: any) {
     setIsLoading(true);
     try {
       const response = await axios.post(`${BASE_URL}/api/auth/verify-otp`, { phone, code: otpCode });
+      
+      // ۳. ویرایش بخش ورود با رمز یکبار مصرف (OTP)
       if (response.data.access_token) {
-        await SecureStore.setItemAsync('userToken', response.data.access_token);
+        await login(response.data.access_token);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Toast.show({ type: 'success', text1: 'خوش آمدید', text2: 'ورود موفقیت‌آمیز بود.' });
-        navigation.replace('Dashboard');
       }
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -3123,6 +3202,7 @@ const styles = StyleSheet.create({
 FILE: ./Mobile\src\screens\RemindersScreen.tsx
 ==================================================
 
+// src/screens/RemindersScreen.tsx
 import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -3176,6 +3256,21 @@ export default function RemindersScreen({ navigation }: any) {
     }
   };
 
+  // 🌟 تابع تولید تاریخ هوشمند (Quick Dates) 🌟
+  const setQuickDate = (type: 'today_eve' | 'tomorrow_morn' | 'tomorrow_eve') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    let newDate = moment();
+    if (type === 'today_eve') {
+      newDate.hours(17).minutes(0);
+    } else if (type === 'tomorrow_morn') {
+      newDate.add(1, 'day').hours(10).minutes(0);
+    } else if (type === 'tomorrow_eve') {
+      newDate.add(1, 'day').hours(17).minutes(0);
+    }
+    setDate(newDate.format('YYYY-MM-DDTHH:mm'));
+    Toast.show({ type: 'info', text1: 'زمان تنظیم شد', text2: newDate.format('dddd jD jMMMM ساعت HH:mm') });
+  };
+
   const handleAddReminder = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!title || !date) {
@@ -3194,7 +3289,7 @@ export default function RemindersScreen({ navigation }: any) {
   };
 
   const renderItem = ({ item }: { item: any }) => {
-    const formattedDate = moment(item.remind_date).format('dddd jD jMMMM - HH:mm');
+    const formattedDate = moment(item.remind_date).format('dddd jD jMMMM - ساعت HH:mm');
 
     return (
       <View style={[styles.card, item.is_completed && styles.cardCompleted]}>
@@ -3251,6 +3346,13 @@ export default function RemindersScreen({ navigation }: any) {
             </View>
 
             <TextInput style={styles.input} placeholder="عنوان (مثال: تماس با مالک)" placeholderTextColor="#64748b" value={title} onChangeText={setTitle} />
+            
+            <View style={styles.quickDateRow}>
+              <TouchableOpacity style={styles.quickDateBtn} onPress={() => setQuickDate('tomorrow_eve')}><Text style={styles.quickDateText}>فردا عصر</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.quickDateBtn} onPress={() => setQuickDate('tomorrow_morn')}><Text style={styles.quickDateText}>فردا صبح</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.quickDateBtn} onPress={() => setQuickDate('today_eve')}><Text style={styles.quickDateText}>امروز عصر</Text></TouchableOpacity>
+            </View>
+            
             <TextInput style={[styles.input, { fontFamily: 'System', textAlign: 'right' }]} placeholder="فرمت تاریخ: 2026-07-20T14:30" placeholderTextColor="#64748b" value={date} onChangeText={setDate} />
             <TextInput style={[styles.input, { height: 100, textAlignVertical: 'top' }]} placeholder="توضیحات (اختیاری)" placeholderTextColor="#64748b" value={desc} onChangeText={setDesc} multiline />
 
@@ -3278,7 +3380,6 @@ const styles = StyleSheet.create({
   textCompleted: { textDecorationLine: 'line-through', color: '#94a3b8' },
   date: { color: '#f59e0b', fontSize: 12, fontFamily: 'Vazir-Regular', marginBottom: 6, textAlign: 'right' },
   desc: { color: '#cbd5e1', fontSize: 12, textAlign: 'right', fontFamily: 'Vazir-Regular', lineHeight: 20 },
-  
   checkBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(245, 158, 11, 0.1)', borderWidth: 1, borderColor: '#f59e0b', justifyContent: 'center', alignItems: 'center' },
   
   fab: { position: 'absolute', bottom: 30, left: 24, elevation: 10, shadowColor: '#f59e0b', shadowOpacity: 0.4, shadowRadius: 15 },
@@ -3289,6 +3390,10 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   modalTitle: { color: '#f59e0b', fontSize: 18, fontFamily: 'Vazir-Bold' },
   
+  quickDateRow: { flexDirection: 'row-reverse', gap: 10, marginBottom: 15 },
+  quickDateBtn: { flex: 1, backgroundColor: 'rgba(245, 158, 11, 0.1)', paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#f59e0b', alignItems: 'center' },
+  quickDateText: { color: '#f59e0b', fontFamily: 'Vazir-Bold', fontSize: 12 },
+
   input: { backgroundColor: '#0B0F19', borderWidth: 1, borderColor: '#334155', borderRadius: 16, padding: 16, color: '#f8fafc', textAlign: 'right', marginBottom: 15, fontFamily: 'Vazir-Regular' },
   submitBtn: { backgroundColor: '#f59e0b', padding: 18, borderRadius: 16, alignItems: 'center', marginTop: 10 },
   submitBtnText: { color: '#fff', fontFamily: 'Vazir-Bold', fontSize: 16 }
@@ -3342,14 +3447,19 @@ export default function SettingsScreen({ navigation }: any) {
     } catch (e) {}
   };
 
+  // جایگزین کردن تابع قبلی با این:
   const handleLogout = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    Alert.alert("خروج", "آیا مطمئن هستید که می‌خواهید از سیستم خارج شوید؟", [
+    Alert.alert("خروج از حساب", "آیا مطمئن هستید که می‌خواهید خارج شوید؟", [
       { text: "انصراف", style: "cancel" },
-      { text: "خروج", style: "destructive", onPress: async () => {
-          await SecureStore.deleteItemAsync('userToken');
-          navigation.replace('Login');
-      }}
+      { 
+        text: "خروج", 
+        style: "destructive", 
+        onPress: async () => {
+          // اینجا فقط کافیست این یک خط را صدا بزنیم!
+          await useAuthStore.getState().logout();
+        }
+      }
     ]);
   };
 
@@ -3982,15 +4092,17 @@ export default function TicketsScreen({ navigation }: any) {
     try {
       let formData = new FormData();
       if (replyText) formData.append("message", replyText);
-      else formData.append("message", "فایل پیوست شد"); // رفع باگ خالی بودن متن
+      else formData.append("message", "فایل پیوست شد"); 
 
       if (attachment) {
         const fileExt = attachment.split('.').pop() || 'jpg';
         const mimeType = fileExt === 'mp4' ? 'video/mp4' : 'image/jpeg';
-        const cleanUri = Platform.OS === 'android' ? attachment : attachment.replace('file://', '');
+        
+        // 🌟 تغییر طلایی: فرمت کردن ایمن URI فایل برای ارسال به سرور 🌟
+        const fileUri = Platform.OS === 'ios' && !attachment.startsWith('file://') ? `file://${attachment}` : attachment;
         
         formData.append("file", {
-          uri: cleanUri,
+          uri: fileUri,
           name: `attachment.${fileExt}`,
           type: mimeType
         } as any);
@@ -4363,17 +4475,18 @@ const styles = StyleSheet.create({
 FILE: ./Mobile\src\services\api.ts
 ==================================================
 
+// src/services/api.ts
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { navigate } from '../navigation/NavigationService';
 import Toast from 'react-native-toast-message';
+import { useAuthStore } from '../store/useAuthStore';
 
-// لطفاً در صورت نیاز IP سیستم خود را جایگزین کنید
-export const BASE_URL = "http://10.77.241.18:8000";
+// آی‌پی دقیق شبکه وای‌فای شما قرار داده شد:
+export const BASE_URL = "http://10.219.99.18:8000";
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 15000,
+  timeout: 10000, 
 });
 
 api.interceptors.request.use(
@@ -4407,3 +4520,90 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+==================================================
+FILE: ./Mobile\src\store\useAuthStore.ts
+==================================================
+
+// src/store/useAuthStore.ts
+import { create } from 'zustand';
+import * as SecureStore from 'expo-secure-store';
+
+interface User {
+  full_name: string;
+  role: string;
+  avatar_letter: string;
+  agency_id?: number;
+}
+
+interface AuthState {
+  token: string | null;
+  user: User | null;
+  isLoading: boolean;
+  login: (token: string, userData?: User) => Promise<void>;
+  logout: () => Promise<void>;
+  checkAuth: () => Promise<void>;
+  setUser: (user: User) => void;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  token: null,
+  user: null,
+  isLoading: true, // در ابتدا در حال لود است تا توکن را از حافظه بخواند
+
+  login: async (token, userData) => {
+    await SecureStore.setItemAsync('userToken', token);
+    set({ token, user: userData || null, isLoading: false });
+  },
+
+  logout: async () => {
+    await SecureStore.deleteItemAsync('userToken');
+    set({ token: null, user: null, isLoading: false });
+  },
+
+  checkAuth: async () => {
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (token) {
+        set({ token, isLoading: false });
+      } else {
+        set({ token: null, isLoading: false });
+      }
+    } catch (error) {
+      set({ token: null, isLoading: false });
+    }
+  },
+
+  setUser: (user) => set({ user }),
+}));
+
+==================================================
+FILE: ./Mobile\src\utils\numberFormat.ts
+==================================================
+
+// src/utils/numberFormat.ts
+
+export const formatPrice = (price: number | string): string => {
+  if (!price || Number(price) === 0) return 'توافقی';
+  return Number(price).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+};
+
+export const numberToPersianWords = (num: number): string => {
+  if (!num || isNaN(num) || num === 0) return '';
+  let b = Math.floor(num / 1000000000);
+  let m = Math.floor((num % 1000000000) / 1000000);
+  let k = Math.floor((num % 1000000) / 1000);
+  let parts = [];
+  
+  if (b > 0) parts.push(`${b} میلیارد`);
+  if (m > 0) parts.push(`${m} میلیون`);
+  if (k > 0) parts.push(`${k} هزار`);
+  
+  return parts.length > 0 ? parts.join(' و ') + ' تومان' : '';
+};
+
+// برای استفاده در Input ها که کاربر عدد وارد میکند (جدا کردن با کاما)
+export const formatInputToNumber = (value: string): number => {
+  const numericValue = value.replace(/,/g, '').replace(/[^0-9]/g, '');
+  return numericValue ? parseInt(numericValue) : 0;
+};

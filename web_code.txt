@@ -1,0 +1,1517 @@
+
+
+==================================================
+FILE: ./Web\index.html
+==================================================
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EstateMind AI — ورود به سیستم</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
+
+==================================================
+FILE: ./Web\package.json
+==================================================
+
+{
+  "name": "vite-react-typescript-starter",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.18.1",
+    "lucide-react": "^0.460.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.8"
+  }
+}
+
+
+==================================================
+FILE: ./Web\postcss.config.js
+==================================================
+
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+
+
+==================================================
+FILE: ./Web\tailwind.config.js
+==================================================
+
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  theme: {
+    extend: {
+      keyframes: {
+        'fade-in-up': {
+          from: { opacity: '0', transform: 'translateY(10px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'pulse-glow': {
+          '0%, 100%': { opacity: '0.4' },
+          '50%': { opacity: '0.8' },
+        },
+      },
+      animation: {
+        'fade-in-up': 'fade-in-up 0.4s ease-out',
+        'pulse-glow': 'pulse-glow 3s ease-in-out infinite',
+      },
+    },
+  },
+  plugins: [],
+};
+
+
+==================================================
+FILE: ./Web\vite.config.ts
+==================================================
+
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+});
+
+
+==================================================
+FILE: ./Web\src\App.tsx
+==================================================
+
+import { useState, useRef } from 'react';
+import {
+  Shield,
+  Phone,
+  Lock,
+  User,
+  ArrowLeft,
+  KeyRound,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Fingerprint,
+} from 'lucide-react';
+
+export default function App() {
+  const [tab, setTab] = useState<'otp' | 'password'>('otp');
+  const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '']);
+  const [otpSent, setOtpSent] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^\d?$/.test(value)) return;
+    const next = [...otpDigits];
+    next[index] = value;
+    setOtpDigits(next);
+    if (value && index < 4) inputsRef.current[index + 1]?.focus();
+  };
+
+  const handleOtpKey = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+      inputsRef.current[index - 1]?.focus();
+    }
+  };
+
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-slate-950 flex items-center justify-center p-4">
+      {/* Background glow circles */}
+      <div className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full bg-emerald-500/15 blur-[120px] animate-pulse-glow" />
+      <div className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full bg-blue-500/15 blur-[120px] animate-pulse-glow" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full bg-purple-500/5 blur-[100px]" />
+
+      {/* Subtle grid overlay */}
+      <div
+        className="absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage:
+            'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+        }}
+      />
+
+      {/* Content */}
+      <div className="relative z-10 w-full max-w-md">
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-8 animate-fade-in-up">
+          <div className="relative mb-4">
+            <div className="absolute inset-0 rounded-2xl bg-emerald-500/30 blur-xl animate-pulse-glow" />
+            <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-2xl shadow-emerald-500/30">
+              <Shield className="w-8 h-8 text-white" strokeWidth={2.5} />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-100 tracking-tight">
+            EstateMind <span className="text-emerald-400">AI</span>
+          </h1>
+          <p className="text-sm text-slate-500 mt-1.5">سامانه هوشمند مدیریت املاک</p>
+        </div>
+
+        {/* Glassmorphic card */}
+        <div className="relative animate-fade-in-up">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-slate-800/40 to-blue-500/10 rounded-3xl blur-xl" />
+          <div className="relative bg-slate-900/60 backdrop-blur-2xl border border-slate-700/40 rounded-3xl p-8 shadow-2xl">
+            {/* Header */}
+            <div className="text-center mb-6">
+              <h2 className="text-lg font-bold text-slate-100">ورود به سیستم</h2>
+              <p className="text-xs text-slate-500 mt-1">برای ادامه وارد شوید</p>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex items-center gap-1.5 bg-slate-800/60 border border-slate-700/40 rounded-xl p-1.5 mb-6">
+              <button
+                onClick={() => setTab('otp')}
+                className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-bold py-2.5 rounded-lg transition-all duration-200 ${
+                  tab === 'otp'
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <KeyRound className="w-4 h-4" />
+                رمز یکبار مصرف (OTP)
+              </button>
+              <button
+                onClick={() => setTab('password')}
+                className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-bold py-2.5 rounded-lg transition-all duration-200 ${
+                  tab === 'password'
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Lock className="w-4 h-4" />
+                رمز عبور ثابت
+              </button>
+            </div>
+
+            {/* OTP Tab */}
+            {tab === 'otp' && (
+              <div className="space-y-5">
+                {!otpSent ? (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-2">شماره موبایل</label>
+                      <div className="relative">
+                        <Phone className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                        <input
+                          type="tel"
+                          placeholder="0912 345 6789"
+                          className="w-full bg-slate-800/60 border border-slate-700/50 rounded-xl pr-10 pl-4 py-3.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setOtpSent(true)}
+                      className="w-full flex items-center justify-center gap-2 text-sm font-bold py-3.5 rounded-xl bg-gradient-to-l from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      ارسال کد تایید
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-2 text-center">
+                        کد ۵ رقمی را وارد کنید
+                      </label>
+                      <div className="flex items-center justify-center gap-2.5" dir="ltr">
+                        {otpDigits.map((digit, i) => (
+                          <input
+                            key={i}
+                            ref={(el) => { inputsRef.current[i] = el; }}
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={1}
+                            value={digit}
+                            onChange={(e) => handleOtpChange(i, e.target.value)}
+                            onKeyDown={(e) => handleOtpKey(i, e)}
+                            className={`w-12 h-14 text-center text-xl font-bold rounded-xl border bg-slate-800/60 text-slate-100 focus:outline-none transition-all ${
+                              digit
+                                ? 'border-emerald-500/50 ring-2 ring-emerald-500/20'
+                                : 'border-slate-700/50 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20'
+                            }`}
+                            style={{ letterSpacing: '0.1em' }}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-center text-[11px] text-slate-500 mt-3">
+                        کد تا <span className="text-emerald-400 nums-fa">۲:۰۰</span> دقیقه دیگر معتبر است
+                      </p>
+                    </div>
+                    <button className="w-full flex items-center justify-center gap-2 text-sm font-bold py-3.5 rounded-xl bg-gradient-to-l from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30">
+                      <CheckCircle2 className="w-4 h-4" />
+                      تایید و ورود
+                    </button>
+                    <button
+                      onClick={() => setOtpSent(false)}
+                      className="w-full text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                    >
+                      تغییر شماره موبایل
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Password Tab */}
+            {tab === 'password' && (
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-2">نام کاربری</label>
+                  <div className="relative">
+                    <User className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input
+                      type="text"
+                      placeholder="نام کاربری خود را وارد کنید"
+                      className="w-full bg-slate-800/60 border border-slate-700/50 rounded-xl pr-10 pl-4 py-3.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-2">رمز عبور</label>
+                  <div className="relative">
+                    <Lock className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      className="w-full bg-slate-800/60 border border-slate-700/50 rounded-xl pr-10 pl-10 py-3.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    />
+                    <button
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500/20 focus:ring-offset-0" />
+                    <span className="text-xs text-slate-400">مرا به خاطر بسپار</span>
+                  </label>
+                  <button className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">
+                    فراموشی رمز عبور؟
+                  </button>
+                </div>
+                <button className="w-full flex items-center justify-center gap-2 text-sm font-bold py-3.5 rounded-xl bg-gradient-to-l from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30">
+                  <ArrowLeft className="w-4 h-4" />
+                  ورود به سیستم
+                </button>
+              </div>
+            )}
+
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-700/40" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-slate-900/60 backdrop-blur-2xl px-3 text-[11px] text-slate-500">یا</span>
+              </div>
+            </div>
+
+            {/* Biometric login */}
+            <button className="w-full flex items-center justify-center gap-2 text-sm font-medium py-3 rounded-xl bg-slate-800/60 border border-slate-700/40 text-slate-300 hover:bg-slate-700/50 hover:text-slate-100 transition-all">
+              <Fingerprint className="w-5 h-5 text-emerald-400" />
+              ورود با اثر انگشت
+            </button>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <p className="text-center text-[11px] text-slate-600 mt-6 animate-fade-in-up">
+          با ورود به سیستم، شما شرایط و قوانین استفاده را می‌پذیرید
+        </p>
+      </div>
+    </div>
+  );
+}
+
+
+==================================================
+FILE: ./Web\src\index.css
+==================================================
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  font-family: 'Vazirmatn', sans-serif;
+}
+
+body {
+  margin: 0;
+  background-color: #020617;
+}
+
+.nums-fa {
+  font-feature-settings: 'ss01';
+  letter-spacing: 0.01em;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+
+==================================================
+FILE: ./Web\src\main.tsx
+==================================================
+
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+
+==================================================
+FILE: ./Web\src\package.json
+==================================================
+
+{
+  "name": "vite-react-typescript-starter",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lucide-react": "^0.460.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.8"
+  }
+}
+
+
+==================================================
+FILE: ./Web\src\vite-env.d.ts
+==================================================
+
+/// <reference types="vite/client" />
+
+
+==================================================
+FILE: ./Web\src\components\Header.tsx
+==================================================
+
+import { useState } from 'react';
+import { Bell, Search, ChevronDown, Sun } from 'lucide-react';
+
+export default function Header() {
+  const [notifOpen, setNotifOpen] = useState(false);
+
+  const notifications = [
+    { id: 1, text: 'مشتری جدید: قرارداد ویلای نیاوران بسته شد', time: '۱۰ دقیقه پیش', color: 'emerald' },
+    { id: 2, text: 'هوش مصنوعی ۳ مشتری منطبق یافت', time: '۳۰ دقیقه پیش', color: 'purple' },
+    { id: 3, text: 'پرداخت قسط دوم آپارتمان سعادت‌آباد ثبت شد', time: '۱ ساعت پیش', color: 'sky' },
+  ];
+
+  return (
+    <header className="sticky top-0 z-20 h-20 bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 flex items-center px-5 lg:px-8 gap-4">
+      {/* Greeting */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-500/10">
+          <Sun className="w-5 h-5 text-amber-400" />
+        </div>
+        <div>
+          <h2 className="text-base lg:text-lg font-bold text-slate-100">
+            روز بخیر، مدیر عزیز
+          </h2>
+          <p className="text-xs text-slate-500 hidden sm:block">
+            امروز سه‌شنبه، ۳۱ تیر ۱۴۰۴
+          </p>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="hidden md:flex flex-1 max-w-md mx-auto">
+        <div className="relative w-full">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <input
+            type="text"
+            placeholder="جستجوی مشتری، ملک، قرارداد..."
+            className="w-full bg-slate-800/60 border border-slate-700 rounded-xl pr-10 pl-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all"
+          />
+        </div>
+      </div>
+
+      <div className="flex-1 md:hidden" />
+
+      {/* Actions */}
+      <div className="flex items-center gap-2 lg:gap-3">
+        {/* Notifications */}
+        <div className="relative">
+          <button
+            onClick={() => setNotifOpen((v) => !v)}
+            className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
+          >
+            <Bell className="w-5 h-5" />
+            <span className="absolute top-2 left-2 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-slate-900" />
+          </button>
+          {notifOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setNotifOpen(false)}
+              />
+              <div className="absolute left-0 mt-2 w-80 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl shadow-black/50 z-40 overflow-hidden animate-fade-in-up">
+                <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-slate-200">
+                    اعلان‌ها
+                  </span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400">
+                    ۳ جدید
+                  </span>
+                </div>
+                <div className="max-h-72 overflow-y-auto">
+                  {notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className="flex items-start gap-3 px-4 py-3 hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 last:border-0"
+                    >
+                      <span
+                        className={`mt-1.5 w-2 h-2 rounded-full shrink-0 bg-${n.color}-500`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-slate-200 leading-relaxed">
+                          {n.text}
+                        </p>
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          {n.time}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button className="w-full py-2.5 text-xs font-medium text-emerald-400 hover:bg-slate-700/50 transition-colors">
+                  مشاهده همه
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Avatar */}
+        <button className="flex items-center gap-2.5 pr-1 pl-2 py-1 rounded-xl hover:bg-slate-800 transition-colors">
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-sm font-bold shrink-0">
+            ر
+          </div>
+          <div className="hidden lg:block text-right">
+            <p className="text-sm font-semibold text-slate-200 leading-tight">
+              رضا محمدی
+            </p>
+            <p className="text-[11px] text-slate-500">مدیرعامل</p>
+          </div>
+          <ChevronDown className="hidden lg:block w-4 h-4 text-slate-500" />
+        </button>
+      </div>
+    </header>
+  );
+}
+
+
+==================================================
+FILE: ./Web\src\components\KanbanBoard.tsx
+==================================================
+
+import { useState } from 'react';
+import {
+  Phone,
+  Target,
+  GripVertical,
+  Briefcase,
+  Home,
+  Building2,
+  Store,
+} from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
+import { Card, CardContent } from '@/components/ui/Card';
+
+type ColumnId = 'new' | 'visiting' | 'meeting' | 'success';
+
+type Client = {
+  id: string;
+  name: string;
+  phone: string;
+  budget: string;
+  property: string;
+  propertyType: 'home' | 'apt' | 'office' | 'shop';
+  column: ColumnId;
+};
+
+const initialClients: Client[] = [
+  { id: 'c1', name: 'کوروش تهرانی', phone: '۰۹۱۲ ۳۴۵ ۶۷۸۹', budget: '۵۰ میلیارد تومان', property: 'ویلا — نیاوران', propertyType: 'home', column: 'new' },
+  { id: 'c2', name: 'مریم احمدی', phone: '۰۹۳۵ ۱۲۳ ۴۵۶۷', budget: '۱۲ میلیارد تومان', property: 'آپارتمان — سعادت‌آباد', propertyType: 'apt', column: 'new' },
+  { id: 'c3', name: 'سامان رضایی', phone: '۰۹۱۹ ۸۷۶ ۵۴۳۲', budget: '۲۸ میلیارد تومان', property: 'مغازه — میرداماد', propertyType: 'shop', column: 'visiting' },
+  { id: 'c4', name: 'نگار صادقی', phone: '۰۹۰۱ ۲۳۴ ۵۶۷۸', budget: '۴۵ میلیارد تومان', property: 'دفتر کار — ولیعصر', propertyType: 'office', column: 'visiting' },
+  { id: 'c5', name: 'امیر کاظمی', phone: '۰۹۱۲ ۹۸۷ ۶۵۴۳', budget: '۶۵ میلیارد تومان', property: 'ویلا — فرحزاد', propertyType: 'home', column: 'meeting' },
+  { id: 'c6', name: 'پریسا نوری', phone: '۰۹۳۸ ۴۵۶ ۷۸۹۰', budget: '۱۸ میلیارد تومان', property: 'آپارتمان — زعفرانیه', propertyType: 'apt', column: 'meeting' },
+  { id: 'c7', name: 'حسین مرادی', phone: '۰۹۱۱ ۵۴۳ ۲۱۰۹', budget: '۸۰ میلیارد تومان', property: 'ویلا — لواسان', propertyType: 'home', column: 'success' },
+  { id: 'c8', name: 'الهام شریفی', phone: '۰۹۰۳ ۸۷۶ ۵۴۳۱', budget: '۳۲ میلیارد تومان', property: 'مغازه — تجریش', propertyType: 'shop', column: 'success' },
+];
+
+const columns: {
+  id: ColumnId;
+  title: string;
+  accent: 'blue' | 'yellow' | 'purple' | 'emerald';
+  dot: string;
+  headerBg: string;
+}[] = [
+  { id: 'new', title: 'لید جدید', accent: 'blue', dot: 'bg-blue-500', headerBg: 'bg-blue-500/5' },
+  { id: 'visiting', title: 'در حال بازدید', accent: 'yellow', dot: 'bg-amber-500', headerBg: 'bg-amber-500/5' },
+  { id: 'meeting', title: 'جلسه در دفتر', accent: 'purple', dot: 'bg-purple-500', headerBg: 'bg-purple-500/5' },
+  { id: 'success', title: 'قرارداد موفق', accent: 'emerald', dot: 'bg-emerald-500', headerBg: 'bg-emerald-500/5' },
+];
+
+const propertyIcons = {
+  home: Home,
+  apt: Building2,
+  office: Briefcase,
+  shop: Store,
+};
+
+function avatarColor(name: string): string {
+  const colors = [
+    'from-blue-500 to-blue-700',
+    'from-amber-500 to-amber-700',
+    'from-purple-500 to-purple-700',
+    'from-emerald-500 to-emerald-700',
+    'from-rose-500 to-rose-700',
+    'from-cyan-500 to-cyan-700',
+  ];
+  const idx = name.charCodeAt(0) % colors.length;
+  return colors[idx];
+}
+
+function ClientCard({
+  client,
+  onDragStart,
+  onDragEnd,
+}: {
+  client: Client;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragEnd: (e: React.DragEvent) => void;
+}) {
+  const PropertyIcon = propertyIcons[client.propertyType];
+  const initial = client.name.charAt(0);
+
+  return (
+    <Card
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      className="group cursor-grab active:cursor-grabbing hover:border-slate-600 transition-all duration-200 hover:shadow-lg hover:shadow-black/20 animate-fade-in-up"
+    >
+      <CardContent className="p-4">
+        {/* Top row: avatar + name + drag handle */}
+        <div className="flex items-start gap-3 mb-3">
+          <div
+            className={`flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br ${avatarColor(client.name)} text-white text-base font-bold shrink-0 shadow-lg`}
+          >
+            {initial}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-bold text-slate-100 truncate">{client.name}</h4>
+            <p className="text-xs text-slate-500 mt-0.5 nums-fa" dir="ltr">
+              {client.phone}
+            </p>
+          </div>
+          <GripVertical className="w-4 h-4 text-slate-600 group-hover:text-slate-500 transition-colors shrink-0" />
+        </div>
+
+        {/* Property + budget */}
+        <div className="space-y-2 mb-3.5">
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <PropertyIcon className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{client.property}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-slate-500">بودجه</span>
+            <span className="text-xs font-bold text-emerald-400 nums-fa">
+              {client.budget}
+            </span>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-2 pt-3 border-t border-slate-700/40">
+          <button className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-medium py-2 rounded-lg bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 transition-colors">
+            <Phone className="w-3.5 h-3.5" />
+            تحلیل تماس (AI)
+          </button>
+          <button className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-medium py-2 rounded-lg bg-slate-700/50 text-slate-300 hover:bg-slate-700 transition-colors">
+            <Target className="w-3.5 h-3.5" />
+            تارگت‌یابی
+          </button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function KanbanBoard() {
+  const [clients, setClients] = useState<Client[]>(initialClients);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<ColumnId | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedId(id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setDragOverCol(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, colId: ColumnId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverCol(colId);
+  };
+
+  const handleDrop = (e: React.DragEvent, colId: ColumnId) => {
+    e.preventDefault();
+    if (draggedId) {
+      setClients((prev) =>
+        prev.map((c) => (c.id === draggedId ? { ...c, column: colId } : c))
+      );
+    }
+    setDraggedId(null);
+    setDragOverCol(null);
+  };
+
+  const handleDragLeave = (colId: ColumnId) => {
+    setDragOverCol((prev) => (prev === colId ? null : prev));
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+      {columns.map((col) => {
+        const colClients = clients.filter((c) => c.column === col.id);
+        const isDragOver = dragOverCol === col.id;
+
+        return (
+          <div
+            key={col.id}
+            onDragOver={(e) => handleDragOver(e, col.id)}
+            onDrop={(e) => handleDrop(e, col.id)}
+            onDragLeave={() => handleDragLeave(col.id)}
+            className={`flex flex-col rounded-2xl border transition-all duration-200 ${
+              isDragOver
+                ? 'border-slate-500 bg-slate-800/60 scale-[1.01]'
+                : 'border-slate-800 bg-slate-800/30'
+            }`}
+          >
+            {/* Column header */}
+            <div className={`flex items-center justify-between p-4 rounded-t-2xl ${col.headerBg}`}>
+              <div className="flex items-center gap-2.5">
+                <span className={`w-2.5 h-2.5 rounded-full ${col.dot}`} />
+                <h3 className="text-sm font-bold text-slate-100">{col.title}</h3>
+              </div>
+              <Badge variant={col.accent}>
+                {colClients.length.toString().replace(/\d/g, (d) =>
+                  '۰۱۲۳۴۵۶۷۸۹'[+d]
+                )}
+              </Badge>
+            </div>
+
+            {/* Cards */}
+            <div className="flex flex-col gap-3 p-3 min-h-[200px] flex-1">
+              {colClients.map((client) => (
+                <div
+                  key={client.id}
+                  className={`transition-all duration-200 ${
+                    draggedId === client.id
+                      ? 'opacity-30 scale-95'
+                      : 'opacity-100'
+                  }`}
+                >
+                  <ClientCard
+                    client={client}
+                    onDragStart={(e) => handleDragStart(e, client.id)}
+                    onDragEnd={handleDragEnd}
+                  />
+                </div>
+              ))}
+
+              {colClients.length === 0 && (
+                <div className="flex-1 flex items-center justify-center min-h-[120px] rounded-xl border border-dashed border-slate-700/50 text-xs text-slate-600">
+                  کارتی اینجا نیست
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+
+==================================================
+FILE: ./Web\src\components\KpiCard.tsx
+==================================================
+
+import type { LucideIcon } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
+
+type KpiCardProps = {
+  title: string;
+  value: string;
+  change: string;
+  trend: 'up' | 'down';
+  icon: LucideIcon;
+  accent: 'emerald' | 'sky' | 'purple';
+  spark: number[];
+};
+
+const accentMap = {
+  emerald: {
+    bg: 'bg-emerald-500/10',
+    text: 'text-emerald-400',
+    stroke: '#10b981',
+    glow: 'shadow-emerald-500/20',
+  },
+  sky: {
+    bg: 'bg-sky-500/10',
+    text: 'text-sky-400',
+    stroke: '#0ea5e9',
+    glow: 'shadow-sky-500/20',
+  },
+  purple: {
+    bg: 'bg-purple-500/10',
+    text: 'text-purple-400',
+    stroke: '#a855f7',
+    glow: 'shadow-purple-500/20',
+  },
+};
+
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const w = 100;
+  const h = 36;
+  const step = w / (data.length - 1);
+  const points = data
+    .map((v, i) => `${i * step},${h - ((v - min) / range) * h}`)
+    .join(' ');
+  const areaPoints = `0,${h} ${points} ${w},${h}`;
+
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      className="w-full h-9"
+      preserveAspectRatio="none"
+    >
+      <defs>
+        <linearGradient id={`grad-${color}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={areaPoints} fill={`url(#grad-${color})`} />
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export default function KpiCard({
+  title,
+  value,
+  change,
+  trend,
+  icon: Icon,
+  accent,
+  spark,
+}: KpiCardProps) {
+  const a = accentMap[accent];
+  const TrendIcon = trend === 'up' ? ArrowUpRight : ArrowDownRight;
+
+  return (
+    <div className="group relative overflow-hidden bg-slate-800 border border-slate-700/50 rounded-2xl p-5 hover:border-slate-600 transition-all duration-300 animate-fade-in-up">
+      <div className="flex items-start justify-between mb-4">
+        <div className={`flex items-center justify-center w-12 h-12 rounded-xl ${a.bg} ${a.text} shadow-lg ${a.glow}`}>
+          <Icon className="w-6 h-6" />
+        </div>
+        <div
+          className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg ${
+            trend === 'up'
+              ? 'bg-emerald-500/10 text-emerald-400'
+              : 'bg-rose-500/10 text-rose-400'
+          }`}
+        >
+          <TrendIcon className="w-3.5 h-3.5" />
+          {change}
+        </div>
+      </div>
+      <p className="text-sm text-slate-400 mb-1">{title}</p>
+      <p className="text-2xl font-bold text-slate-100 mb-3 nums-fa">{value}</p>
+      <Sparkline data={spark} color={a.stroke} />
+    </div>
+  );
+}
+
+
+==================================================
+FILE: ./Web\src\components\RevenueChart.tsx
+==================================================
+
+import { useState } from 'react';
+import { TrendingUp, MoreHorizontal } from 'lucide-react';
+
+const months = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر'];
+const revenue = [420, 510, 480, 620, 710, 680, 820];
+const target = [400, 450, 500, 550, 600, 650, 700];
+
+export default function RevenueChart() {
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
+  const w = 720;
+  const h = 260;
+  const padX = 50;
+  const padY = 30;
+  const innerW = w - padX * 2;
+  const innerH = h - padY * 2;
+
+  const max = Math.max(...revenue, ...target) * 1.1;
+  const min = 0;
+  const range = max - min || 1;
+
+  const xStep = innerW / (months.length - 1);
+  const toX = (i: number) => padX + i * xStep;
+  const toY = (v: number) => padY + innerH - ((v - min) / range) * innerH;
+
+  const revPoints = revenue.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
+  const tgtPoints = target.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
+  const revArea = `${padX},${padY + innerH} ${revPoints} ${padX + innerW},${padY + innerH}`;
+
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map((f) => padY + innerH - f * innerH);
+
+  return (
+    <div className="bg-slate-800 border border-slate-700/50 rounded-2xl p-5 lg:p-6 animate-fade-in-up">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-bold text-slate-100">درآمد ماهانه</h3>
+            <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+              <TrendingUp className="w-3.5 h-3.5" />
+              ۲۳٪ رشد
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">میلیارد تومان — نیمه اول ۱۴۰۴</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-4 text-xs">
+            <span className="flex items-center gap-1.5 text-slate-400">
+              <span className="w-3 h-3 rounded-full bg-emerald-500" />
+              درآمد واقعی
+            </span>
+            <span className="flex items-center gap-1.5 text-slate-400">
+              <span className="w-3 h-3 rounded-full bg-slate-600" />
+              هدف
+            </span>
+          </div>
+          <button className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/50 text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors">
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="relative w-full overflow-x-auto">
+        <svg
+          viewBox={`0 0 ${w} ${h}`}
+          className="w-full h-[260px] min-w-[480px]"
+          preserveAspectRatio="none"
+          onMouseLeave={() => setHoverIdx(null)}
+        >
+          <defs>
+            <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          {/* Grid */}
+          {gridLines.map((y, i) => (
+            <line
+              key={i}
+              x1={padX}
+              y1={y}
+              x2={w - padX}
+              y2={y}
+              stroke="#1e293b"
+              strokeWidth="1"
+              strokeDasharray="4 4"
+            />
+          ))}
+
+          {/* Y labels */}
+          {gridLines.map((y, i) => (
+            <text
+              key={`y${i}`}
+              x={padX - 10}
+              y={y + 4}
+              textAnchor="end"
+              className="fill-slate-600"
+              style={{ fontSize: '11px' }}
+            >
+              {Math.round(max * (1 - i / 4))}
+            </text>
+          ))}
+
+          {/* Target line */}
+          <polyline
+            points={tgtPoints}
+            fill="none"
+            stroke="#475569"
+            strokeWidth="2"
+            strokeDasharray="6 6"
+            strokeLinecap="round"
+          />
+
+          {/* Revenue area + line */}
+          <polygon points={revArea} fill="url(#revGrad)" />
+          <polyline
+            points={revPoints}
+            fill="none"
+            stroke="#10b981"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="animate-draw-line"
+          />
+
+          {/* Points + hover */}
+          {revenue.map((v, i) => (
+            <g key={i}>
+              <rect
+                x={toX(i) - xStep / 2}
+                y={padY}
+                width={xStep}
+                height={innerH}
+                fill="transparent"
+                onMouseEnter={() => setHoverIdx(i)}
+              />
+              <circle
+                cx={toX(i)}
+                cy={toY(v)}
+                r={hoverIdx === i ? 6 : 4}
+                fill="#0f172a"
+                stroke="#10b981"
+                strokeWidth="2.5"
+                className="transition-all duration-150"
+              />
+              {hoverIdx === i && (
+                <g>
+                  <line
+                    x1={toX(i)}
+                    y1={padY}
+                    x2={toX(i)}
+                    y2={padY + innerH}
+                    stroke="#10b981"
+                    strokeWidth="1"
+                    strokeDasharray="3 3"
+                    opacity="0.5"
+                  />
+                  <g transform={`translate(${toX(i)}, ${toY(v) - 16})`}>
+                    <rect
+                      x="-34"
+                      y="-22"
+                      width="68"
+                      height="24"
+                      rx="6"
+                      fill="#1e293b"
+                      stroke="#334155"
+                    />
+                    <text
+                      x="0"
+                      y="-6"
+                      textAnchor="middle"
+                      className="fill-emerald-400"
+                      style={{ fontSize: '12px', fontWeight: 700 }}
+                    >
+                      {v} میلیارد
+                    </text>
+                  </g>
+                </g>
+              )}
+            </g>
+          ))}
+
+          {/* X labels */}
+          {months.map((m, i) => (
+            <text
+              key={m}
+              x={toX(i)}
+              y={h - 8}
+              textAnchor="middle"
+              className="fill-slate-500"
+              style={{ fontSize: '11px' }}
+            >
+              {m}
+            </text>
+          ))}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+
+==================================================
+FILE: ./Web\src\components\Sidebar.tsx
+==================================================
+
+import { useState } from 'react';
+import {
+  LayoutDashboard,
+  TrendingUp,
+  Wallet,
+  Users,
+  Sparkles,
+  Building2,
+} from 'lucide-react';
+
+type NavItem = {
+  id: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  badge?: string;
+};
+
+const navItems: NavItem[] = [
+  { id: 'dashboard', label: 'داشبورد', icon: LayoutDashboard },
+  { id: 'funnel', label: 'قیف فروش', icon: TrendingUp },
+  { id: 'finance', label: 'امور مالی', icon: Wallet },
+  { id: 'customers', label: 'مشتریان', icon: Users },
+  { id: 'ai', label: 'هوش مصنوعی', icon: Sparkles, badge: 'جدید' },
+];
+
+export default function Sidebar() {
+  const [active, setActive] = useState('dashboard');
+
+  return (
+    <aside className="fixed top-0 right-0 z-30 h-screen w-20 lg:w-64 bg-slate-900 border-l border-slate-800 flex flex-col transition-all duration-300">
+      {/* Logo */}
+      <div className="flex items-center gap-3 h-20 px-5 border-b border-slate-800 shrink-0">
+        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/20">
+          <Building2 className="w-6 h-6 text-white" />
+        </div>
+        <div className="hidden lg:block">
+          <h1 className="text-lg font-bold text-slate-100 leading-tight">املاک‌یار</h1>
+          <p className="text-[11px] text-slate-500">سامانه مدیریت املاک</p>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto">
+        <p className="hidden lg:block px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+          منوی اصلی
+        </p>
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = active === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActive(item.id)}
+              className={`group relative flex items-center gap-3 w-full px-3 py-3 rounded-xl transition-all duration-200 ${
+                isActive
+                  ? 'bg-emerald-500/10 text-emerald-400'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+              }`}
+            >
+              {isActive && (
+                <span className="absolute right-0 top-1/2 -translate-y-1/2 h-7 w-1 rounded-l-full bg-emerald-500" />
+              )}
+              <Icon
+                className={`w-5 h-5 shrink-0 transition-transform duration-200 ${
+                  isActive ? 'scale-110' : 'group-hover:scale-105'
+                }`}
+              />
+              <span className="hidden lg:block text-sm font-medium flex-1 text-right">
+                {item.label}
+              </span>
+              {item.badge && (
+                <span className="hidden lg:inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-purple-500/20 text-purple-300">
+                  {item.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Bottom card */}
+      <div className="hidden lg:block p-3 shrink-0">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600/20 to-slate-800 border border-purple-500/20 p-4">
+          <div className="absolute -top-6 -left-6 w-20 h-20 rounded-full bg-purple-500/20 blur-2xl animate-pulse-glow" />
+          <div className="relative">
+            <Sparkles className="w-5 h-5 text-purple-400 mb-2" />
+            <p className="text-xs font-semibold text-slate-200 leading-relaxed">
+              تحلیل هوشمند بازار
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+              پیش‌بینی قیمت ملک با هوش مصنوعی
+            </p>
+            <button className="mt-3 w-full text-xs font-medium py-1.5 rounded-lg bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 transition-colors">
+              فعال‌سازی
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+
+==================================================
+FILE: ./Web\src\components\TransactionsTable.tsx
+==================================================
+
+import { ArrowUpRight, MoreHorizontal } from 'lucide-react';
+
+type Transaction = {
+  id: string;
+  property: string;
+  client: string;
+  amount: string;
+  date: string;
+  status: 'تکمیل‌شده' | 'در حال بررسی' | 'در انتظار';
+};
+
+const transactions: Transaction[] = [
+  {
+    id: 'TXN-1042',
+    property: 'ویلا، نیاوران',
+    client: 'کوروش تهرانی',
+    amount: '۴٫۸ میلیارد',
+    date: '۱۴۰۴/۰۴/۳۱',
+    status: 'تکمیل‌شده',
+  },
+  {
+    id: 'TXN-1041',
+    property: 'آپارتمان، سعادت‌آباد',
+    client: 'مریم احمدی',
+    amount: '۲٫۳ میلیارد',
+    date: '۱۴۰۴/۰۴/۳۰',
+    status: 'در حال بررسی',
+  },
+  {
+    id: 'TXN-1040',
+    property: 'مغازه، میرداماد',
+    client: 'سامان رضایی',
+    amount: '۱٫۹ میلیارد',
+    date: '۱۴۰۴/۰۴/۲۹',
+    status: 'تکمیل‌شده',
+  },
+  {
+    id: 'TXN-1039',
+    property: 'دفتر کار، ولیعصر',
+    client: 'نگار صادقی',
+    amount: '۳٫۵ میلیارد',
+    date: '۱۴۰۴/۰۴/۲۸',
+    status: 'در انتظار',
+  },
+  {
+    id: 'TXN-1038',
+    property: 'ویلا، فرحزاد',
+    client: 'امیر کاظمی',
+    amount: '۶٫۲ میلیارد',
+    date: '۱۴۰۴/۰۴/۲۷',
+    status: 'تکمیل‌شده',
+  },
+];
+
+const statusStyles: Record<Transaction['status'], string> = {
+  'تکمیل‌شده': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  'در حال بررسی': 'bg-sky-500/10 text-sky-400 border-sky-500/20',
+  'در انتظار': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+};
+
+export default function TransactionsTable() {
+  return (
+    <div className="bg-slate-800 border border-slate-700/50 rounded-2xl overflow-hidden animate-fade-in-up">
+      <div className="flex items-center justify-between p-5 lg:p-6 border-b border-slate-700/50">
+        <div>
+          <h3 className="text-base font-bold text-slate-100">تراکنش‌های اخیر</h3>
+          <p className="text-xs text-slate-500 mt-1">۵ تراکنش آخر این هفته</p>
+        </div>
+        <button className="flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors">
+          مشاهده همه
+          <ArrowUpRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-right">
+          <thead>
+            <tr className="border-b border-slate-700/50">
+              <th className="px-5 lg:px-6 py-3 text-xs font-semibold text-slate-500">کد تراکنش</th>
+              <th className="px-5 lg:px-6 py-3 text-xs font-semibold text-slate-500">ملک</th>
+              <th className="px-5 lg:px-6 py-3 text-xs font-semibold text-slate-500">مشتری</th>
+              <th className="px-5 lg:px-6 py-3 text-xs font-semibold text-slate-500">مبلغ</th>
+              <th className="px-5 lg:px-6 py-3 text-xs font-semibold text-slate-500 hidden sm:table-cell">تاریخ</th>
+              <th className="px-5 lg:px-6 py-3 text-xs font-semibold text-slate-500">وضعیت</th>
+              <th className="px-5 lg:px-6 py-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {transactions.map((t) => (
+              <tr
+                key={t.id}
+                className="border-b border-slate-700/30 last:border-0 hover:bg-slate-700/20 transition-colors"
+              >
+                <td className="px-5 lg:px-6 py-4 text-sm font-mono text-slate-400 nums-fa">
+                  {t.id}
+                </td>
+                <td className="px-5 lg:px-6 py-4 text-sm font-medium text-slate-200">
+                  {t.property}
+                </td>
+                <td className="px-5 lg:px-6 py-4 text-sm text-slate-300">
+                  {t.client}
+                </td>
+                <td className="px-5 lg:px-6 py-4 text-sm font-semibold text-emerald-400 nums-fa">
+                  {t.amount}
+                </td>
+                <td className="px-5 lg:px-6 py-4 text-sm text-slate-400 hidden sm:table-cell nums-fa">
+                  {t.date}
+                </td>
+                <td className="px-5 lg:px-6 py-4">
+                  <span
+                    className={`inline-block text-[11px] font-medium px-2.5 py-1 rounded-lg border ${statusStyles[t.status]}`}
+                  >
+                    {t.status}
+                  </span>
+                </td>
+                <td className="px-5 lg:px-6 py-4">
+                  <button className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+
+==================================================
+FILE: ./Web\src\components\ui\Badge.tsx
+==================================================
+
+import type { ReactNode } from 'react';
+
+type BadgeVariant = 'blue' | 'yellow' | 'purple' | 'emerald' | 'muted';
+
+const variants: Record<BadgeVariant, string> = {
+  blue: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
+  yellow: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+  purple: 'bg-purple-500/10 text-purple-400 border border-purple-500/20',
+  emerald: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+  muted: 'bg-slate-700/50 text-slate-400 border border-slate-600/50',
+};
+
+export function Badge({
+  children,
+  variant = 'muted',
+  className = '',
+}: {
+  children: ReactNode;
+  variant?: BadgeVariant;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md ${variants[variant]} ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+
+==================================================
+FILE: ./Web\src\components\ui\Card.tsx
+==================================================
+
+import type { ReactNode } from 'react';
+
+export function Card({
+  children,
+  className = '',
+  draggable = false,
+  onDragStart,
+  onDragEnd,
+}: {
+  children: ReactNode;
+  className?: string;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragEnd?: (e: React.DragEvent) => void;
+}) {
+  return (
+    <div
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      className={`bg-slate-800 border border-slate-700/50 rounded-xl ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function CardHeader({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <div className={`p-4 ${className}`}>{children}</div>;
+}
+
+export function CardContent({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <div className={`px-4 pb-4 ${className}`}>{children}</div>;
+}
+
+
+==================================================
+FILE: ./Web\src\services\api.ts
+==================================================
+
+import axios from 'axios';
+
+// آدرس بک‌اند پایتون شما (چون روی همون سیستم ران میشه، localhost میذاریم)
+export const BASE_URL = "http://127.0.0.1:8000";
+
+const api = axios.create({
+  baseURL: BASE_URL,
+  timeout: 10000,
+});
+
+// این بخش باعث میشه توکن تو هر درخواست به بک‌اند فرستاده بشه
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('userToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export default api;
+
+==================================================
+FILE: ./Web\src\store\useAuthStore.ts
+==================================================
+
+import { create } from 'zustand';
+
+interface AuthState {
+  token: string | null;
+  login: (token: string) => void;
+  logout: () => void;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  // همون اول چک میکنه ببینه قبلاً لاگین کردیم یا نه
+  token: localStorage.getItem('userToken') || null,
+
+  login: (token) => {
+    localStorage.setItem('userToken', token);
+    set({ token });
+  },
+
+  logout: () => {
+    localStorage.removeItem('userToken');
+    set({ token: null });
+  },
+}));
