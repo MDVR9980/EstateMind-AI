@@ -3,7 +3,7 @@ import {
   Search, Sparkles, Plus, Bot, LogIn, 
   Calculator, Eye, Trash2, Building2, MapPin, RefreshCcw, Lock, Globe, 
   Share2, Edit, CheckCircle2, Users, Megaphone, Copy, Check, X,
-  ChevronLeft, ChevronRight, UploadCloud, Map as MapIcon, Grid, Phone, Brain, Tag, Scale
+  ChevronLeft, ChevronRight, UploadCloud, Map as MapIcon, Grid, Phone, Brain, Tag, Scale, User
 } from 'lucide-react';
 import api from '../services/api';
 import { formatPrice, numberToPersianWords } from '../utils/numberFormat';
@@ -44,15 +44,17 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
   // 📣 دیوار
   const [divarConfirmModal, setDivarConfirmModal] = useState<any>(null);
 
-  // ⚖️ ترازوی مقایسه‌ای ۳ ستونه (ارزیابی هوشمند)
+  // ⚖️ 🌟 ترازوی مقایسه‌ای ۳ ستونه با امکان اسلاید عکس برای ملک هدف و رقیب
   const [cmaModalOpen, setCmaModalOpen] = useState(false);
   const [cmaTargetProp, setCmaTargetProp] = useState<any>(null);
+  const [cmaTargetImgIdx, setCmaTargetImgIdx] = useState(0);
   const [cmaComparables, setCmaComparables] = useState<any[]>([]);
   const [cmaCompIndex, setCmaCompIndex] = useState(0);
+  const [cmaCompImgIdx, setCmaCompImgIdx] = useState(0);
   const [cmaConclusion, setCmaConclusion] = useState<string>('');
   const [cmaLoading, setCmaLoading] = useState(false);
 
-  // 🏷️ 🌟 مودال کارشناسی قیمت CMA (سناریوی ۵ روزه، ۱۵-۳۰ روزه و قیمت مالک)
+  // 🏷️ مودال کارشناسی قیمت CMA (سناریوی ۵ روزه، ۱۵-۳۰ روزه و قیمت مالک)
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
   const [pricingData, setPricingData] = useState<any>(null);
   const [pricingLoading, setPricingLoading] = useState(false);
@@ -86,8 +88,14 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
     fetchProperties();
   }, []);
 
+  // 🗺️ 🌟 بارگذاری بدون باگ نقشه با تاخیر جهت لود شدن DIV در DOM
   useEffect(() => {
-    if (viewMode === 'map') fetchMapData();
+    if (viewMode === 'map') {
+      const timer = setTimeout(() => {
+        fetchMapData();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
   }, [viewMode]);
 
   const fetchProperties = async () => {
@@ -118,11 +126,9 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
     } catch (e) { console.error("Map fetch error", e); }
   };
 
-  // 🗺️ 🌟 راه‌اندازی و رندر بدون باگ نقشه تعاملی مشهد (حل مشکل صفحه سیاه)
   const initLeafletMap = (data: any[]) => {
     if (!mapContainerRef.current) return;
 
-    // تزریق استایل CSS لایف‌لت
     if (!document.getElementById('leaflet-css-style')) {
       const link = document.createElement('link');
       link.id = 'leaflet-css-style';
@@ -149,7 +155,6 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
       try { mapInstanceRef.current.remove(); } catch(e){}
     }
 
-    // مرکز نقشه مشهد
     const map = L.map(mapContainerRef.current, {
       center: [36.297, 59.606],
       zoom: 12
@@ -161,19 +166,17 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
       attribution: '© OpenStreetMap | EstateMind AI'
     }).addTo(map);
 
-    // اجبار لایف‌لت به بازسازی ابعاد جهت جلوگیری از صفحه سیاه
     setTimeout(() => {
       try { map.invalidateSize(); } catch(e){}
     }, 250);
 
-    // افزودن پین‌های دائمی قرمز رنگ و پاپ‌آپ‌های قیمت
     data.forEach((item: any, index: number) => {
       let lat = item.lat || (36.297 + ((index % 5) - 2) * 0.015);
       let lng = item.lng || (59.606 + ((index % 4) - 2) * 0.015);
 
       const circle = L.circleMarker([lat, lng], {
         radius: 9,
-        fillColor: '#f43f5e', // پین قرمز درخشان
+        fillColor: '#f43f5e',
         color: '#ffffff',
         weight: 2,
         opacity: 1,
@@ -204,7 +207,6 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
     }));
   };
 
-  // 🏷️ 🌟 کلیک روی «کارشناسی قیمت (CMA)» -> باز شدن مودال استراتژی قیمت‌گذاری ۵ روزه/بازار/مالک
   const handleOpenPricingStrategy = async (id: number) => {
     setPricingLoading(true);
     setPricingModalOpen(true);
@@ -219,10 +221,11 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
     }
   };
 
-  // ⚖️ 🌟 کلیک روی «ارزیابی هوشمند» -> باز شدن ترازوی ۳ ستونه مقایسه‌ای با ۲۰٪ تلورانس
   const handleOpenSmartValuation = async (targetProp: any) => {
     setCmaTargetProp(targetProp);
+    setCmaTargetImgIdx(0);
     setCmaCompIndex(0);
+    setCmaCompImgIdx(0);
     setCmaLoading(true);
     setCmaModalOpen(true);
 
@@ -273,13 +276,17 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
     } catch (e: any) { alert("خطا در ارسال به دیوار"); }
   };
 
+  // 🌟 اصلاح متد عمومی کردن فایل و ثبت نام فرد
   const handleMakePublic = async (id: number) => {
     if (!window.confirm('آیا مایلید این ملک عمومی شده و برای تمام مشاوران آژانس قابل رویت باشد؟')) return;
     try {
-      await api.put(`/api/properties/${id}/make-public`);
-      alert("فایل عمومی شد.");
+      const res = await api.put(`/api/properties/${id}/make-public`);
+      alert(`فایل با موفقیت توسط ${res.data?.made_public_by || 'شما'} عمومی شد.`);
       fetchProperties();
-    } catch (e) { alert("خطا در عمومی‌سازی فایل"); }
+    } catch (e: any) { 
+      const msg = e.response?.data?.detail || "خطا در عمومی‌سازی فایل";
+      alert(msg); 
+    }
   };
 
   const handleApprovePending = async (id: number, isExclusive: boolean) => {
@@ -390,7 +397,6 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
     } finally { setMatchLoading(false); }
   };
 
-  // 🧠 فیلتر هوشمند
   const getFilteredData = () => {
     let rawList = mainTab === 'active' ? activeProps : mainTab === 'pending' ? pendingProps : trashProps;
 
@@ -519,7 +525,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
 
       </div>
 
-      {/* نمایش نقشه تعاملی */}
+      {/* 🗺️ نمایش نقشه تعاملی مشهد (کاملاً فیکس شده) */}
       {viewMode === 'map' ? (
         <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl h-[600px] relative">
           <div ref={mapContainerRef} style={{ width: '100%', height: '100%', backgroundColor: '#0f172a' }}></div>
@@ -544,7 +550,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
             return (
               <div key={prop.id} className="bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-3xl overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col">
                 
-                {/* اسلایدر عکس */}
+                {/* اسلایدر عکس روی کارت */}
                 <div className="relative h-56 bg-slate-950 overflow-hidden group">
                   {currentImgUrl ? (
                     <img src={currentImgUrl} alt={prop.title || 'ملک'} className="w-full h-full object-cover transition-all duration-300" />
@@ -572,8 +578,8 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                     </>
                   )}
 
-                  {/* نشان‌های حریم خصوصی و نوع معامله */}
-                  <div className="absolute top-3 right-3 flex gap-2 z-10">
+                  {/* نشان‌های حریم خصوصی و منتشرکننده */}
+                  <div className="absolute top-3 right-3 flex flex-wrap gap-2 z-10">
                     <span className={`px-3 py-1 rounded-xl text-[11px] font-bold backdrop-blur-md border shadow-lg ${prop.is_exclusive ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-blue-500/20 text-blue-300 border-blue-500/40'}`}>
                       {prop.is_exclusive ? '🔒 شخصی' : '👁️ عمومی'}
                     </span>
@@ -589,11 +595,16 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
 
                 {/* محتوای متنی کارت */}
                 <div className="p-5 flex-1 flex flex-col">
-                  <h3 className="text-base font-bold text-slate-100 mb-2 line-clamp-1">{prop.title}</h3>
+                  <h3 className="text-base font-bold text-slate-100 mb-1 line-clamp-1">{prop.title}</h3>
                   
-                  <div className="flex items-center justify-between mb-3 text-xs text-slate-400">
+                  {/* 🌟 نمایش نام فردی که ملک را عمومی کرده است 🌟 */}
+                  <div className="flex items-center justify-between mb-3 text-[11px] text-slate-400">
                     <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-rose-400" /> {prop.neighborhood || 'سجاد'}</span>
-                    <span className="text-slate-400 font-mono nums-fa">کد فایل: #{prop.id}</span>
+                    {prop.made_public_by_name && (
+                      <span className="text-cyan-400 font-medium flex items-center gap-1">
+                        <User className="w-3 h-3"/> {prop.made_public_by_name}
+                      </span>
+                    )}
                   </div>
 
                   <div className="mb-4 bg-slate-950/60 p-3 rounded-2xl border border-slate-800/80">
@@ -625,7 +636,6 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                   <div className="mt-auto pt-3 border-t border-slate-800/80 space-y-2">
                     
                     {mainTab === 'pending' ? (
-                      /* اکشن‌های صندوق ربات */
                       <div className="grid grid-cols-3 gap-2">
                         <button onClick={() => handleApprovePending(prop.id, false)} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1 shadow-lg shadow-emerald-500/20">
                           <CheckCircle2 className="w-4 h-4" /> ثبت عمومی
@@ -638,7 +648,6 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                         </button>
                       </div>
                     ) : mainTab === 'trash' ? (
-                      /* اکشن‌های زباله‌دان */
                       <div className="grid grid-cols-2 gap-2">
                         <button onClick={() => handleRestore(prop.id)} className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1">
                           <RefreshCcw className="w-4 h-4"/> بازیابی
@@ -648,7 +657,6 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                         </button>
                       </div>
                     ) : (
-                      /* اکشن‌های کامل فایل‌های فعال */
                       <>
                         <button onClick={() => setDivarConfirmModal(prop)} className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-rose-500/20">
                           <Megaphone className="w-4 h-4" /> انتشار یک‌کلیکی در دیوار
@@ -707,7 +715,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
       )}
 
       {/* ==================================================== */}
-      {/* 🏷️ 🌟 MODAL 1: کارشناسی قیمت (CMA) - سناریوهای ۵ روزه، ۱۵-۳۰ روزه، پیشنهادی مالک */}
+      {/* 🏷️ 🌟 MODAL 1: کارشناسی قیمت (CMA - ۵ روزه، بازار، قیمت مالک) */}
       {/* ==================================================== */}
       {pricingModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
@@ -759,7 +767,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
       )}
 
       {/* ==================================================== */}
-      {/* ⚖️ 🌟 MODAL 2: ارزیابی هوشمند (ترازوی مقایسه‌ای ۳ ستونه رقبا) */}
+      {/* ⚖️ 🌟 MODAL 2: ارزیابی هوشمند (۳ ستونه با اسلایدر عکس ملک هدف و رقیب) */}
       {/* ==================================================== */}
       {cmaModalOpen && cmaTargetProp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
@@ -780,20 +788,38 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                {/* ستون ۱ (راست): ملک هدف شما */}
+                {/* ستون ۱ (راست): ملک هدف شما با اسلایدر عکس */}
                 <div className="bg-slate-950/80 border border-emerald-500/30 rounded-3xl p-5 flex flex-col justify-between relative overflow-hidden">
-                  <span className="absolute top-3 right-3 bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded-xl shadow-lg">
+                  <span className="absolute top-3 right-3 bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded-xl shadow-lg z-10">
                     فایل هدف شما 🎯
                   </span>
                   
                   <div>
-                    <div className="h-44 bg-slate-900 rounded-2xl overflow-hidden mb-4 border border-slate-800 mt-6">
-                      {safeParseImages(cmaTargetProp.image_urls)[0] ? (
-                        <img src={safeParseImages(cmaTargetProp.image_urls)[0].startsWith('http') ? safeParseImages(cmaTargetProp.image_urls)[0] : `http://127.0.0.1:8000${safeParseImages(cmaTargetProp.image_urls)[0]}`} className="w-full h-full object-cover" alt="target" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center"><Building2 className="w-10 h-10 text-slate-700"/></div>
-                      )}
-                    </div>
+                    {(() => {
+                      const targetImgs = safeParseImages(cmaTargetProp.image_urls);
+                      const currentTargetImg = targetImgs[cmaTargetImgIdx] ? (targetImgs[cmaTargetImgIdx].startsWith('http') ? targetImgs[cmaTargetImgIdx] : `http://127.0.0.1:8000${targetImgs[cmaTargetImgIdx]}`) : '';
+
+                      return (
+                        <div className="h-48 bg-slate-900 rounded-2xl overflow-hidden mb-4 border border-slate-800 mt-6 relative group">
+                          {currentTargetImg ? (
+                            <img src={currentTargetImg} className="w-full h-full object-cover" alt="target" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center"><Building2 className="w-10 h-10 text-slate-700"/></div>
+                          )}
+
+                          {targetImgs.length > 1 && (
+                            <>
+                              <button onClick={() => setCmaTargetImgIdx(prev => prev === 0 ? targetImgs.length - 1 : prev - 1)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-slate-950/80 text-white p-1.5 rounded-full border border-slate-700">
+                                <ChevronRight className="w-3.5 h-3.5"/>
+                              </button>
+                              <button onClick={() => setCmaTargetImgIdx(prev => prev === targetImgs.length - 1 ? 0 : prev + 1)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-slate-950/80 text-white p-1.5 rounded-full border border-slate-700">
+                                <ChevronLeft className="w-3.5 h-3.5"/>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     <h4 className="text-sm font-bold text-slate-100 mb-2">{cmaTargetProp.title}</h4>
                     <p className="text-lg font-bold text-emerald-400 nums-fa mb-4">{formatPrice(cmaTargetProp.price_total)}</p>
@@ -810,9 +836,9 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                   </div>
                 </div>
 
-                {/* ستون ۲ (وسط): ملک رقیب در بازار + دکمه‌های ورق زدن */}
+                {/* ستون ۲ (وسط): ملک رقیب با اسلایدر عکس + ورق زدن رقبا */}
                 <div className="bg-slate-950/80 border border-amber-500/30 rounded-3xl p-5 flex flex-col justify-between relative overflow-hidden">
-                  <span className="absolute top-3 right-3 bg-amber-500 text-slate-950 text-[10px] font-bold px-3 py-1 rounded-xl shadow-lg">
+                  <span className="absolute top-3 right-3 bg-amber-500 text-slate-950 text-[10px] font-bold px-3 py-1 rounded-xl shadow-lg z-10">
                     رقیب در بازار (تلورانس ۲۰٪)
                   </span>
 
@@ -821,15 +847,26 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                       (() => {
                         const currentComp = cmaComparables[cmaCompIndex] || cmaComparables[0];
                         const compImgs = safeParseImages(currentComp.image_urls);
-                        const compImgUrl = compImgs[0] ? (compImgs[0].startsWith('http') ? compImgs[0] : `http://127.0.0.1:8000${compImgs[0]}`) : '';
+                        const currentCompImg = compImgs[cmaCompImgIdx] ? (compImgs[cmaCompImgIdx].startsWith('http') ? compImgs[cmaCompImgIdx] : `http://127.0.0.1:8000${compImgs[cmaCompImgIdx]}`) : '';
 
                         return (
                           <>
-                            <div className="h-44 bg-slate-900 rounded-2xl overflow-hidden mb-4 border border-slate-800 mt-6 relative">
-                              {compImgUrl ? (
-                                <img src={compImgUrl} className="w-full h-full object-cover" alt="comp" />
+                            <div className="h-48 bg-slate-900 rounded-2xl overflow-hidden mb-4 border border-slate-800 mt-6 relative group">
+                              {currentCompImg ? (
+                                <img src={currentCompImg} className="w-full h-full object-cover" alt="comp" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center"><Building2 className="w-10 h-10 text-slate-700"/></div>
+                              )}
+
+                              {compImgs.length > 1 && (
+                                <>
+                                  <button onClick={() => setCmaCompImgIdx(prev => prev === 0 ? compImgs.length - 1 : prev - 1)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-slate-950/80 text-white p-1.5 rounded-full border border-slate-700">
+                                    <ChevronRight className="w-3.5 h-3.5"/>
+                                  </button>
+                                  <button onClick={() => setCmaCompImgIdx(prev => prev === compImgs.length - 1 ? 0 : prev + 1)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-slate-950/80 text-white p-1.5 rounded-full border border-slate-700">
+                                    <ChevronLeft className="w-3.5 h-3.5"/>
+                                  </button>
+                                </>
                               )}
                             </div>
 
@@ -853,18 +890,23 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                     )}
                   </div>
 
-                  {/* دکمه‌های جابجایی بین رقبا */}
                   {cmaComparables.length > 1 && (
                     <div className="flex items-center justify-between pt-4 border-t border-slate-800 mt-4">
                       <button 
-                        onClick={() => setCmaCompIndex(prev => prev === 0 ? cmaComparables.length - 1 : prev - 1)}
+                        onClick={() => {
+                          setCmaCompIndex(prev => prev === 0 ? cmaComparables.length - 1 : prev - 1);
+                          setCmaCompImgIdx(0);
+                        }}
                         className="bg-slate-800 hover:bg-slate-700 text-slate-200 p-2.5 rounded-xl border border-slate-700 transition-all flex items-center gap-1 text-xs font-bold"
                       >
                         <ChevronRight className="w-4 h-4"/> رقیب قبلی
                       </button>
                       <span className="text-xs text-slate-400 font-mono nums-fa">{cmaCompIndex + 1} از {cmaComparables.length}</span>
                       <button 
-                        onClick={() => setCmaCompIndex(prev => prev === cmaComparables.length - 1 ? 0 : prev + 1)}
+                        onClick={() => {
+                          setCmaCompIndex(prev => prev === cmaComparables.length - 1 ? 0 : prev + 1);
+                          setCmaCompImgIdx(0);
+                        }}
                         className="bg-slate-800 hover:bg-slate-700 text-slate-200 p-2.5 rounded-xl border border-slate-700 transition-all flex items-center gap-1 text-xs font-bold"
                       >
                         رقیب بعدی <ChevronLeft className="w-4 h-4"/>
@@ -897,7 +939,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
       )}
 
       {/* ==================================================== */}
-      {/* 📱 🌟 MODAL 3: کد QR و لینک مستقیم کاتالوگ */}
+      {/* 📱 MODAL 3: کد QR و لینک مستقیم کاتالوگ */}
       {/* ==================================================== */}
       {qrModalOpen && selectedPropForQr && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
@@ -943,7 +985,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
       )}
 
       {/* ==================================================== */}
-      {/* ✏️ 🌟 MODAL 4: ویرایش پیشرفته رسانه و فایل */}
+      {/* ✏️ MODAL 4: ویرایش پیشرفته رسانه و فایل */}
       {/* ==================================================== */}
       {editModalOpen && editingProp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">

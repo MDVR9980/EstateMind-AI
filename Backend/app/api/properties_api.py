@@ -143,17 +143,21 @@ async def upload_temp_media(file: UploadFile = File(...)):
 
 @router.put("/{property_id}/approve")
 def approve_scraped_property(property_id: int, data: ApproveRequest, request: Request, session: Session = Depends(get_session)):
-    """تایید فایل شکار شده و انتقال به بانک اصلی املاک"""
-    user = get_current_user_local(request, session)
-    if not user: raise HTTPException(401)
+    """تایید فایل شکار شده ربات و ثبت نام تاییدکننده"""
+    from app.core.security import get_current_user_api
+    user = get_current_user_api(request, session)
+    if not user:
+        raise HTTPException(status_code=401)
     
     prop = session.get(Property, property_id)
-    if not prop: raise HTTPException(404)
+    if not prop:
+        raise HTTPException(status_code=404)
     
     prop.status = "active"
     prop.is_exclusive = data.is_exclusive
-    # ثبت نام مشاوری که فایل را تایید و وارد سیستم کرده است
     prop.created_by_id = user.id
+    
+    # ثبت نام فردی که ملک را عمومی کرده است
     if not data.is_exclusive:
         prop.made_public_by_name = user.full_name
         
@@ -327,19 +331,20 @@ def save_property_to_db(request: Request, data: PropertyCreateRequest, session: 
 
 @router.put("/{property_id}/make-public")
 def make_property_public(property_id: int, request: Request, session: Session = Depends(get_session)):
-    """API تبدیل فایل شخصی به عمومی و ثبت نام مشاور"""
-    from app.main import get_current_user
-    user = get_current_user(request, session)
+    """API عمومی کردن فایل شخصی + ثبت نام منتشرکننده"""
+    from app.core.security import get_current_user_api
+    user = get_current_user_api(request, session)
+    if not user:
+        raise HTTPException(status_code=401, detail="احراز هویت ناموفق بود.")
     
     prop = session.get(Property, property_id)
-    if prop and prop.is_exclusive:
-        prop.is_exclusive = False
-        prop.made_public_by_name = user.full_name
-        session.commit()
-        return {"status": "success"}
-    raise HTTPException(status_code=400, detail="فایل یافت نشد یا قبلاً عمومی است")
-
-from app.services.ai_engine import generate_smart_comparison
+    if not prop:
+        raise HTTPException(status_code=404, detail="فایل یافت نشد")
+        
+    prop.is_exclusive = False
+    prop.made_public_by_name = user.full_name
+    session.commit()
+    return {"status": "success", "message": "فایل عمومی شد.", "made_public_by": user.full_name}
 
 @router.get("/{property_id}/compare")
 def compare_property_ai(property_id: int, session: Session = Depends(get_session)):
