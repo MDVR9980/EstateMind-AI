@@ -160,26 +160,13 @@ def approve_scraped_property(property_id: int, data: ApproveRequest, request: Re
     session.commit()
     return {"status": "success", "message": "فایل با موفقیت وارد بانک املاک شد."}
 
-@router.get("/pending-list")
-def get_pending_properties(request: Request, session: Session = Depends(get_session)):
-    """API دریافت فایل‌های شکار شده در صندوق ورودی ربات"""
-    from app.core.security import get_current_user_api
-    user = get_current_user_api(request, session)
-    
-    # فایل‌های بررسی نشده (pending) را برمی‌گرداند
-    props = session.exec(select(Property).where(Property.agency_id == user.agency_id, Property.status == "pending").order_by(Property.id.desc())).all()
-    return {"status": "success", "properties": props}
-    
 @router.get("/app-list")
 def get_properties_for_app(request: Request, session: Session = Depends(get_session)):
-    """API دریافت لیست فایل‌های فعال برای اپلیکیشن"""
     from app.core.security import get_current_user_api
     user = get_current_user_api(request, session)
-    
     if user.role in ["SUPER_ADMIN", "MANAGER"]:
         props = session.exec(select(Property).where(Property.agency_id == user.agency_id, Property.status == "active").order_by(Property.id.desc())).all()
     else:
-        from sqlmodel import or_
         props = session.exec(
             select(Property)
             .where(Property.agency_id == user.agency_id, Property.status == "active")
@@ -188,6 +175,20 @@ def get_properties_for_app(request: Request, session: Session = Depends(get_sess
         ).all()
     return {"status": "success", "properties": props}
 
+@router.get("/pending-list")
+def get_pending_properties(request: Request, session: Session = Depends(get_session)):
+    from app.core.security import get_current_user_api
+    user = get_current_user_api(request, session)
+    props = session.exec(select(Property).where(Property.agency_id == user.agency_id, Property.status == "pending").order_by(Property.id.desc())).all()
+    return {"status": "success", "properties": props}
+
+@router.get("/trash-list")
+def get_trash_properties(request: Request, session: Session = Depends(get_session)):
+    from app.core.security import get_current_user_api
+    user = get_current_user_api(request, session)
+    props = session.exec(select(Property).where(Property.agency_id == user.agency_id, Property.status == "trash").order_by(Property.id.desc())).all()
+    return {"status": "success", "properties": props}
+    
 @router.post("/save")
 def save_property_to_db(request: Request, data: PropertyCreateRequest, session: Session = Depends(get_session)):
     
@@ -548,7 +549,6 @@ def delete_property(property_id: int, request: Request, session: Session = Depen
 
 @router.get("/{property_id}")
 def get_property_details(property_id: int, session: Session = Depends(get_session)):
-    """API دریافت جزئیات یک فایل برای نمایش در فرم ویرایش"""
     prop = session.get(Property, property_id)
     if not prop:
         raise HTTPException(status_code=404, detail="فایل یافت نشد")
@@ -663,14 +663,6 @@ def perform_virtual_staging(property_id: int, request: Request, session: Session
     session.commit()
     
     return {"status": "success", "message": "چیدمان مجازی با موفقیت انجام شد."}
-
-@router.get("/trash-list")
-def get_trash_properties(request: Request, session: Session = Depends(get_session)):
-    """دریافت فایل‌های زباله‌دان"""
-    from app.core.security import get_current_user_api
-    user = get_current_user_api(request, session)
-    props = session.exec(select(Property).where(Property.agency_id == user.agency_id, Property.status == "trash").order_by(Property.id.desc())).all()
-    return {"status": "success", "properties": props}
 
 @router.put("/{property_id}/trash")
 def move_to_trash(property_id: int, request: Request, session: Session = Depends(get_session)):

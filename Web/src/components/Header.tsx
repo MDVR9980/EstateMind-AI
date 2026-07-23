@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, Search, ChevronDown, Sun } from 'lucide-react';
+import { Bell, ChevronDown, Sun } from 'lucide-react';
 
 export default function Header() {
   const [notifOpen, setNotifOpen] = useState(false);
@@ -11,7 +11,7 @@ export default function Header() {
   ];
 
   return (
-    <header className="sticky top-0 z-20 h-20 bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 flex items-center px-5 lg:px-8 gap-4">
+    <header className="sticky top-0 z-20 h-20 bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 flex items-center justify-between px-5 lg:px-8">
       {/* Greeting */}
       <div className="flex items-center gap-3">
         <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-500/10">
@@ -26,20 +26,6 @@ export default function Header() {
           </p>
         </div>
       </div>
-
-      {/* Search */}
-      <div className="hidden md:flex flex-1 max-w-md mx-auto">
-        <div className="relative w-full">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input
-            type="text"
-            placeholder="جستجوی مشتری، ملک، قرارداد..."
-            className="w-full bg-slate-800/60 border border-slate-700 rounded-xl pr-10 pl-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all"
-          />
-        </div>
-      </div>
-
-      <div className="flex-1 md:hidden" />
 
       {/* Actions */}
       <div className="flex items-center gap-2 lg:gap-3">
@@ -73,9 +59,7 @@ export default function Header() {
                       key={n.id}
                       className="flex items-start gap-3 px-4 py-3 hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 last:border-0"
                     >
-                      <span
-                        className={`mt-1.5 w-2 h-2 rounded-full shrink-0 bg-${n.color}-500`}
-                      />
+                      <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 bg-${n.color}-500`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-slate-200 leading-relaxed">
                           {n.text}

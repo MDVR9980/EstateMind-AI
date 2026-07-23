@@ -132,7 +132,11 @@ import Header from './components/Header';
 import KpiCard from './components/KpiCard';
 import RevenueChart from './components/RevenueChart';
 import TransactionsTable from './components/TransactionsTable';
-import KanbanBoard from './components/KanbanBoard'; // <--- اضافه‌شده
+import KanbanBoard from './components/KanbanBoard';
+import Properties from './components/Properties';
+import AddProperty from './components/AddProperty';
+import Customers from './components/Customers';
+import Financials from './components/Financials';
 
 export default function App() {
   const { token, login } = useAuthStore();
@@ -147,13 +151,11 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
 
-  // استیت‌های دیتای واقعی داشبورد
   const [stats, setStats] = useState({ properties: 0, clients: 0, ai_matches: 0 });
-  const [activeMenu, setActiveMenu] = useState('dashboard'); // کنترل منوهای سایدبار
+  const [activeMenu, setActiveMenu] = useState('dashboard');
 
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
-  // دریافت دیتای واقعی به محض ورود به داشبورد
   useEffect(() => {
     if (token) {
       api.get('/api/users/dashboard-stats').then((res) => {
@@ -162,7 +164,6 @@ export default function App() {
     }
   }, [token]);
 
-  // --- توابع لاگین ---
   const handlePasswordLogin = async () => {
     if (!username || !password) return alert("لطفاً نام کاربری و رمز عبور را وارد کنید.");
     setLoading(true);
@@ -198,29 +199,28 @@ export default function App() {
     setOtpDigits(next);
     if (value && index < 4) inputsRef.current[index + 1]?.focus();
   };
+  
   const handleOtpKey = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace' && !otpDigits[index] && index > 0) inputsRef.current[index - 1]?.focus();
   };
 
   // ====================================================
-  // 💻 اگر لاگین بودیم (نمایش صفحات)
+  // 💻 نمایش صفحات داشبورد و قیف فروش
   // ====================================================
   if (token) {
     return (
       <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden" dir="rtl">
-        {/* سایدبار رو به استیت منو وصل کردیم */}
         <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
         
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden lg:mr-64 mr-20">
           <Header />
           <main className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-6">
             
-            {/* صفحه داشبورد */}
             {activeMenu === 'dashboard' && (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <KpiCard title="فایل‌های من" value={`${stats.properties} فایل`} change="پویا" trend="up" icon={Building2} accent="emerald" spark={[30, 40, 35, 50, 45, 60, 55]} />
-                  <KpiCard title="مشتریان در قیف" value={`${stats.clients} نفر`} change="پویا" trend="up" icon={Users} accent="sky" spark={[10, 15, 20, 18, 25, 30, 28]} />
+                  <KpiCard title="فایل‌های من" value={`${stats.properties} فایل`} change="زنده" trend="up" icon={Building2} accent="emerald" spark={[30, 40, 35, 50, 45, 60, 55]} />
+                  <KpiCard title="مشتریان در قیف" value={`${stats.clients} نفر`} change="زنده" trend="up" icon={Users} accent="sky" spark={[10, 15, 20, 18, 25, 30, 28]} />
                   <KpiCard title="مچینگ هوش مصنوعی" value={`${stats.ai_matches} پیشنهاد`} change="تست" trend="down" icon={Sparkles} accent="purple" spark={[50, 45, 40, 35, 38, 30, 25]} />
                 </div>
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -230,9 +230,16 @@ export default function App() {
               </>
             )}
 
-            {/* صفحه قیف فروش */}
             {activeMenu === 'funnel' && <KanbanBoard />}
+            
+            {activeMenu === 'customers' && <Customers />}
 
+            {activeMenu === 'finance' && <Financials />}
+            
+            {activeMenu === 'properties' && <Properties setActiveMenu={setActiveMenu} />}
+
+            {activeMenu === 'add_property' && <AddProperty setActiveMenu={setActiveMenu} />}
+            
           </main>
         </div>
       </div>
@@ -240,7 +247,7 @@ export default function App() {
   }
 
   // ====================================================
-  // 🔒 صفحه لاگین 
+  // 🔒 صفحه لاگین (کاملِ کامل)
   // ====================================================
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 flex items-center justify-center p-4" dir="rtl">
@@ -248,7 +255,13 @@ export default function App() {
       <div className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full bg-blue-500/15 blur-[120px] animate-pulse-glow" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full bg-purple-500/5 blur-[100px]" />
 
+      <div
+        className="absolute inset-0 opacity-[0.03]"
+        style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }}
+      />
+
       <div className="relative z-10 w-full max-w-md">
+        {/* Logo */}
         <div className="flex flex-col items-center mb-8 animate-fade-in-up">
           <div className="relative mb-4">
             <div className="absolute inset-0 rounded-2xl bg-emerald-500/30 blur-xl animate-pulse-glow" />
@@ -257,32 +270,115 @@ export default function App() {
             </div>
           </div>
           <h1 className="text-2xl font-bold text-slate-100 tracking-tight">EstateMind <span className="text-emerald-400">AI</span></h1>
+          <p className="text-sm text-slate-500 mt-1.5">سامانه هوشمند مدیریت املاک</p>
         </div>
 
         <div className="relative animate-fade-in-up">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-slate-800/40 to-blue-500/10 rounded-3xl blur-xl" />
           <div className="relative bg-slate-900/60 backdrop-blur-2xl border border-slate-700/40 rounded-3xl p-8 shadow-2xl">
-            <div className="flex items-center gap-1.5 bg-slate-800/60 border border-slate-700/40 rounded-xl p-1.5 mb-6">
-              <button onClick={() => setTab('otp')} className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-bold py-2.5 rounded-lg transition-all duration-200 ${tab === 'otp' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}><KeyRound className="w-4 h-4" /> رمز یکبار مصرف</button>
-              <button onClick={() => setTab('password')} className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-bold py-2.5 rounded-lg transition-all duration-200 ${tab === 'password' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}><Lock className="w-4 h-4" /> رمز عبور ثابت</button>
+            <div className="text-center mb-6">
+              <h2 className="text-lg font-bold text-slate-100">ورود به سیستم</h2>
+              <p className="text-xs text-slate-500 mt-1">برای ادامه وارد شوید</p>
             </div>
 
-            {tab === 'password' && (
+            <div className="flex items-center gap-1.5 bg-slate-800/60 border border-slate-700/40 rounded-xl p-1.5 mb-6">
+              <button onClick={() => setTab('otp')} className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-bold py-2.5 rounded-lg transition-all duration-200 ${tab === 'otp' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-400 hover:text-slate-200'}`}>
+                <KeyRound className="w-4 h-4" /> رمز یکبار مصرف (OTP)
+              </button>
+              <button onClick={() => setTab('password')} className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-bold py-2.5 rounded-lg transition-all duration-200 ${tab === 'password' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-400 hover:text-slate-200'}`}>
+                <Lock className="w-4 h-4" /> رمز عبور ثابت
+              </button>
+            </div>
+
+            {/* OTP Tab */}
+            {tab === 'otp' && (
               <div className="space-y-5">
-                <div className="relative">
-                  <User className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="نام کاربری" className="w-full bg-slate-800/60 border border-slate-700/50 rounded-xl pr-10 pl-4 py-3.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50" />
-                </div>
-                <div className="relative">
-                  <Lock className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-full bg-slate-800/60 border border-slate-700/50 rounded-xl pr-10 pl-10 py-3.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50" />
-                  <button onClick={() => setShowPassword(!showPassword)} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"><Eye className="w-4 h-4" /></button>
-                </div>
-                <button onClick={handlePasswordLogin} disabled={loading} className="w-full flex items-center justify-center gap-2 text-sm font-bold py-3.5 rounded-xl bg-gradient-to-l from-emerald-500 to-emerald-600 text-white hover:from-emerald-400">{loading ? 'صبر کنید...' : 'ورود'}</button>
+                {!otpSent ? (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-2">شماره موبایل</label>
+                      <div className="relative">
+                        <Phone className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                        <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0912 345 6789" className="w-full bg-slate-800/60 border border-slate-700/50 rounded-xl pr-10 pl-4 py-3.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-all" dir="ltr" />
+                      </div>
+                    </div>
+                    <button onClick={handleRequestOtp} disabled={loading} className="w-full flex items-center justify-center gap-2 text-sm font-bold py-3.5 rounded-xl bg-gradient-to-l from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 transition-all shadow-lg shadow-emerald-500/30">
+                      {loading ? 'صبر کنید...' : <><ArrowLeft className="w-4 h-4" /> ارسال کد تایید</>}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-2 text-center">کد ۵ رقمی را وارد کنید</label>
+                      <div className="flex items-center justify-center gap-2.5" dir="ltr">
+                        {otpDigits.map((digit, i) => (
+                          <input key={i} ref={(el) => { inputsRef.current[i] = el; }} type="text" inputMode="numeric" maxLength={1} value={digit} onChange={(e) => handleOtpChange(i, e.target.value)} onKeyDown={(e) => handleOtpKey(i, e)} className={`w-12 h-14 text-center text-xl font-bold rounded-xl border bg-slate-800/60 text-slate-100 focus:outline-none transition-all ${digit ? 'border-emerald-500/50 ring-2 ring-emerald-500/20' : 'border-slate-700/50 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20'}`} style={{ letterSpacing: '0.1em' }} />
+                        ))}
+                      </div>
+                    </div>
+                    <button onClick={handleVerifyOtp} disabled={loading} className="w-full flex items-center justify-center gap-2 text-sm font-bold py-3.5 rounded-xl bg-gradient-to-l from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 transition-all shadow-lg shadow-emerald-500/30">
+                      {loading ? 'بررسی...' : <><CheckCircle2 className="w-4 h-4" /> تایید و ورود</>}
+                    </button>
+                    <button onClick={() => setOtpSent(false)} className="w-full text-xs text-slate-500 hover:text-slate-300 transition-colors">
+                      تغییر شماره موبایل
+                    </button>
+                  </>
+                )}
               </div>
             )}
+
+            {/* Password Tab */}
+            {tab === 'password' && (
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-2">نام کاربری</label>
+                  <div className="relative">
+                    <User className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="نام کاربری خود را وارد کنید" className="w-full bg-slate-800/60 border border-slate-700/50 rounded-xl pr-10 pl-4 py-3.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-all" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-2">رمز عبور</label>
+                  <div className="relative">
+                    <Lock className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-full bg-slate-800/60 border border-slate-700/50 rounded-xl pr-10 pl-10 py-3.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-all" />
+                    <button onClick={() => setShowPassword(!showPassword)} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500/20 focus:ring-offset-0" />
+                    <span className="text-xs text-slate-400">مرا به خاطر بسپار</span>
+                  </label>
+                  <button className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">فراموشی رمز عبور؟</button>
+                </div>
+
+                <button onClick={handlePasswordLogin} disabled={loading} className="w-full flex items-center justify-center gap-2 text-sm font-bold py-3.5 rounded-xl bg-gradient-to-l from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 transition-all shadow-lg shadow-emerald-500/30">
+                  {loading ? 'صبر کنید...' : <><ArrowLeft className="w-4 h-4" /> ورود به سیستم</>}
+                </button>
+              </div>
+            )}
+
+            {/* خط جداکننده */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-700/40" /></div>
+              <div className="relative flex justify-center"><span className="bg-slate-900/60 backdrop-blur-2xl px-3 text-[11px] text-slate-500">یا</span></div>
+            </div>
+
+            {/* ورود با اثر انگشت */}
+            <button className="w-full flex items-center justify-center gap-2 text-sm font-medium py-3 rounded-xl bg-slate-800/60 border border-slate-700/40 text-slate-300 hover:bg-slate-700/50 hover:text-slate-100 transition-all">
+              <Fingerprint className="w-5 h-5 text-emerald-400" />
+              ورود با اثر انگشت
+            </button>
           </div>
         </div>
+
+        <p className="text-center text-[11px] text-slate-600 mt-6 animate-fade-in-up">
+          با ورود به سیستم، شما شرایط و قوانین استفاده را می‌پذیرید
+        </p>
       </div>
     </div>
   );
@@ -380,6 +476,1020 @@ FILE: ./Web\src\vite-env.d.ts
 
 /// <reference types="vite/client" />
 
+
+==================================================
+FILE: ./Web\src\components\AddProperty.tsx
+==================================================
+
+import { useState, useRef } from 'react';
+import { 
+  Mic, Home, MapPin, Building2, Layers, Calendar, ArrowRight, ArrowLeft,
+  CheckCircle2, UploadCloud, Info, DollarSign, User, Phone, Check, ShieldCheck, Sparkles
+} from 'lucide-react';
+import api from '../services/api';
+import { formatPrice, formatInputToNumber, numberToPersianWords } from '../utils/numberFormat';
+
+export default function AddProperty({ setActiveMenu }: { setActiveMenu: (m: string) => void }) {
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  
+  // Voice Recording States (Web API)
+  const [isRecording, setIsRecording] = useState(false);
+  const [isProcessingVoice, setIsProcessingVoice] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  const [formData, setFormData] = useState({
+    title: '', deal_type: 'sale', property_type: 'apartment', city: 'مشهد', neighborhood: '', address: '',
+    built_area: '', rooms: '', age: '', floor: '', total_floors: '',
+    has_elevator: false, has_parking: false, has_store_room: false, has_master_room: false,
+    cabinet_type: 'MDF', floor_covering: 'سرامیک',
+    document_type: 'SINGLE', price_total: '', price_mortgage: '', price_rent: '',
+    owner_name: '', owner_phone: '', description: '', is_exclusive: false, images: []
+  });
+
+  // ==========================================
+  // توابع دستیار صوتی (مرورگر)
+  // ==========================================
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        sendVoiceToAI(audioBlob);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      alert('دسترسی به میکروفون داده نشد!');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      // خاموش کردن میکروفون مرورگر
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+    }
+  };
+
+  const sendVoiceToAI = async (audioBlob: Blob) => {
+    setIsProcessingVoice(true);
+    try {
+      const fd = new FormData();
+      fd.append('audio', audioBlob, 'voice.webm');
+      
+      const res = await api.post('/api/properties/voice-parse', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (res.data.status === 'success') {
+        const aiData = res.data.data;
+        setFormData(prev => ({
+          ...prev,
+          title: aiData.title || prev.title,
+          neighborhood: aiData.real_neighborhood || aiData.neighborhood || prev.neighborhood,
+          built_area: aiData.built_area ? aiData.built_area.toString() : prev.built_area,
+          rooms: aiData.rooms ? aiData.rooms.toString() : prev.rooms,
+          price_total: aiData.price_total ? formatPrice(aiData.price_total) : prev.price_total,
+          property_type: aiData.property_type === 'ویلایی' ? 'villa' : aiData.property_type === 'زمین و کلنگی' ? 'land' : 'apartment',
+          has_elevator: aiData.has_elevator || prev.has_elevator,
+          has_parking: aiData.has_parking || prev.has_parking,
+          has_store_room: aiData.has_store_room || prev.has_store_room,
+        }));
+        alert('جادو شد! فیلدها با موفقیت پر شدند.');
+      }
+    } catch (error) {
+      alert('خطا در تحلیل صدا');
+    } finally {
+      setIsProcessingVoice(false);
+    }
+  };
+
+  // ==========================================
+  // توابع فرم
+  // ==========================================
+  const handleNext = () => {
+    if (step === 1 && (!formData.title || !formData.neighborhood)) {
+      return alert("عنوان و محله الزامی است.");
+    }
+    setStep(s => Math.min(s + 1, 3));
+  };
+
+  const prevStep = () => {
+    setStep(s => Math.max(s - 1, 1));
+  };
+
+  const submitForm = async () => {
+    setLoading(true);
+    try {
+      const payload = {
+        ...formData,
+        built_area: parseFloat(formData.built_area || '0'),
+        rooms: parseInt(formData.rooms || '0'),
+        age: parseInt(formData.age || '0'),
+        floor: parseInt(formData.floor || '0'),
+        price_total: formatInputToNumber(formData.deal_type === 'sale' ? formData.price_total : formData.price_mortgage),
+        image_urls: [] // در صورت نیاز آپلود عکس اضافه میشود
+      };
+      
+      const res = await api.post('/api/properties/save', payload);
+      if(res.data.status === 'success'){
+        alert('فایل با موفقیت در بانک املاک ثبت شد!');
+        setActiveMenu('properties'); // انتقال مستقیم به لیست فایل‌ها بعد از ثبت موفقیت‌آمیز
+      }
+    } catch(e) {
+      alert("خطا در ثبت فایل");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const steps = [
+    { id: 1, label: 'پایه و آدرس' },
+    { id: 2, label: 'امکانات و مشخصات' },
+    { id: 3, label: 'مالی و مالک' }
+  ];
+
+  return (
+    <div className="animate-fade-in-up max-w-4xl mx-auto pb-20">
+      
+      {/* Title */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
+            <Home className="text-emerald-500 w-7 h-7" /> ثبت فایل جدید (شکار)
+          </h2>
+          <p className="text-sm text-slate-400 mt-1">اطلاعات فایل را دستی یا با دستیار صوتی پر کنید.</p>
+        </div>
+        <button onClick={() => setActiveMenu('properties')} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-sm font-bold transition-all border border-slate-700">
+          بازگشت <ArrowLeft className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* 🎙️ Voice Banner (Always Visible) */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-900/40 to-purple-900/40 border border-purple-500/30 p-6 lg:p-8 mb-8 shadow-2xl shadow-purple-900/20">
+        <div className="absolute -top-20 -right-20 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl"></div>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+          <div className="text-center md:text-right">
+            <h3 className="text-lg md:text-xl font-bold text-purple-100 flex items-center justify-center md:justify-start gap-2 mb-2">
+              <Sparkles className="w-5 h-5 text-purple-400" /> دستیار صوتی هوشمند (Voice to CRM)
+            </h3>
+            <p className="text-xs md:text-sm text-purple-200/70">
+              دکمه را نگه دارید و مشخصات ملک را صحبت کنید تا هوش مصنوعی فیلدها را پُر کند!
+            </p>
+          </div>
+          
+          <div className="relative">
+            {isProcessingVoice ? (
+              <div className="w-20 h-20 rounded-full bg-purple-600/50 border-2 border-purple-400 flex items-center justify-center animate-pulse">
+                <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : (
+              <button 
+                onMouseDown={startRecording}
+                onMouseUp={stopRecording}
+                onMouseLeave={stopRecording}
+                onTouchStart={startRecording}
+                onTouchEnd={stopRecording}
+                className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl ${isRecording ? 'bg-rose-500 scale-110 shadow-rose-500/50 animate-pulse' : 'bg-gradient-to-br from-purple-500 to-indigo-600 hover:scale-105 shadow-purple-500/50'}`}
+              >
+                <Mic className="w-8 h-8 text-white" />
+              </button>
+            )}
+            {isRecording && <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-max text-xs font-bold text-rose-400 animate-pulse">در حال شنیدن...</span>}
+          </div>
+        </div>
+      </div>
+
+      {/* Progress Bar */}
+      <div className="flex items-center justify-between mb-8 relative px-4">
+        <div className="absolute left-8 right-8 top-1/2 h-1 bg-slate-800 -z-10 rounded-full overflow-hidden">
+          <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${((step - 1) / 2) * 100}%` }}></div>
+        </div>
+        {steps.map((s) => (
+          <div key={s.id} className="flex flex-col items-center gap-2 bg-slate-950 px-2">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${step >= s.id ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>
+              {step > s.id ? <Check className="w-4 h-4" /> : <span className="text-sm font-bold">{s.id}</span>}
+            </div>
+            <span className={`text-[11px] font-bold ${step >= s.id ? 'text-emerald-400' : 'text-slate-500'}`}>{s.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Form Container */}
+      <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-6 lg:p-8 shadow-2xl">
+        
+        {/* === STEP 1 === */}
+        {step === 1 && (
+          <div className="space-y-6 animate-fade-in-up">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-2">عنوان آگهی / فایل <span className="text-rose-500">*</span></label>
+              <input type="text" value={formData.title} onChange={e=>setFormData({...formData, title:e.target.value})} placeholder="مثال: آپارتمان ۱۲۰ متری نوساز سجاد" className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3.5 text-sm text-slate-100 focus:border-emerald-500 outline-none transition-all" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">نوع ملک</label>
+                <div className="flex bg-slate-800/80 p-1 rounded-xl border border-slate-700">
+                  <button onClick={()=>setFormData({...formData, property_type: 'apartment'})} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.property_type === 'apartment' ? 'bg-slate-600 text-white' : 'text-slate-400'}`}>آپارتمان</button>
+                  <button onClick={()=>setFormData({...formData, property_type: 'villa'})} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.property_type === 'villa' ? 'bg-slate-600 text-white' : 'text-slate-400'}`}>ویلایی</button>
+                  <button onClick={()=>setFormData({...formData, property_type: 'land'})} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.property_type === 'land' ? 'bg-slate-600 text-white' : 'text-slate-400'}`}>کلنگی/زمین</button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">نوع معامله</label>
+                <div className="flex bg-slate-800/80 p-1 rounded-xl border border-slate-700">
+                  <button onClick={()=>setFormData({...formData, deal_type: 'sale'})} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.deal_type === 'sale' ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-400'}`}>فروش</button>
+                  <button onClick={()=>setFormData({...formData, deal_type: 'rent'})} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.deal_type === 'rent' ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400'}`}>رهن و اجاره</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">شهر</label>
+                <input type="text" value={formData.city} onChange={e=>setFormData({...formData, city:e.target.value})} className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3.5 text-sm text-slate-100 focus:border-emerald-500 outline-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">محله / منطقه <span className="text-rose-500">*</span></label>
+                <div className="relative">
+                  <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input type="text" value={formData.neighborhood} onChange={e=>setFormData({...formData, neighborhood:e.target.value})} placeholder="مثال: سجاد" className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pr-10 pl-4 py-3.5 text-sm text-slate-100 focus:border-emerald-500 outline-none" />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-2">آدرس دقیق (محرمانه برای دفتر)</label>
+              <input type="text" value={formData.address} onChange={e=>setFormData({...formData, address:e.target.value})} placeholder="مثال: حاشیه سجاد، پلاک ۱۲..." className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3.5 text-sm text-slate-100 focus:border-emerald-500 outline-none" />
+            </div>
+          </div>
+        )}
+
+        {/* === STEP 2 === */}
+        {step === 2 && (
+          <div className="space-y-6 animate-fade-in-up">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">متراژ (متر)</label>
+                <input type="text" value={formData.built_area} onChange={e=>setFormData({...formData, built_area:e.target.value})} className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-center text-sm text-slate-100 focus:border-emerald-500 outline-none nums-fa" dir="ltr" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">تعداد خواب</label>
+                <input type="text" value={formData.rooms} onChange={e=>setFormData({...formData, rooms:e.target.value})} className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-center text-sm text-slate-100 focus:border-emerald-500 outline-none nums-fa" dir="ltr" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">طبقه</label>
+                <input type="text" value={formData.floor} onChange={e=>setFormData({...formData, floor:e.target.value})} className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-center text-sm text-slate-100 focus:border-emerald-500 outline-none nums-fa" dir="ltr" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">سن بنا (سال)</label>
+                <input type="text" value={formData.age} onChange={e=>setFormData({...formData, age:e.target.value})} placeholder="نوساز = 0" className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-center text-sm text-slate-100 focus:border-emerald-500 outline-none nums-fa" dir="ltr" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-3">امکانات رفاهی</label>
+              <div className="flex flex-wrap gap-3">
+                {[
+                  { id: 'has_elevator', label: 'آسانسور' }, { id: 'has_parking', label: 'پارکلینگ' },
+                  { id: 'has_store_room', label: 'انباری' }, { id: 'has_master_room', label: 'خواب مستر' }
+                ].map(feature => (
+                  <button 
+                    key={feature.id} 
+                    onClick={() => setFormData(prev => ({ ...prev, [feature.id]: !(prev as any)[feature.id] }))}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                      (formData as any)[feature.id] ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
+                    }`}
+                  >
+                    {feature.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-2">گالری عکس (آپلود همزمان)</label>
+              <div className="border-2 border-dashed border-slate-700 hover:border-emerald-500/50 bg-slate-800/30 rounded-2xl p-8 flex flex-col items-center justify-center transition-colors cursor-pointer">
+                <UploadCloud className="w-10 h-10 text-slate-500 mb-3" />
+                <p className="text-sm font-bold text-emerald-500">برای انتخاب عکس کلیک کنید</p>
+                <p className="text-xs text-slate-500 mt-1">یا فایل‌ها را اینجا رها کنید</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* === STEP 3 === */}
+        {step === 3 && (
+          <div className="space-y-6 animate-fade-in-up">
+            {formData.deal_type === 'sale' ? (
+              <div className="bg-emerald-500/5 border border-emerald-500/20 p-5 rounded-2xl">
+                <label className="block text-xs font-bold text-emerald-400 mb-2">قیمت کل (تومان) <span className="text-rose-500">*</span></label>
+                <div className="relative">
+                  <DollarSign className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-500" />
+                  <input type="text" value={formData.price_total} onChange={e=>setFormData({...formData, price_total: formatPrice(formatInputToNumber(e.target.value))})} placeholder="مثال: 5,000,000,000" className="w-full bg-slate-900 border border-emerald-500/30 rounded-xl pr-10 pl-4 py-4 text-lg font-bold text-emerald-400 focus:outline-none focus:border-emerald-500 shadow-inner nums-fa" dir="ltr" />
+                </div>
+                {formData.price_total && <p className="text-emerald-400 text-xs font-bold mt-2 pr-1">{numberToPersianWords(formatInputToNumber(formData.price_total))}</p>}
+              </div>
+            ) : (
+              <div className="bg-blue-500/5 border border-blue-500/20 p-5 rounded-2xl space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-blue-400 mb-2">مبلغ رهن (تومان) <span className="text-rose-500">*</span></label>
+                  <input type="text" value={formData.price_mortgage} onChange={e=>setFormData({...formData, price_mortgage: formatPrice(formatInputToNumber(e.target.value))})} placeholder="500,000,000" className="w-full bg-slate-900 border border-blue-500/30 rounded-xl px-4 py-3.5 text-base font-bold text-blue-400 focus:outline-none focus:border-blue-500 nums-fa" dir="ltr" />
+                  {formData.price_mortgage && <p className="text-blue-400 text-xs font-bold mt-1.5 pr-1">{numberToPersianWords(formatInputToNumber(formData.price_mortgage))}</p>}
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-sky-400 mb-2">مبلغ اجاره (تومان) <span className="text-rose-500">*</span></label>
+                  <input type="text" value={formData.price_rent} onChange={e=>setFormData({...formData, price_rent: formatPrice(formatInputToNumber(e.target.value))})} placeholder="15,000,000" className="w-full bg-slate-900 border border-sky-500/30 rounded-xl px-4 py-3.5 text-base font-bold text-sky-400 focus:outline-none focus:border-sky-500 nums-fa" dir="ltr" />
+                  {formData.price_rent && <p className="text-sky-400 text-xs font-bold mt-1.5 pr-1">{numberToPersianWords(formatInputToNumber(formData.price_rent))}</p>}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-700/50">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">نام مالک (محرمانه)</label>
+                <div className="relative">
+                  <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input type="text" value={formData.owner_name} onChange={e=>setFormData({...formData, owner_name:e.target.value})} placeholder="مثال: آقای رضایی" className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pr-10 pl-4 py-3.5 text-sm text-slate-100 focus:border-emerald-500 outline-none" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">موبایل مالک (محرمانه)</label>
+                <div className="relative">
+                  <Phone className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input type="tel" value={formData.owner_phone} onChange={e=>setFormData({...formData, owner_phone:e.target.value})} placeholder="0912..." className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pr-10 pl-4 py-3.5 text-sm text-slate-100 focus:border-emerald-500 outline-none nums-fa" dir="ltr" />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl cursor-pointer" onClick={() => setFormData({...formData, is_exclusive: !formData.is_exclusive})}>
+              <div className={`w-5 h-5 rounded flex items-center justify-center border ${formData.is_exclusive ? 'bg-amber-500 border-amber-500 text-white' : 'border-slate-500 bg-slate-800'}`}>
+                {formData.is_exclusive && <Check className="w-3.5 h-3.5" />}
+              </div>
+              <div>
+                <p className="text-sm font-bold text-amber-400 flex items-center gap-1"><ShieldCheck className="w-4 h-4"/> این یک فایل "شخصی" است</p>
+                <p className="text-[10px] text-amber-500/70 mt-0.5">فقط خودم و مدیر می‌بینیم (در بانک املاک عمومی قرار نمی‌گیرد).</p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-2">توضیحات تکمیلی برای پرزنت</label>
+              <textarea value={formData.description} onChange={e=>setFormData({...formData, description:e.target.value})} rows={3} placeholder="دسترسی عالی، نورگیر فوق‌العاده..." className="w-full bg-slate-800/80 border border-slate-700 rounded-xl p-4 text-sm text-slate-100 focus:border-emerald-500 outline-none resize-none"></textarea>
+            </div>
+          </div>
+        )}
+
+        {/* Footer Actions */}
+        <div className="flex items-center gap-4 mt-8 pt-6 border-t border-slate-700/50">
+          {step > 1 && (
+            <button onClick={prevStep} className="flex items-center gap-2 px-6 py-3 rounded-xl border border-slate-600 text-slate-300 hover:bg-slate-800 transition-all font-bold text-sm">
+              <ArrowRight className="w-4 h-4" /> مرحله قبل
+            </button>
+          )}
+          <div className="flex-1"></div>
+          {step < 3 ? (
+            <button onClick={handleNext} className="flex items-center gap-2 px-8 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 transition-all font-bold text-sm">
+              مرحله بعد <ArrowLeft className="w-4 h-4" />
+            </button>
+          ) : (
+            <button onClick={submitForm} disabled={loading} className="flex items-center gap-2 px-10 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 transition-all font-bold text-base w-full sm:w-auto justify-center">
+              {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <><CheckCircle2 className="w-5 h-5" /> ثبت نهایی در سیستم</>}
+            </button>
+          )}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+==================================================
+FILE: ./Web\src\components\Customers.tsx
+==================================================
+
+import { useState, useEffect, useRef } from 'react';
+import { 
+  Search, Users, Star, Flame, Snowflake, Mic, 
+  Radar, X, Activity, CheckCircle2, AlertCircle, Phone
+} from 'lucide-react';
+import api from '../services/api';
+import { formatPrice, formatInputToNumber, numberToPersianWords } from '../utils/numberFormat';
+
+export default function Customers() {
+  const [clients, setClients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Call Analyzer States
+  const [callModalOpen, setCallModalOpen] = useState(false);
+  const [activeClient, setActiveClient] = useState<any>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [callResult, setCallResult] = useState<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  // Target Radar States
+  const [reqModalOpen, setReqModalOpen] = useState(false);
+  const [reqHoods, setReqHoods] = useState('');
+  const [reqMaxBudget, setReqMaxBudget] = useState('');
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  const fetchClients = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/api/clients/app-list');
+      if (res.data.status === 'success') {
+        setClients(res.data.clients);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangeCategory = async (clientId: number, category: string) => {
+    try {
+      await api.put('/api/clients/update-category', { client_id: clientId, category });
+      fetchClients();
+    } catch (e) {
+      alert("خطا در تغییر وضعیت");
+    }
+  };
+
+  // =====================================
+  // ضبط و تحلیل صدا (Call Analyzer)
+  // =====================================
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        sendVoiceToAI(audioBlob);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      alert('لطفاً دسترسی میکروفون را در مرورگر فعال کنید.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+    }
+  };
+
+  const sendVoiceToAI = async (audioBlob: Blob) => {
+    setIsAnalyzing(true);
+    try {
+      const fd = new FormData();
+      fd.append('audio', audioBlob, 'call.webm');
+      
+      const res = await api.post(`/api/clients/${activeClient.id}/analyze-call`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (res.data.status === 'success') {
+        setCallResult(res.data.analysis);
+      }
+    } catch (error) {
+      alert('خطا در ارتباط با هوش مصنوعی برای تحلیل تماس.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // =====================================
+  // تنظیم رادار (Targeting)
+  // =====================================
+  const submitRequirement = async () => {
+    if (!reqHoods) return alert("محله‌های درخواستی را وارد کنید.");
+    try {
+      const payload = {
+        client_id: activeClient.id,
+        deal_type: 'sale',
+        property_type: 'apartment',
+        preferred_neighborhoods: reqHoods,
+        min_budget: 0,
+        max_budget: formatInputToNumber(reqMaxBudget)
+      };
+      const res = await api.post('/api/clients/add-requirement', payload);
+      if (res.data.status === 'success') {
+        alert('رادار تنظیم شد! به محض شکار فایل مناسب آلارم دریافت می‌کنید.');
+        setReqModalOpen(false);
+        setReqHoods('');
+        setReqMaxBudget('');
+      }
+    } catch (e) {
+      alert("خطا در ثبت رادار");
+    }
+  };
+
+  const filteredClients = clients.filter(c => c.name.includes(searchQuery) || c.phone.includes(searchQuery));
+
+  return (
+    <div className="animate-fade-in-up pb-10">
+      <div className="flex flex-col lg:flex-row items-center justify-between gap-4 mb-8">
+        <div>
+          <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+            <Users className="text-emerald-500 w-6 h-6" /> دفترچه مشتریان هوشمند
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">مدیریت لیدها، کمپین‌های قطره‌ای و تحلیل مکالمات</p>
+        </div>
+        <div className="relative w-full lg:w-96">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+          <input 
+            type="text" 
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="جستجوی نام یا موبایل مشتری..."
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl pr-10 pl-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 transition-all"
+          />
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center mt-20"><div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div></div>
+      ) : filteredClients.length === 0 ? (
+        <div className="text-center mt-20 text-slate-500">مشتری یافت نشد.</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {filteredClients.map((client) => {
+            let catColor = 'emerald'; let CatIcon = Users;
+            if (client.client_category === 'vip') { catColor = 'purple'; CatIcon = Star; }
+            else if (client.client_category === 'hot_lead') { catColor = 'rose'; CatIcon = Flame; }
+            else if (client.client_category === 'cold') { catColor = 'blue'; CatIcon = Snowflake; }
+
+            return (
+              <div key={client.id} className={`bg-slate-800/80 border-r-4 border-slate-700 rounded-2xl p-5 hover:bg-slate-800 transition-all shadow-lg border-r-${catColor}-500`}>
+                <div className="flex items-start justify-between mb-4 border-b border-slate-700/50 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg bg-${catColor}-500/10 text-${catColor}-400 border border-${catColor}-500/20`}>
+                      {client.name.charAt(0)}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-100">{client.name}</h3>
+                      <p className="text-xs text-slate-400 mt-1 nums-fa" dir="ltr">{client.phone}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Category Selector */}
+                  <select 
+                    value={client.client_category} 
+                    onChange={(e) => handleChangeCategory(client.id, e.target.value)}
+                    className={`bg-${catColor}-500/10 text-${catColor}-400 border border-${catColor}-500/20 rounded-lg text-xs font-bold py-1.5 px-2 outline-none cursor-pointer`}
+                  >
+                    <option value="normal" className="bg-slate-800 text-slate-200">عادی</option>
+                    <option value="vip" className="bg-slate-800 text-purple-400">VIP 👑</option>
+                    <option value="hot_lead" className="bg-slate-800 text-rose-400">داغ 🔥</option>
+                    <option value="cold" className="bg-slate-800 text-blue-400">سرد (کمپین) ❄️</option>
+                  </select>
+                </div>
+
+                <div className="mb-4">
+                  <div className="flex justify-between items-center bg-slate-900/50 rounded-lg px-3 py-2 border border-slate-700/50">
+                    <span className="text-xs text-slate-500">مرحله قیف:</span>
+                    <span className="text-xs font-bold text-slate-300">{client.funnel_stage}</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => { setActiveClient(client); setCallResult(null); setCallModalOpen(true); }}
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 py-2 rounded-xl text-xs font-bold transition-all"
+                  >
+                    <Mic className="w-3.5 h-3.5" /> تحلیل تماس
+                  </button>
+                  <button 
+                    onClick={() => { setActiveClient(client); setReqModalOpen(true); }}
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 py-2 rounded-xl text-xs font-bold transition-all"
+                  >
+                    <Radar className="w-3.5 h-3.5" /> تارگت‌یابی
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ================================== */}
+      {/* MODAL: Call Analyzer (تحلیلگر تماس) */}
+      {/* ================================== */}
+      {callModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl animate-fade-in-up">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-blue-400 flex items-center gap-2"><Phone className="w-5 h-5"/> تحلیلگر مکالمه AI</h3>
+              <button onClick={() => { setCallModalOpen(false); setCallResult(null); stopRecording(); }} className="text-slate-500 hover:text-rose-400"><X className="w-5 h-5"/></button>
+            </div>
+            
+            <p className="text-sm text-slate-400 text-center mb-6 leading-relaxed">
+              مکالمه خود با <strong className="text-white">{activeClient?.name}</strong> را ضبط کنید تا هوش مصنوعی آن را خلاصه کرده و احساسات مشتری را بسنجد.
+            </p>
+
+            <div className="flex flex-col items-center justify-center mb-8">
+              {isAnalyzing ? (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-sm font-bold text-blue-400">در حال استخراج احساسات و متن...</span>
+                </div>
+              ) : (
+                <>
+                  <button 
+                    onMouseDown={startRecording}
+                    onMouseUp={stopRecording}
+                    onMouseLeave={stopRecording}
+                    onTouchStart={startRecording}
+                    onTouchEnd={stopRecording}
+                    className={`w-24 h-24 rounded-full flex items-center justify-center transition-all shadow-xl ${isRecording ? 'bg-rose-500 scale-110 animate-pulse shadow-rose-500/50' : 'bg-blue-500 hover:scale-105 shadow-blue-500/50'}`}
+                  >
+                    <Mic className="w-10 h-10 text-white" />
+                  </button>
+                  <span className={`text-xs mt-4 font-bold ${isRecording ? 'text-rose-400 animate-pulse' : 'text-slate-500'}`}>
+                    {isRecording ? 'در حال شنیدن... رها کنید تا پردازش شود' : 'دکمه را نگه دارید و صحبت کنید'}
+                  </span>
+                </>
+              )}
+            </div>
+
+            {callResult && (
+              <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4 animate-fade-in-up">
+                <h4 className="text-sm font-bold text-blue-400 mb-2">خلاصه مکالمه:</h4>
+                <p className="text-sm text-slate-200 leading-relaxed mb-4">{callResult.summary}</p>
+                <div className="border-t border-slate-700/50 pt-3 flex justify-between items-center">
+                  <span className="text-xs text-slate-400">حالت احساسی (Sentiment):</span>
+                  <span className={`text-xs font-bold px-3 py-1 rounded-lg ${
+                    callResult.sentiment === 'positive' ? 'bg-emerald-500/20 text-emerald-400' :
+                    callResult.sentiment === 'negative' ? 'bg-rose-500/20 text-rose-400' : 'bg-amber-500/20 text-amber-400'
+                  }`}>
+                    {callResult.sentiment === 'positive' ? 'راغب و مثبت 😊' : callResult.sentiment === 'negative' ? 'ناراضی / سرد 😠' : 'معمولی 😐'}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ================================== */}
+      {/* MODAL: Radar Target (تارگت‌یابی) */}
+      {/* ================================== */}
+      {reqModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl animate-fade-in-up">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-purple-400 flex items-center gap-2"><Radar className="w-5 h-5"/> تارگت‌یابی هوشمند</h3>
+              <button onClick={() => setReqModalOpen(false)} className="text-slate-500 hover:text-rose-400"><X className="w-5 h-5"/></button>
+            </div>
+            
+            <p className="text-xs text-slate-400 mb-6 leading-relaxed">با تنظیم این بخش، هر زمان فایل مناسبی در سیستم ثبت شود (حتی توسط ربات دیوار)، سیستم به شما آلارم می‌دهد.</p>
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">محله‌های درخواستی (با ویرگول جدا کنید) <span className="text-rose-500">*</span></label>
+                <input 
+                  type="text" 
+                  value={reqHoods}
+                  onChange={e => setReqHoods(e.target.value)}
+                  placeholder="مثال: سجاد، هاشمیه" 
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none focus:border-purple-500" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">حداکثر بودجه</label>
+                <input 
+                  type="text" 
+                  value={reqMaxBudget}
+                  onChange={e => setReqMaxBudget(formatPrice(formatInputToNumber(e.target.value)))}
+                  placeholder="مثال: 10,000,000,000" 
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-purple-300 font-bold focus:outline-none focus:border-purple-500 nums-fa" dir="ltr"
+                />
+                {reqMaxBudget && <p className="text-purple-400 text-xs font-bold mt-2 text-right">{numberToPersianWords(formatInputToNumber(reqMaxBudget))}</p>}
+              </div>
+
+              <button 
+                onClick={submitRequirement}
+                className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-purple-500/30 transition-all mt-4"
+              >
+                فعال‌سازی ردیاب مشتری
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+==================================================
+FILE: ./Web\src\components\Financials.tsx
+==================================================
+
+import { useState, useEffect } from 'react';
+import { 
+  Wallet, Calculator, Handshake, DownloadCloud, 
+  ArrowUpRight, Home, Key, X, CheckCircle2 
+} from 'lucide-react';
+import api from '../services/api';
+import { useAuthStore } from '../store/useAuthStore';
+import { formatPrice, formatInputToNumber, numberToPersianWords } from '../utils/numberFormat';
+
+export default function Financials() {
+  const { user } = useAuthStore();
+  const [stats, setStats] = useState({ total_revenue: 0, agent_share: 0, office_share: 0 });
+  const [deals, setDeals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Modal States
+  const [modalOpen, setModalOpen] = useState(false);
+  const [clients, setClients] = useState<any[]>([]);
+  const [properties, setProperties] = useState<any[]>([]);
+  
+  // Form States
+  const [formData, setFormData] = useState({
+    client_id: '',
+    property_id: '',
+    deal_type: 'فروش',
+    deal_price: '',
+    commission: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetchFinancials();
+  }, []);
+
+  const fetchFinancials = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/api/deals/app-financials');
+      if (res.data.status === 'success') {
+        setStats(res.data.stats);
+        setDeals(res.data.recent_deals);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openDealModal = async () => {
+    setModalOpen(true);
+    try {
+      const [clientRes, propRes] = await Promise.all([
+        api.get('/api/clients/app-list'),
+        api.get('/api/properties/app-list')
+      ]);
+      setClients(clientRes.data.clients || []);
+      setProperties(propRes.data.properties || []);
+    } catch (error) {
+      console.error("Error fetching form data");
+    }
+  };
+
+  const calculateCommission = async () => {
+    if(!window.confirm('آیا کمیسیون مشاوران بر اساس قراردادهای این ماه محاسبه شود؟')) return;
+    try {
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      await api.post('/api/deals/calculate-monthly', { year_month: currentMonth });
+      alert('سهم مشاورین برای این ماه با موفقیت بروزرسانی شد.');
+    } catch (e) {
+      alert('خطا: فقط مدیر شعبه دسترسی دارد.');
+    }
+  };
+
+  const submitDeal = async () => {
+    if (!formData.client_id || !formData.deal_price || !formData.commission) {
+      return alert('مشتری، مبلغ معامله و کمیسیون الزامی است.');
+    }
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        client_id: parseInt(formData.client_id),
+        property_id: formData.property_id ? parseInt(formData.property_id) : 0,
+        deal_type: formData.deal_type,
+        deal_price: formatInputToNumber(formData.deal_price),
+        commission_amount: formatInputToNumber(formData.commission)
+      };
+      const res = await api.post('/api/deals/add', payload);
+      if (res.data.status === 'success') {
+        alert('قرارداد با موفقیت در سیستم مالی ثبت شد!');
+        setModalOpen(false);
+        setFormData({ client_id: '', property_id: '', deal_type: 'فروش', deal_price: '', commission: '' });
+        fetchFinancials();
+      }
+    } catch (e) {
+      alert('مشکلی در ثبت قرارداد پیش آمد.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDownloadPDF = (dealId: number) => {
+    window.open(`http://127.0.0.1:8000/api/deals/${dealId}/contract-pdf`, '_blank');
+  };
+
+  const isManager = user?.role === 'MANAGER' || user?.role === 'SUPER_ADMIN';
+
+  return (
+    <div className="animate-fade-in-up pb-20">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
+        <div>
+          <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+            <Wallet className="text-emerald-500 w-6 h-6" /> گزارشات مالی و کمیسیون‌ها
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">مدیریت تراکنش‌ها و سهم‌بندی اتوماتیک درآمد</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          {isManager && (
+            <button onClick={calculateCommission} className="flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/20 px-4 py-2.5 rounded-xl text-sm font-bold transition-all">
+              <Calculator className="w-4 h-4" /> محاسبه حقوق پرسنل
+            </button>
+          )}
+          <button onClick={openDealModal} className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-emerald-500/20">
+            <Handshake className="w-4 h-4" /> ثبت قرارداد جدید
+          </button>
+        </div>
+      </div>
+
+      {/* کارت بزرگ مالی */}
+      <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700/50 rounded-3xl p-6 lg:p-8 mb-8 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl"></div>
+        
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="flex-1 text-center md:text-right">
+            <p className="text-sm font-bold text-emerald-500/80 mb-2 flex items-center justify-center md:justify-start gap-2">
+              <Wallet className="w-4 h-4" /> مجموع درآمدزایی شعبه (کمیسیون)
+            </p>
+            <p className="text-4xl lg:text-5xl font-bold text-slate-100 nums-fa" dir="ltr">
+              {formatPrice(stats.total_revenue)} <span className="text-lg text-slate-500 font-normal">تومان</span>
+            </p>
+          </div>
+
+          <div className="hidden md:block w-px h-24 bg-slate-700/50"></div>
+
+          <div className="flex w-full md:w-auto gap-8 justify-center">
+            <div className="text-center">
+              <p className="text-xs font-bold text-slate-500 mb-2">سهم شما (مشاور)</p>
+              <p className="text-xl font-bold text-emerald-400 nums-fa">{formatPrice(stats.agent_share)}</p>
+            </div>
+            <div className="w-px h-12 bg-slate-700/50"></div>
+            <div className="text-center">
+              <p className="text-xs font-bold text-slate-500 mb-2">سهم آژانس (دفتر)</p>
+              <p className="text-xl font-bold text-blue-400 nums-fa">{formatPrice(stats.office_share)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* جدول تراکنش‌ها */}
+      <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-700/50 rounded-2xl overflow-hidden shadow-xl">
+        <div className="flex items-center justify-between p-5 lg:p-6 border-b border-slate-700/50">
+          <div>
+            <h3 className="text-base font-bold text-slate-100">تراکنش‌های اخیر</h3>
+            <p className="text-xs text-slate-500 mt-1">قراردادهای ثبت شده در سیستم</p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto min-h-[200px]">
+          {loading ? (
+            <div className="flex justify-center items-center h-40">
+              <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : deals.length === 0 ? (
+            <div className="flex justify-center items-center h-40 text-slate-500 text-sm">هیچ تراکنشی یافت نشد.</div>
+          ) : (
+            <table className="w-full text-right">
+              <thead>
+                <tr className="border-b border-slate-700/50 bg-slate-800/30">
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400">کد تراکنش</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400">نوع</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400">کمیسیون</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400">تاریخ</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400">رسید</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deals.map((t) => (
+                  <tr key={t.id} className="border-b border-slate-700/30 last:border-0 hover:bg-slate-800/50 transition-colors">
+                    <td className="px-6 py-4 text-sm font-mono text-slate-400 nums-fa">TXN-{t.id}</td>
+                    <td className="px-6 py-4 text-sm font-bold text-slate-200 flex items-center gap-2">
+                      <div className={`p-1.5 rounded-lg ${t.type.includes('فروش') ? 'bg-emerald-500/10 text-emerald-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                        {t.type.includes('فروش') ? <Home className="w-4 h-4"/> : <Key className="w-4 h-4"/>}
+                      </div>
+                      {t.type}
+                    </td>
+                    <td className="px-6 py-4 text-sm font-bold text-emerald-400 nums-fa">{formatPrice(t.commission)}</td>
+                    <td className="px-6 py-4 text-sm text-slate-400 nums-fa" dir="ltr">{t.date}</td>
+                    <td className="px-6 py-4">
+                      <button onClick={() => handleDownloadPDF(t.id)} className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors">
+                        <DownloadCloud className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* ================================== */}
+      {/* MODAL: ثبت قرارداد */}
+      {/* ================================== */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl animate-fade-in-up">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-emerald-400 flex items-center gap-2"><Handshake className="w-5 h-5"/> ثبت قرارداد جدید</h3>
+              <button onClick={() => setModalOpen(false)} className="text-slate-500 hover:text-rose-400"><X className="w-5 h-5"/></button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">مشتری خریدار/مستاجر <span className="text-rose-500">*</span></label>
+                <select 
+                  value={formData.client_id} onChange={e => setFormData({...formData, client_id: e.target.value})}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="">-- انتخاب از قیف فروش --</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">فایل ملک مرتبط (اختیاری)</label>
+                <select 
+                  value={formData.property_id} onChange={e => setFormData({...formData, property_id: e.target.value})}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="">-- انتخاب فایل از بانک --</option>
+                  {properties.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">نوع قرارداد</label>
+                <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
+                  <button onClick={()=>setFormData({...formData, deal_type: 'فروش'})} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.deal_type === 'فروش' ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-400'}`}>خرید و فروش</button>
+                  <button onClick={()=>setFormData({...formData, deal_type: 'رهن و اجاره'})} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.deal_type === 'رهن و اجاره' ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400'}`}>رهن و اجاره</button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">مبلغ کل معامله (تومان) <span className="text-rose-500">*</span></label>
+                <input type="text" value={formData.deal_price} onChange={e=>setFormData({...formData, deal_price: formatPrice(formatInputToNumber(e.target.value))})} placeholder="مثال: 5,000,000,000" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 nums-fa" dir="ltr" />
+                {formData.deal_price && <p className="text-slate-400 text-xs font-bold mt-2 text-right">{numberToPersianWords(formatInputToNumber(formData.deal_price))}</p>}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-emerald-400 mb-2">کمیسیون دریافتی (تومان) <span className="text-rose-500">*</span></label>
+                <input type="text" value={formData.commission} onChange={e=>setFormData({...formData, commission: formatPrice(formatInputToNumber(e.target.value))})} placeholder="مجموع دریافتی از طرفین" className="w-full bg-slate-900 border border-emerald-500/50 rounded-xl px-4 py-3 text-lg font-bold text-emerald-400 focus:outline-none focus:border-emerald-500 nums-fa" dir="ltr" />
+                {formData.commission && <p className="text-emerald-400 text-xs font-bold mt-2 text-right">{numberToPersianWords(formatInputToNumber(formData.commission))}</p>}
+              </div>
+
+              <button onClick={submitDeal} disabled={isSubmitting} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-500/30 transition-all mt-4 flex justify-center items-center gap-2">
+                {isSubmitting ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <><CheckCircle2 className="w-5 h-5"/> ثبت نهایی تراکنش</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 ==================================================
 FILE: ./Web\src\components\Header.tsx
@@ -715,6 +1825,245 @@ export default function KpiCard({
 
 
 ==================================================
+FILE: ./Web\src\components\Properties.tsx
+==================================================
+
+import { useState, useEffect } from 'react';
+import { 
+  Search, Sparkles, Map as MapIcon, Plus, Bot, LogIn, 
+  Share2, Calculator, Sofa, Eye, Target, Edit, Trash2, 
+  CheckCircle2, XCircle, Building2, MapPin, RefreshCcw
+} from 'lucide-react';
+import api from '../services/api';
+
+export default function Properties({ setActiveMenu }: { setActiveMenu: (m: string) => void }) {
+  const [activeTab, setActiveTab] = useState<'active' | 'pending' | 'trash'>('active');
+  const [activeProps, setActiveProps] = useState<any[]>([]);
+  const [pendingProps, setPendingProps] = useState<any[]>([]);
+  const [trashProps, setTrashProps] = useState<any[]>([]); // 🌟 استیت زباله‌دان
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [aiQuery, setAiQuery] = useState('');
+
+  useEffect(() => {
+    fetchProperties();
+  }, []);
+
+  const fetchProperties = async () => {
+    setLoading(true);
+    try {
+      const [activeRes, pendingRes, trashRes] = await Promise.all([
+        api.get('/api/properties/app-list'),
+        api.get('/api/properties/pending-list'),
+        api.get('/api/properties/trash-list') // دریافت لیست زباله‌دان
+      ]);
+      setActiveProps(activeRes.data.properties || []);
+      setPendingProps(pendingRes.data.properties || []);
+      setTrashProps(trashRes.data.properties || []);
+    } catch (error) {
+      console.error("Error fetching properties", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatPrice = (price: number) => {
+    return price ? price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' تومان' : 'توافقی';
+  };
+
+  // انتقال به زباله‌دان (سافت دیلیت)
+  const handleMoveToTrash = async (id: number) => {
+    if(!window.confirm('این فایل به زباله‌دان منتقل می‌شود. ادامه می‌دهید؟')) return;
+    try {
+      await api.put(`/api/properties/${id}/trash`);
+      fetchProperties();
+    } catch (e) {
+      alert("خطا در انتقال به زباله‌دان");
+    }
+  };
+
+  // بازیابی از زباله‌دان
+  const handleRestore = async (id: number) => {
+    try {
+      await api.put(`/api/properties/${id}/restore`);
+      alert("فایل با موفقیت بازیابی شد.");
+      fetchProperties();
+    } catch (e) {
+      alert("خطا در بازیابی");
+    }
+  };
+
+  // حذف دائم (فقط از داخل زباله‌دان یا ربات امکان‌پذیر است)
+  const handlePermanentDelete = async (id: number, isPending = false) => {
+    if(!window.confirm('آیا از حذف دائم و غیرقابل بازگشت این فایل مطمئن هستید؟')) return;
+    try {
+      const endpoint = isPending ? `/api/properties/pending/${id}` : `/api/properties/${id}`;
+      await api.delete(endpoint);
+      fetchProperties();
+    } catch (e) {
+      alert("خطا در حذف دائم فایل");
+    }
+  };
+
+  const displayData = activeTab === 'active' ? activeProps : activeTab === 'pending' ? pendingProps : trashProps;
+  const filteredData = displayData.filter(p => p.title?.includes(searchQuery) || p.neighborhood?.includes(searchQuery));
+
+  return (
+    <div className="animate-fade-in-up">
+      {/* هدر صفحه و اکشن‌های سراسری */}
+      <div className="flex flex-col lg:flex-row items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+            <Building2 className="text-emerald-500 w-6 h-6" />
+            بانک اطلاعات املاک و شووروم
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">مدیریت فایل‌ها، فیلتر پیشرفته و تطابق با مشتریان</p>
+        </div>
+        
+        <div onClick={() => setActiveMenu('add_property')} className="flex flex-wrap items-center gap-3">
+          <button className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-emerald-500/20">
+            <Plus className="w-4 h-4" /> ثبت فایل جدید
+          </button>
+          <button className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium transition-all">
+            <Bot className="w-4 h-4" /> بیدار کردن ربات خزنده
+          </button>
+          <button className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 px-4 py-2.5 rounded-xl text-sm font-medium transition-all">
+            <LogIn className="w-4 h-4" /> لاگین در دیوار
+          </button>
+        </div>
+      </div>
+
+      {/* جستجوی هوشمند و تب‌ها */}
+      <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-4 mb-6 shadow-xl">
+        <div className="flex flex-col md:flex-row gap-4 mb-4">
+          <div className="flex-1 relative">
+            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+              <Sparkles className="w-5 h-5 text-purple-400" />
+            </div>
+            <input 
+              type="text" 
+              value={aiQuery}
+              onChange={(e) => setAiQuery(e.target.value)}
+              placeholder="جستجوی عامیانه با هوش مصنوعی (مثال: یه خونه نورگیر سمت سجاد...)"
+              className="w-full bg-purple-500/5 border border-purple-500/20 rounded-xl pr-10 pl-4 py-3 text-sm text-purple-100 placeholder:text-purple-400/50 focus:outline-none focus:border-purple-500/50 transition-all"
+            />
+            <button className="absolute inset-y-1.5 left-1.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white px-4 rounded-lg text-xs font-bold transition-all shadow-lg shadow-purple-500/30">
+              بگرد
+            </button>
+          </div>
+          <div className="flex-1 relative">
+            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+              <Search className="w-5 h-5 text-slate-500" />
+            </div>
+            <input 
+              type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="جستجو در عنوان، محله..."
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl pr-10 pl-4 py-3 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/50 transition-all"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 bg-slate-800/50 p-1.5 rounded-xl w-fit">
+          <button onClick={() => setActiveTab('active')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'active' ? 'bg-emerald-500/20 text-emerald-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
+            فایل‌های فعال ({activeProps.length})
+          </button>
+          <button onClick={() => setActiveTab('pending')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'pending' ? 'bg-amber-500/20 text-amber-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
+            صندوق ربات ({pendingProps.length})
+          </button>
+          {/* 🌟 تب زباله‌دان 🌟 */}
+          <button onClick={() => setActiveTab('trash')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'trash' ? 'bg-rose-500/20 text-rose-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
+            زباله‌دان ({trashProps.length})
+          </button>
+        </div>
+      </div>
+
+      {/* گرید املاک */}
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      ) : filteredData.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-64 bg-slate-800/30 border border-dashed border-slate-700 rounded-2xl">
+          <Building2 className="w-12 h-12 text-slate-600 mb-3" />
+          <p className="text-slate-400">فایلی یافت نشد.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredData.map((prop) => {
+            let img = '';
+            try { const imgs = JSON.parse(prop.image_urls); if(imgs.length>0) img = `http://127.0.0.1:8000${imgs[0]}`; } catch(e){}
+
+            return (
+              <div key={prop.id} className={`group border rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col ${activeTab === 'trash' ? 'bg-slate-900/50 border-rose-900/50 opacity-80' : 'bg-slate-800 border-slate-700/50 hover:border-slate-500/50'}`}>
+                {/* عکس و نشان‌ها */}
+                <div className="relative h-48 bg-slate-900 overflow-hidden">
+                  {img ? (
+                    <img src={img} alt={prop.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-slate-800"><Building2 className="w-10 h-10 text-slate-600" /></div>
+                  )}
+                  <div className="absolute top-3 right-3 flex gap-2">
+                    <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold backdrop-blur-md border ${prop.is_exclusive ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'}`}>
+                      {prop.is_exclusive ? '🔒 شخصی' : '👁️ عمومی'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* اطلاعات اصلی */}
+                <div className="p-4 flex-1 flex flex-col">
+                  <h3 className="text-base font-bold text-slate-100 mb-2 line-clamp-1">{prop.title}</h3>
+                  <div className="flex items-center justify-between mb-4 text-xs text-slate-400">
+                    <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {prop.neighborhood}</span>
+                    <span className="bg-slate-700/50 px-2 py-1 rounded text-slate-300">{prop.built_area} متر</span>
+                  </div>
+                  <div className="mb-4">
+                    <p className="text-xs text-slate-500 mb-1">قیمت کل:</p>
+                    <p className="text-lg font-bold text-emerald-400 nums-fa">{formatPrice(prop.price_total)}</p>
+                  </div>
+
+                  {/* دکمه‌های عملیاتی */}
+                  <div className="mt-auto pt-2 border-t border-slate-700/50">
+                    
+                    {activeTab === 'trash' ? (
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <button onClick={() => handleRestore(prop.id)} className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5">
+                          <RefreshCcw className="w-3.5 h-3.5"/> بازیابی فایل
+                        </button>
+                        <button onClick={() => handlePermanentDelete(prop.id, false)} className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5">
+                          <Trash2 className="w-3.5 h-3.5"/> حذف دائم
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button className="w-full mb-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-2">
+                          <Calculator className="w-4 h-4"/> کارشناسی قیمت (CMA)
+                        </button>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5">
+                            <Eye className="w-3.5 h-3.5"/> کاتالوگ
+                          </button>
+                          
+                          {/* دکمه زباله‌دان به جای حذف دائم */}
+                          <button onClick={() => handleMoveToTrash(prop.id)} className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5">
+                            <Trash2 className="w-3.5 h-3.5"/> زباله‌دان
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+==================================================
 FILE: ./Web\src\components\RevenueChart.tsx
 ==================================================
 
@@ -924,7 +2273,7 @@ export default function RevenueChart() {
 FILE: ./Web\src\components\Sidebar.tsx
 ==================================================
 
-import { LayoutDashboard, TrendingUp, Wallet, Users, Sparkles, Building2 } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Wallet, Users, Sparkles, Building2, Home } from 'lucide-react';
 
 type SidebarProps = {
   activeMenu: string;
@@ -934,10 +2283,10 @@ type SidebarProps = {
 export default function Sidebar({ activeMenu, setActiveMenu }: SidebarProps) {
   const navItems = [
     { id: 'dashboard', label: 'داشبورد', icon: LayoutDashboard },
-    { id: 'funnel', label: 'قیف فروش', icon: TrendingUp },
-    { id: 'finance', label: 'امور مالی', icon: Wallet },
     { id: 'customers', label: 'مشتریان', icon: Users },
-    { id: 'ai', label: 'هوش مصنوعی', icon: Sparkles, badge: 'جدید' },
+    { id: 'properties', label: 'بانک املاک', icon: Home },
+    { id: 'finance', label: 'امور مالی', icon: Wallet },
+    { id: 'funnel', label: 'قیف فروش', icon: TrendingUp },
   ];
 
   return (
@@ -965,6 +2314,11 @@ export default function Sidebar({ activeMenu, setActiveMenu }: SidebarProps) {
               {isActive && <span className="absolute right-0 top-1/2 -translate-y-1/2 h-7 w-1 rounded-l-full bg-emerald-500" />}
               <Icon className="w-5 h-5 shrink-0" />
               <span className="hidden lg:block text-sm font-medium flex-1 text-right">{item.label}</span>
+              {item.badge && (
+                <span className="hidden lg:inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-purple-500/20 text-purple-300 mr-auto">
+                  {item.badge}
+                </span>
+              )}
             </button>
           );
         })}
@@ -1245,3 +2599,33 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ token: null });
   },
 }));
+
+==================================================
+FILE: ./Web\src\utils\numberFormat.ts
+==================================================
+
+// Web/src/utils/numberFormat.ts
+
+export const formatPrice = (price: number | string): string => {
+  if (!price || Number(price) === 0) return '';
+  return Number(price).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+};
+
+export const formatInputToNumber = (value: string): number => {
+  const numericValue = value.replace(/,/g, '').replace(/[^0-9]/g, '');
+  return numericValue ? parseInt(numericValue) : 0;
+};
+
+export const numberToPersianWords = (num: number): string => {
+  if (!num || isNaN(num) || num === 0) return '';
+  let b = Math.floor(num / 1000000000);
+  let m = Math.floor((num % 1000000000) / 1000000);
+  let k = Math.floor((num % 1000000) / 1000);
+  let parts = [];
+  
+  if (b > 0) parts.push(`${b} میلیارد`);
+  if (m > 0) parts.push(`${m} میلیون`);
+  if (k > 0) parts.push(`${k} هزار`);
+  
+  return parts.length > 0 ? parts.join(' و ') + ' تومان' : '';
+};
