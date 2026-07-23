@@ -44,7 +44,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
   // 📣 دیوار
   const [divarConfirmModal, setDivarConfirmModal] = useState<any>(null);
 
-  // ⚖️ ترازوی مقایسه‌ای ۳ ستونه (CMA)
+  // ⚖️ ترازوی مقایسه‌ای ۳ ستونه (ارزیابی هوشمند)
   const [cmaModalOpen, setCmaModalOpen] = useState(false);
   const [cmaTargetProp, setCmaTargetProp] = useState<any>(null);
   const [cmaComparables, setCmaComparables] = useState<any[]>([]);
@@ -52,7 +52,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
   const [cmaConclusion, setCmaConclusion] = useState<string>('');
   const [cmaLoading, setCmaLoading] = useState(false);
 
-  // 🏷️ 🌟 مودال استراتژی قیمت‌گذاری (ارزیابی هوشمند - سناریوی ۵ روزه، ۱۵-۳۰ روزه و قیمت مالک)
+  // 🏷️ 🌟 مودال کارشناسی قیمت CMA (سناریوی ۵ روزه، ۱۵-۳۰ روزه و قیمت مالک)
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
   const [pricingData, setPricingData] = useState<any>(null);
   const [pricingLoading, setPricingLoading] = useState(false);
@@ -118,16 +118,20 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
     } catch (e) { console.error("Map fetch error", e); }
   };
 
-  // 🗺️ 🌟 راه‌اندازی و رندر دقیق نقشه تعاملی مشهد
+  // 🗺️ 🌟 راه‌اندازی و رندر بدون باگ نقشه تعاملی مشهد (حل مشکل صفحه سیاه)
   const initLeafletMap = (data: any[]) => {
     if (!mapContainerRef.current) return;
 
-    if (!(window as any).L) {
+    // تزریق استایل CSS لایف‌لت
+    if (!document.getElementById('leaflet-css-style')) {
       const link = document.createElement('link');
+      link.id = 'leaflet-css-style';
       link.rel = 'stylesheet';
       link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
       document.head.appendChild(link);
+    }
 
+    if (!(window as any).L) {
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
       script.onload = () => renderMapMarkers(data);
@@ -141,20 +145,31 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
     const L = (window as any).L;
     if (!L || !mapContainerRef.current) return;
 
-    if (mapInstanceRef.current) mapInstanceRef.current.remove();
+    if (mapInstanceRef.current) {
+      try { mapInstanceRef.current.remove(); } catch(e){}
+    }
 
     // مرکز نقشه مشهد
-    const map = L.map(mapContainerRef.current).setView([36.297, 59.606], 12);
+    const map = L.map(mapContainerRef.current, {
+      center: [36.297, 59.606],
+      zoom: 12
+    });
     mapInstanceRef.current = map;
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
       attribution: '© OpenStreetMap | EstateMind AI'
     }).addTo(map);
 
+    // اجبار لایف‌لت به بازسازی ابعاد جهت جلوگیری از صفحه سیاه
+    setTimeout(() => {
+      try { map.invalidateSize(); } catch(e){}
+    }, 250);
+
     // افزودن پین‌های دائمی قرمز رنگ و پاپ‌آپ‌های قیمت
     data.forEach((item: any, index: number) => {
-      let lat = 36.297 + ((index % 5) - 2) * 0.015;
-      let lng = 59.606 + ((index % 4) - 2) * 0.015;
+      let lat = item.lat || (36.297 + ((index % 5) - 2) * 0.015);
+      let lng = item.lng || (59.606 + ((index % 4) - 2) * 0.015);
 
       const circle = L.circleMarker([lat, lng], {
         radius: 9,
@@ -189,7 +204,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
     }));
   };
 
-  // 🏷️ 🌟 کلیک روی «ارزیابی هوشمند» -> باز شدن مودال استراتژی قیمت‌گذاری
+  // 🏷️ 🌟 کلیک روی «کارشناسی قیمت (CMA)» -> باز شدن مودال استراتژی قیمت‌گذاری ۵ روزه/بازار/مالک
   const handleOpenPricingStrategy = async (id: number) => {
     setPricingLoading(true);
     setPricingModalOpen(true);
@@ -204,7 +219,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
     }
   };
 
-  // ⚖️ 🌟 کلیک روی «کارشناسی قیمت (CMA)» -> باز شدن ترازوی ۳ ستونه مقایسه‌ای
+  // ⚖️ 🌟 کلیک روی «ارزیابی هوشمند» -> باز شدن ترازوی ۳ ستونه مقایسه‌ای با ۲۰٪ تلورانس
   const handleOpenSmartValuation = async (targetProp: any) => {
     setCmaTargetProp(targetProp);
     setCmaCompIndex(0);
@@ -507,7 +522,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
       {/* نمایش نقشه تعاملی */}
       {viewMode === 'map' ? (
         <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl h-[600px] relative">
-          <div ref={mapContainerRef} className="w-full h-full z-10"></div>
+          <div ref={mapContainerRef} style={{ width: '100%', height: '100%', backgroundColor: '#0f172a' }}></div>
         </div>
       ) : loading ? (
         <div className="flex justify-center items-center h-64">
@@ -640,9 +655,9 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                         </button>
 
                         <div className="grid grid-cols-2 gap-2">
-                          {/* 🌟 دکمه ۱: کارشناسی قیمت CMA (ترازوی ۳ ستونه مقایسه‌ای) 🌟 */}
-                          <button onClick={() => handleOpenSmartValuation(prop)} className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1">
-                            <Scale className="w-3.5 h-3.5" /> کارشناسی قیمت (CMA)
+                          {/* 🌟 دکمه ۱: «کارشناسی قیمت (CMA)» -> باز شدن سناریوهای ۵ روزه، بازار و پیشنهادی مالک 🌟 */}
+                          <button onClick={() => handleOpenPricingStrategy(prop.id)} className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1">
+                            <Calculator className="w-3.5 h-3.5" /> کارشناسی قیمت (CMA)
                           </button>
 
                           <button onClick={() => openCatalogModal(prop)} className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1">
@@ -651,9 +666,9 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                         </div>
 
                         <div className="grid grid-cols-2 gap-2">
-                          {/* 🌟 دکمه ۲: ارزیابی هوشمند (پاپ‌آپ استراتژی ۵ روزه، ۱۵ روزه و پیشنهادی) 🌟 */}
-                          <button onClick={() => handleOpenPricingStrategy(prop.id)} className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1">
-                            <Tag className="w-3.5 h-3.5" /> ارزیابی هوشمند
+                          {/* 🌟 دکمه ۲: «ارزیابی هوشمند» -> باز شدن ترازوی ۳ ستونه مقایسه‌ای رقبا با ۲۰٪ تلورانس 🌟 */}
+                          <button onClick={() => handleOpenSmartValuation(prop)} className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1">
+                            <Sparkles className="w-3.5 h-3.5" /> ارزیابی هوشمند
                           </button>
 
                           {/* قانون یک‌طرفه: فقط برای شخصی دکمه عمومی‌سازی ظاهر می‌شود */}
@@ -692,7 +707,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
       )}
 
       {/* ==================================================== */}
-      {/* 🏷️ 🌟 MODAL 1: پاپ‌آپ استراتژی قیمت‌گذاری (ارزیابی هوشمند - ۵ روزه، ۱۵-۳۰ روزه، پیشنهادی) */}
+      {/* 🏷️ 🌟 MODAL 1: کارشناسی قیمت (CMA) - سناریوهای ۵ روزه، ۱۵-۳۰ روزه، پیشنهادی مالک */}
       {/* ==================================================== */}
       {pricingModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
@@ -702,7 +717,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
             </button>
 
             <h3 className="text-lg font-bold text-amber-400 mb-6 flex items-center gap-2">
-              <Tag className="w-5 h-5"/> ترازوی هوشمند کارشناسی قیمت (CMA)
+              <Calculator className="w-5 h-5"/> ترازوی هوشمند کارشناسی قیمت (CMA)
             </h3>
 
             {pricingLoading ? (
@@ -744,7 +759,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
       )}
 
       {/* ==================================================== */}
-      {/* ⚖️ 🌟 MODAL 2: ترازوی مقایسه‌ای ۳ ستونه رقبا (CMA) */}
+      {/* ⚖️ 🌟 MODAL 2: ارزیابی هوشمند (ترازوی مقایسه‌ای ۳ ستونه رقبا) */}
       {/* ==================================================== */}
       {cmaModalOpen && cmaTargetProp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
@@ -753,14 +768,14 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
               <X className="w-5 h-5"/>
             </button>
 
-            <h3 className="text-xl font-bold text-amber-400 mb-6 flex items-center gap-2">
-              <Calculator className="w-6 h-6"/> ترازوی هوشمند کارشناسی قیمت و ارزیابی رقبا ⚖️
+            <h3 className="text-xl font-bold text-emerald-400 mb-6 flex items-center gap-2">
+              <Sparkles className="w-6 h-6"/> ترازوی هوشمند ارزیابی رقبا و تحلیل بازار ⚖️
             </h3>
 
             {cmaLoading ? (
               <div className="flex flex-col items-center justify-center py-20">
-                <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-sm text-amber-400 font-bold">در حال پردازش تلورانس ۲۰٪ قیمت و مقایسه هوشمند با املاک بازار...</p>
+                <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-sm text-emerald-400 font-bold">در حال پردازش تلورانس ۲۰٪ قیمت و مقایسه هوشمند با املاک بازار...</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -882,7 +897,7 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
       )}
 
       {/* ==================================================== */}
-      {/* 📱 🌟 MODAL 3: کد QR و لینک مستقیم کاتالوگ (با قابلیت کپی) */}
+      {/* 📱 🌟 MODAL 3: کد QR و لینک مستقیم کاتالوگ */}
       {/* ==================================================== */}
       {qrModalOpen && selectedPropForQr && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
@@ -903,7 +918,6 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
               />
             </div>
 
-            {/* 🌟 اینپوت حاوی لینک مستقیم کاتالوگ 🌟 */}
             <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl p-2 mb-6">
               <input 
                 type="text" readOnly value={`http://127.0.0.1:8000/catalog/property/${selectedPropForQr.id}`}
@@ -942,7 +956,6 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
             </div>
 
             <div className="space-y-6">
-              {/* بخش ۱: اطلاعات اصلی */}
               <div className="space-y-4">
                 <h4 className="text-xs font-bold text-emerald-400">۱. اطلاعات اصلی</h4>
                 <div>
@@ -961,7 +974,6 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                 </div>
               </div>
 
-              {/* بخش ۲: مزایا و معایب AI با دکمه کشف اتوماتیک */}
               <div className="space-y-4 pt-4 border-t border-slate-800">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold text-purple-400">۲. مزایا و معایب هوشمند</h4>
@@ -981,7 +993,6 @@ export default function Properties({ setActiveMenu }: { setActiveMenu: (m: strin
                 </div>
               </div>
 
-              {/* بخش ۳: مدیریت گالری و آپلود جدید */}
               <div className="space-y-4 pt-4 border-t border-slate-800">
                 <h4 className="text-xs font-bold text-blue-400">۳. مدیریت گالری عکس و فیلم (MP4)</h4>
                 
