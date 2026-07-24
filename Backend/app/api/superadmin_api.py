@@ -105,12 +105,15 @@ def add_agency(data: AgencyCreateRequest, request: Request, session: Session = D
     try:
         expires_at = datetime.utcnow() + timedelta(days=data.months * 30)
 
+        # 🌟 سقف کل صندلی‌های لایسنس = تعداد مشاوران + ۱ مدیر آژانس
+        total_seats_allowed = data.max_agents + 1
+
         new_agency = Agency(
             name=data.agency_name,
             owner_name=data.owner_name,
             phone=data.phone,
             city=data.city,
-            max_agents_allowed=data.max_agents,
+            max_agents_allowed=total_seats_allowed, # ذخیره سقف کل (مثلاً ۶)
             subscription_expires_at=expires_at,
             subscription_active=True
         )
@@ -128,11 +131,11 @@ def add_agency(data: AgencyCreateRequest, request: Request, session: Session = D
         session.add(agency_admin)
         session.commit()
 
-        return {"status": "success", "message": f"آژانس '{new_agency.name}' با موفقیت راه‌اندازی شد."}
+        return {"status": "success", "message": f"آژانس '{new_agency.name}' با سقف {total_seats_allowed} صندلی (۱ مدیر + {data.max_agents} مشاور) راه‌اندازی شد."}
     except Exception as e:
         session.rollback()
         raise HTTPException(status_code=500, detail=f"خطا در دیتابیس: {str(e)}")
-
+        
 @router.put("/agencies/{agency_id}/extend")
 def extend_agency_license(agency_id: int, data: ExtendLicenseRequest, request: Request, session: Session = Depends(get_session)):
     user = get_current_user_api(request, session)

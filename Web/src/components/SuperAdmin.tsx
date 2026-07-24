@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Building2, ShieldCheck, Plus, RefreshCcw, 
-  Calendar, Power, X, Users, ChevronDown, ChevronUp, Edit, User, Phone, MapPin
+  Calendar, Power, X, Users, ChevronDown, ChevronUp, Edit, User, Phone, MapPin, Crown
 } from 'lucide-react';
 import api from '../services/api';
 import { formatPrice, toJalaliDate } from '../utils/numberFormat';
@@ -125,7 +125,7 @@ export default function SuperAdmin() {
         </button>
       </div>
 
-      {/* لیست آژانس‌ها */}
+      {/* 🌟 لیست آژانس‌ها (با کلاس items-start جهت جلوگیری از کشیده شدن کارت‌های مجاور) 🌟 */}
       {loading ? (
         <div className="flex justify-center py-20">
           <div className="w-10 h-10 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
@@ -133,15 +133,16 @@ export default function SuperAdmin() {
       ) : agencies.length === 0 ? (
         <div className="text-center py-20 text-slate-500 text-sm">هیچ آژانسی در سیستم ثبت نشده است.</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
           {agencies.map((agency) => {
             const isExpanded = expandedAgencyId === agency.id;
+            const remainingAdvisorSeats = Math.max(0, agency.max_agents_allowed - agency.used_seats);
 
             return (
               <div key={agency.id} className={`bg-slate-900 border rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 ${!agency.subscription_active || agency.is_expired ? 'border-rose-500/40 opacity-75' : 'border-slate-800 hover:border-slate-700'}`}>
                 
                 <div>
-                  {/* عنوان آژانس و وضعیت فعال بودن */}
+                  {/* عنوان آژانس و کد */}
                   <div className="flex items-start justify-between mb-4 border-b border-slate-800 pb-4">
                     <div>
                       <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
@@ -173,8 +174,12 @@ export default function SuperAdmin() {
                       ></div>
                     </div>
 
-                    {/* 🌟 نمایش تاریخ شمسی کامل و فارسی 🌟 */}
-                    <div className="flex items-center justify-between text-xs pt-2">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span>ظرفیت باقی‌مانده مشاورین:</span>
+                      <span className="font-bold text-emerald-400">{remainingAdvisorSeats} صندلی خالی</span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-800/60">
                       <span className="text-slate-500 flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-emerald-400"/> سررسید لایسنس:</span>
                       <span className={`font-bold ${agency.is_expired ? 'text-rose-400' : 'text-slate-200'}`}>
                         {toJalaliDate(agency.subscription_expires_at)}
@@ -198,10 +203,15 @@ export default function SuperAdmin() {
                           agency.users.map((u: any) => (
                             <div key={u.id} className="flex items-center justify-between text-[11px] bg-slate-900/60 p-2 rounded-xl border border-slate-800">
                               <div>
-                                <p className="font-bold text-slate-200">{u.full_name}</p>
+                                <p className="font-bold text-slate-200 flex items-center gap-1">
+                                  {u.role_fa?.includes('مدیر') && <Crown className="w-3 h-3 text-amber-400" />}
+                                  {u.full_name}
+                                </p>
                                 <p className="text-slate-500 font-mono nums-fa" dir="ltr">{u.username}</p>
                               </div>
-                              <span className="bg-slate-800 text-emerald-400 px-2 py-0.5 rounded-lg text-[10px] font-bold">{u.role_fa}</span>
+                              <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${u.role_fa?.includes('مدیر') ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-slate-800 text-emerald-400'}`}>
+                                {u.role_fa}
+                              </span>
                             </div>
                           ))
                         ) : (
@@ -214,7 +224,7 @@ export default function SuperAdmin() {
                 </div>
 
                 {/* دکمه‌های تمدید و ویرایش */}
-                <div className="grid grid-cols-2 gap-2 pt-2">
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
                   <button 
                     onClick={() => { setEditingAgency({...agency}); setEditModalOpen(true); }}
                     className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-2xl text-xs transition-all border border-slate-700 flex items-center justify-center gap-1"
@@ -270,7 +280,7 @@ export default function SuperAdmin() {
               </div>
 
               <div className="pt-2 border-t border-slate-800 space-y-2">
-                <label className="block text-xs font-bold text-emerald-400">ظرفیت صندلی مشاوران (Seats):</label>
+                <label className="block text-xs font-bold text-emerald-400">ظرفیت مشاوران (Seats):</label>
                 <div className="grid grid-cols-4 gap-2">
                   {[3, 5, 10, 20].map(seats => (
                     <button 
@@ -303,7 +313,7 @@ export default function SuperAdmin() {
 
               <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
                 <div className="flex justify-between text-xs text-slate-400">
-                  <span>فرمول: ({newAgency.max_agents} مشاور + ۱ مدیر) × ۵۰۰ هزار تومان</span>
+                  <span>فرمول: ({newAgency.max_agents} مشاور + ۱ مدیر = {totalSeats} صندلی) × ۵۰۰ هزار تومان</span>
                   <span className="font-bold text-slate-300 nums-fa">{formatPrice(monthlyPrice)} تومان / ماهانه</span>
                 </div>
                 <div className="flex justify-between items-center border-t border-slate-800/80 pt-2">
@@ -336,7 +346,7 @@ export default function SuperAdmin() {
         </div>
       )}
 
-      {/* ✏️ 🌟 MODAL 2: ویرایش آژانس */}
+      {/* ✏️ MODAL 2: ویرایش آژانس */}
       {editModalOpen && editingAgency && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl animate-fade-in-up">
