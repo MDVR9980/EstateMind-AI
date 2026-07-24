@@ -8,6 +8,7 @@ class UserRole(str, Enum):
     MANAGER = "MANAGER"
     RANGE_MANAGER = "RANGE_MANAGER"
     AGENT = "AGENT"
+    SOLO_AGENT = "SOLO_AGENT"
 
 class FunnelStage(str, Enum):
     LEAD = "لید جدید"
